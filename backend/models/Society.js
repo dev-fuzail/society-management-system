@@ -6,6 +6,8 @@ const societySchema = new mongoose.Schema({
   city: { type: String, required: true },
   contact_email: { type: String },
   total_apartments: { type: Number, default: 0 },
-}, { timestamps: { createdAt: "created_at" } });
+  members: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // all members
+  admins: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],  // admins
+}, { timestamps: true });
 
 export default mongoose.model("Society", societySchema);
