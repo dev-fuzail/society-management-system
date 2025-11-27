@@ -40,7 +40,7 @@ export default function JoinScreen() {
         const verifyInvite = async () => {
             try {
                 const response = await apiVerifyInvite(token);
-                if (response.status) {
+                if (response.success && response.result) {
                     setInvite(response.result.invite);
                 } else {
                     setError(response.message || "Invalid or expired invite token.");
@@ -76,7 +76,7 @@ export default function JoinScreen() {
                 token,
             });
 
-            if (response.status && response.result) {
+            if (response.success) {
                 // Save token + userData
                 await saveAuthData(response.result.token, response.result.user);
 

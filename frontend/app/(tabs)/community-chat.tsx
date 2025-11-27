@@ -43,8 +43,9 @@ const CommunityChat = () => {
             if (!userData) return;
 
             setUser(userData);
+            console.log("Loaded user data:", userData);
 
-            const res = await apiGetUserSocieties(userData._id);
+            const res = await apiGetUserSocieties(userData.id);
             if (res.result) {
                 const selectedSociety = res?.result;
                 setSociety(selectedSociety[0]);
@@ -102,6 +103,7 @@ const CommunityChat = () => {
         if (text.trim() === "" && !attachmentUrl) return;
 
         try {
+            console.log("Sending message:", text.trim(), roomId, user)
             await apiSendMessage({
                 roomId,
                 text: text.trim(),
@@ -172,49 +174,63 @@ const CommunityChat = () => {
 
     /* ---------------- Render Message ---------------- */
     const renderItem = ({ item }: any) => {
-        const isCurrentUser = item.senderId?._id === user?.id;
-        const canDelete = user?.role === 'admin' || isCurrentUser;
-
+        const isCurrentUser = item.senderId?._id === user?.id; // Check if the message is from the logged-in user
+        const sender = item.senderId; // The user object who sent the message
+    
+        // Fallback avatar if none is provided
+        const avatarSource = sender?.avatar
+            ? { uri: sender.avatar }
+            : require("@/assets/images/avatar-placeholder.png");
+    
         return (
             <View
                 style={[
                     styles.messageContainer,
-                    isCurrentUser ? styles.messageRight : styles.messageLeft,
+                    isCurrentUser ? styles.currentUserMessageContainer : styles.otherUserMessageContainer,
                 ]}
             >
-                <Pressable
-                    onLongPress={() => {
-                        setSelectedMessage(item);
-                        setIsMenuVisible(true);
-                    }}
-                >
-                    {item.attachment && (
-                        <Image
-                            source={{ uri: item.attachment }}
-                            style={styles.attachmentImage}
-                        />
+                {!isCurrentUser && (
+                    <Image source={avatarSource} style={styles.avatar} />
+                )}
+    
+                <View style={{ maxWidth: "80%" }}>
+                    {!isCurrentUser && (
+                        <Text style={styles.senderName}>{sender?.name || "Unknown User"}</Text>
                     )}
-
-                    {item.text ? (
-                        <View
-                            style={[
-                                styles.messageBubble,
-                                isCurrentUser ? styles.bubbleRight : styles.bubbleLeft,
-                            ]}
-                        >
-                            <Text style={isCurrentUser ? styles.textRight : styles.textLeft}>
-                                {item.text}
-                            </Text>
-                        </View>
-                    ) : null}
-                </Pressable>
+                    <Pressable
+                        onLongPress={() => {
+                            setSelectedMessage(item);
+                            setIsMenuVisible(true);
+                        }}
+                    >
+                        {item.attachment && (
+                            <Image
+                                source={{ uri: item.attachment }}
+                                style={styles.attachmentImage}
+                            />
+                        )}
+    
+                        {item.text ? (
+                            <View
+                                style={[
+                                    styles.messageBubble,
+                                    isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble,
+                                ]}
+                            >
+                                <Text style={isCurrentUser ? styles.currentUserText : styles.otherUserText}>
+                                    {item.text}
+                                </Text>
+                            </View>
+                        ) : null}
+                    </Pressable>
+                </View>
             </View>
         );
     };
 
     return (
         <KeyboardAvoidingView
-            style={{ flex: 1, backgroundColor: "#ece5dd" }}
+            style={styles.keyboardAvoidingView}
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={100}
         >
@@ -224,7 +240,7 @@ const CommunityChat = () => {
                     keyExtractor={(item) => String(item._id)}
                     style={{ flex: 1, paddingHorizontal: 10 }}
                     renderItem={renderItem}
-                    contentContainerStyle={{ padding: 10 }}
+                    contentContainerStyle={{ paddingVertical: 10 }}
                     inverted
                 />
             ) : (
@@ -293,46 +309,83 @@ const CommunityChat = () => {
 
 /* ---------------- Styles ---------------- */
 const styles = StyleSheet.create({
-    messageContainer: {
-        marginVertical: 5,
-        alignItems: "flex-end",
+    keyboardAvoidingView: {
+        flex: 1,
+        backgroundColor: "#fff", // A clean white background
     },
-    messageLeft: { justifyContent: "flex-start" },
-    messageRight: { justifyContent: "flex-end" },
-    messageBubble: { padding: 10, borderRadius: 15, maxWidth: "70%" },
-    bubbleLeft: { backgroundColor: "#fff", borderTopLeftRadius: 0 },
-    bubbleRight: { backgroundColor: "#dcf8c6", borderTopRightRadius: 0 },
-    textLeft: { color: "#000" },
-    textRight: { color: "#000" },
+    messageContainer: {
+        flexDirection: "row",
+        alignItems: "flex-end",
+        marginVertical: 5,
+        paddingHorizontal: 10,
+    },
+    currentUserMessageContainer: {
+        justifyContent: "flex-end",
+    },
+    otherUserMessageContainer: {
+        justifyContent: "flex-start",
+    },
+    avatar: {
+        width: 35,
+        height: 35,
+        borderRadius: 17.5,
+        marginRight: 10,
+    },
+    senderName: {
+        fontSize: 12,
+        color: "#888",
+        marginLeft: 12,
+        marginBottom: 2,
+    },
+    messageBubble: {
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 20,
+    },
+    currentUserBubble: {
+        backgroundColor: "#4B7BEC", // A nice blue for the current user
+        borderTopRightRadius: 5,
+    },
+    otherUserBubble: {
+        backgroundColor: "#f0f0f0", // A light grey for others
+        borderTopLeftRadius: 5,
+    },
+    currentUserText: {
+        color: "#fff",
+        fontSize: 15,
+    },
+    otherUserText: {
+        color: "#000",
+        fontSize: 15,
+    },
     attachmentImage: {
-        width: 150,
-        height: 150,
-        borderRadius: 8,
+        width: 200,
+        height: 200,
+        borderRadius: 15,
         marginBottom: 5,
     },
     inputContainer: {
         flexDirection: "row",
-        padding: 10,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
         alignItems: "flex-end",
-        backgroundColor: "#f0f0f0",
+        backgroundColor: "#fff",
+        borderTopWidth: 1,
+        borderTopColor: "#eee",
     },
     input: {
         flex: 1,
-        borderRadius: 25,
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        backgroundColor: "#fff",
-        maxHeight: 100,
-    },
-    attachmentBtn: { paddingHorizontal: 8 },
-    sendBtn: {
-        backgroundColor: "#075E54",
-        borderRadius: 25,
-        paddingHorizontal: 15,
+        backgroundColor: "#f0f0f0",
+        borderRadius: 20,
+        paddingHorizontal: 18,
         paddingVertical: 10,
-        marginLeft: 5,
-        justifyContent: "center",
-        alignItems: "center",
+        fontSize: 15,
+        maxHeight: 100,
+        marginHorizontal: 10,
+    },
+    attachmentBtn: { padding: 5 },
+    sendBtn: {
+        padding: 5,
     },
     // Modal Styles
     modalOverlay: {

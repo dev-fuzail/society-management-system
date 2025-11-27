@@ -8,6 +8,7 @@ const societySchema = new mongoose.Schema({
   total_apartments: { type: Number, default: 0 },
   members: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // all members
   admins: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],  // admins
+  status: { type: String, enum: ['active', 'disabled'], default: 'active' }
 }, { timestamps: true });
 
 export default mongoose.model("Society", societySchema);

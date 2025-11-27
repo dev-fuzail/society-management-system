@@ -4,14 +4,58 @@ dotenv.config();
 import cors from "cors";
 import express from "express";
 import connectDB from "./config/db.js";
-// import authRoutes from './routes/authRoutes.js';
 import router from "./routes/index.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import session from "express-session";
+import adminRouter from "./adminRoutes.js";
+
+const APP_SCHEME = "livingsync://";
+const PORT = process.env.PORT || 8001;
 
 const app = express();
 const httpServer = createServer(app);
 
+app.set("view engine", "ejs");
+app.set("views", "./views");
+
+const isAdminAuthenticated = (req, res, next) => {
+  // Check if the session variable is set
+  if (req.session && req.session.isAdmin) {
+    return next();
+  } // If not logged in, redirect to the login page
+  return res.redirect("/admin-login");
+};
+
+// 1. SESSION MIDDLEWARE (Must run before routes that use session)
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "a_strong_fallback_secret_key",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 1000 * 60 * 60 * 24,
+    },
+  })
+);
+
+// 2. BODY PARSERS (Must run before routes that access req.body)
+app.use(express.json()); // To parse application/json (for API calls)
+app.use(express.urlencoded({ extended: true })); // To parse application/x-www-form-urlencoded (for HTML forms)
+
+// 3. CORS
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
+app.options("*", cors()); // Handle preflight OPTIONS
+
+// 4. Socket.IO Attachment Middleware
 const io = new Server(httpServer, {
   cors: {
     origin: "*",
@@ -19,61 +63,66 @@ const io = new Server(httpServer, {
     credentials: true,
   },
 });
-// app.use(
-//   cors({
-//     origin: "*", // open for all during development
-//     methods: ["GET", "POST", "PUT", "DELETE"],
-//   })
-// );
-
-const allowedOrigins = [
-  "http://localhost:8081", // web dev
-  "http://localhost:8082", // backend web port
-  "http://192.168.0.110:8081", // your LAN IP for web
-  "http://192.168.0.110:8082", // backend LAN access
-  "exp://192.168.0.110:19000", // Expo Go mobile
-  // --- FIX: Removed the trailing slash from this URL ---
-  "https://qhc8m3c-anonymous-8081.exp.direct",
-  "https://aeronautically-uncarpentered-dorthey.ngrok-free.dev",
-  // "http://10.142.227.144:8081",
-  "http://192.168.137.13:8081",
-  "http://192.168.137.10:8081",
-];
-
-app.use(
-  cors({
-    // origin: (origin, callback) => {
-    //   // --- DEBUGGING ---
-    //   // Log the incoming origin to see what it is
-    //   console.log(`CORS check: Origin = ${origin}`); // Allow requests with no origin (like mobile apps or curl) // --- END DEBUGGING ---
-    //   if (!origin) return callback(null, true);
-    //   if (allowedOrigins.includes(origin)) {
-    //     console.log(`CORS check: ALLOWED origin = ${origin}`);
-    //     return callback(null, true);
-    //   } else {
-    //     // Log the specific origin that was rejected
-    //     console.error(`CORS check: REJECTED origin = ${origin}`);
-    //     return callback(new Error("Not allowed by CORS"));
-    //   }
-    // },
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true, // if sending cookies or auth headers
-  })
-);
-
-// Handle preflight OPTIONS
-app.options("*", cors());
-
-// Middlewares
-app.use(express.json());
 
 app.use((req, res, next) => {
-  req.io = io;
+  req.io = io; // Attach io instance
   console.log(req.method, req.path);
   next();
 });
+
+const webRouter = express.Router();
+
+webRouter.get("/join", async (req, res) => {
+  const { token } = req.query;
+  if (!token) {
+    return res
+      .status(400)
+      .send("<h1>Error</h1><p>Invitation token is missing.</p>");
+  }
+  try {
+    // ⚠️ Add Token Validation Logic Here ⚠️
+    const deepLinkUrl = `${APP_SCHEME}join?token=${token}`;
+    console.log(`[DEEPLINK]: Redirecting to mobile app: ${deepLinkUrl}`);
+    return res.redirect(302, deepLinkUrl);
+  } catch (error) {
+    const htmlError = `<h1>Link Expired or Invalid</h1><p>Please request a new invitation link.</p>`;
+    return res.status(400).send(htmlError);
+  }
+});
+
+webRouter.get("/reset-password", async (req, res) => {
+  const { token, email } = req.query;
+  if (!token || !email) {
+    return res
+      .status(400)
+      .send("<h1>Error</h1><p>Reset link is incomplete.</p>");
+  }
+  try {
+    // ⚠️ Add Token Validation Logic Here ⚠️
+    const deepLinkUrl = `${APP_SCHEME}reset?token=${token}&email=${email}`;
+    console.log(`[DEEPLINK]: Redirecting to mobile app: ${deepLinkUrl}`);
+    return res.redirect(302, deepLinkUrl);
+  } catch (error) {
+    const htmlError = `<h1>Reset Failed</h1><p>This password reset link is invalid or has expired.</p>`;
+    return res.status(400).send(htmlError);
+  }
+});
+
+// Mount the webRouter on the root path
+app.use("/", webRouter);
+app.use("/", adminRouter);
+
+// Mount the API router
+app.use("/api", router);
+
+// Default server health check
+app.get("/", (req, res) => {
+  res.send("✅ Backend reachable");
+});
+
+// ----------------------------------------------------------------------
+// ---------------------------- SERVER START ----------------------------
+// ----------------------------------------------------------------------
 
 io.on("connection", (socket) => {
   console.log(`[SOCKET]: User connected: ${socket.id}`);
@@ -88,17 +137,9 @@ io.on("connection", (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 8001;
-
-app.get("/", (req, res) => {
-  res.send("✅ Backend reachable");
-});
-
-app.use("/api", router);
-
 const startServer = async () => {
   try {
-    await connectDB(); // Wait for Mongo connection first // // Only then mount routes // app.use("/api", router); // This is correct as your frontend API URL includes /api // Finally start the server
+    await connectDB();
 
     httpServer.listen(PORT, "0.0.0.0", () => {
       console.log(`✅ Socket.IO running on port ${PORT}`);

@@ -151,8 +151,7 @@ export const generateInviteLink = async (req, res) => {
     await invite.save();
 
     // Replace with your frontend URL
-    // const link = `${process.env.FRONTEND_URL}/join?token=${token}`;
-    const link = `societymanagementsystem://join?token=${token}`;
+    const link = `${process.env.FRONTEND_URL}/join?token=${token}`;
     console.log("link----->: ", link, "<>----", process.env.FRONTEND_URL);
 
     res.status(200).json({
@@ -276,10 +275,12 @@ export const verifyInvite = async (req, res) => {
 export const registerFromInvite = async (req, res) => {
   console.log("request received in register from invite", req.body);
   try {
-    const { name, password, phone, token, email } = req.body.data;
+    const { name, password, phone, token, email } = req.body;
 
     // Check invite
-    const invite = await SocietyInvite.findOne({ token, status: "pending" });
+    const invite = await SocietyInvite.findOne({ token });
+    console.log('invite: ', invite);
+
     if (!invite) {
       return res
         .status(400)

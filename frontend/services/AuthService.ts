@@ -37,7 +37,7 @@ export const apiSendEmailInvite = async (email: string): Promise<ResponseObject<
 };
 
 export const apiRegisterFromInvite = async (data: RegisterData): Promise<ResponseObject<RegResponse>> => {
-  return await apiService.request<RegResponse>('post', '/api/auth/register-from-invite', { data });
+  return await apiService.request<RegResponse>('post', '/api/auth/register-from-invite', data);
 };
 
 export const apiUpdateProfile = async (data: LoginData): Promise<ResponseObject<UserDataObject>> => {
