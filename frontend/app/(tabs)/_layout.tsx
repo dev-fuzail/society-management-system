@@ -199,6 +199,27 @@ export default function TabLayout() {
           }}
         />
 
+        {/* Apartments Screen */}
+        <Tabs.Screen
+          name="apartments"
+          options={{
+            title: "My Apartments",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="business-outline" color={color} size={size} />
+            ),
+            headerShown: true,
+          }}
+        />
+
+        {/* Hidden screen, but part of the layout */}
+        <Tabs.Screen
+          name="apartment-form"
+          options={{
+            title: "Apartment Form",
+            href: null, // This hides the screen from the tab bar
+          }}
+        />
+
         {/* Right - Invite Members */}
         <Tabs.Screen
           name="invite"
