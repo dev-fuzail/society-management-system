@@ -1,24 +1,32 @@
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "secret123";
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ status: false, message: 'Access denied. No token provided.' });
+    return res.status(401).json({ success: false, message: 'Not authorized, no token provided.' });
   }
 
   const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; // Adds the user payload (e.g., { id, role }) to the request object
+    
+    // Fetch the full user object from DB and attach it to the request
+    req.user = await User.findById(decoded.id).select('-password');
+
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Not authorized, user not found.' });
+    }
+
     next();
   } catch (error) {
-    res.status(401).json({ status: false, message: 'Invalid token.' });
+    res.status(401).json({ success: false, message: 'Not authorized, token failed.' });
   }
 };
 

@@ -2,7 +2,7 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { getAuthData } from "@/hooks/helperHooks";
-import { apiDeleteApartment, apiGetMyApartments, apiVerifyApartment } from "@/services/ApartmentService";
+import { apiDeleteApartment, apiGetMyApartments, apiGetSocietyApartmentsForAdmin, apiVerifyApartment } from "@/services/ApartmentService";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import React, { useState } from "react";
@@ -17,7 +17,7 @@ import {
 } from "react-native";
 
 export default function ApartmentsScreen() {
-  const router = useRouter(); 
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const [apartments, setApartments] = useState<any[]>([]);
@@ -29,7 +29,13 @@ export default function ApartmentsScreen() {
       setLoading(true);
       const { userData } = await getAuthData();
       setUser(userData);
-      const res = await apiGetMyApartments();
+
+      // Fetch data based on user role
+      const res =
+        userData?.role === "admin"
+          ? await apiGetSocietyApartmentsForAdmin()
+          : await apiGetMyApartments();
+
       if (res.success) {
         setApartments(res.result);
       } else {
@@ -77,7 +83,7 @@ export default function ApartmentsScreen() {
       if (res.success) {
         Alert.alert("Success", `Apartment has been ${status}.`);
         // Update the status locally
-        setApartments(apartments.map(apt => 
+        setApartments(apartments.map(apt =>
           apt._id === id ? { ...apt, status } : apt
         ));
       } else {
@@ -98,47 +104,61 @@ export default function ApartmentsScreen() {
 
   const navigateToEdit = (item: any) => {
     router.push({
-      pathname: "/apartment-form", 
-      params: { 
-        id: item._id, 
-        apartment_name: item.apartment_name, 
+      pathname: "/apartment-form",
+      params: {
+        id: item._id,
+        apartment_name: item.apartment_name,
         floor: item.floor ? String(item.floor) : '',
       }
     });
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}> 
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <FlatList
         data={apartments}
         keyExtractor={(item) => item._id}
         renderItem={({ item }) => (
-          <View style={[styles.card, { backgroundColor: styles.card.backgroundColor }]}> 
+          <View style={[styles.card, { backgroundColor: styles.card.backgroundColor }]}>
             <View>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>{item.apartment_name}</Text> 
+              <Text style={[styles.cardTitle, { color: theme.text }]}>{item.apartment_name}</Text>
+              {user?.role === 'admin' && item.owned_by && (
+                <Text style={styles.ownerText}>Owner: {item.owned_by.name}</Text>
+              )}
               <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
                 <Text style={styles.statusText}>{item.status}</Text>
               </View>
-              <Text style={styles.cardSubtitle}>Floor: {item.floor || 'N/A'}</Text> 
+              <Text style={styles.cardSubtitle}>Floor: {item.floor || 'N/A'}</Text>
             </View>
             <View style={styles.actions}>
-              <TouchableOpacity onPress={() => navigateToEdit(item)}>
-                <Ionicons name="pencil-outline" size={24} color={theme.tint} /> 
+              {/* Admin verification buttons */}
+              {user?.role === 'admin' && item.status === 'pending' && (
+                <>
+                  <TouchableOpacity onPress={() => handleVerify(item._id, 'verified')} style={styles.actionButton}>
+                    <Ionicons name="checkmark-circle-outline" size={26} color="green" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleVerify(item._id, 'rejected')} style={styles.actionButton}>
+                    <Ionicons name="close-circle-outline" size={26} color="red" />
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity onPress={() => navigateToEdit(item)} style={styles.actionButton}>
+                <Ionicons name="pencil-outline" size={24} color={theme.tint} />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleDelete(item._id)}>
-                <Ionicons name="trash-outline" size={24} color={styles.trashIcon.color} /> 
+                <Ionicons name="trash-outline" size={24} color={styles.trashIcon.color} />
               </TouchableOpacity>
             </View>
           </View>
         )}
         ListHeaderComponent={
-            <View style={styles.header}>
-              <Text style={[styles.title, { color: theme.text }]}>My Apartments</Text> 
-              <PrimaryButton title="Add New Apartment" onPress={() => router.push('/apartment-form')} />
-            </View>
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: theme.text }]}>My Apartments</Text>
+            <PrimaryButton title="Add New Apartment" onPress={() => router.push('/apartment-form')} />
+          </View>
         }
         ListEmptyComponent={
-          <Text style={styles.emptyText}>You haven't added any apartments yet.</Text> 
+          <Text style={styles.emptyText}>You haven't added any apartments yet.</Text>
         }
         contentContainerStyle={{ padding: 20 }}
       />
@@ -200,7 +220,7 @@ const styles = StyleSheet.create({
     color: '#888',
   },
   trashIcon: {
-      color: "#ff3b30"
+    color: "#ff3b30"
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -214,4 +234,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  ownerText: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  actionButton: {
+    padding: 4, // Add padding to make icons easier to press
+  }
 });

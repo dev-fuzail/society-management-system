@@ -44,7 +44,7 @@ const CommunityChat = () => {
 
             setUser(userData);
 
-            const res = await apiGetUserSocieties(userData.id);
+            const res = await apiGetUserSocieties(userData._id);
             if (res.result) {
                 const selectedSociety = res?.result;
                 setSociety(selectedSociety[0]);

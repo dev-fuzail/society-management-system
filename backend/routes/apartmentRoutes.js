@@ -5,12 +5,14 @@ import {
     getApartmentsByUser,
     updateApartment,
     deleteApartment,
-    verifyApartment
+    verifyApartment,
+    getSocietyApartmentsForAdmin
 } from '../controllers/apartmentController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+router.get('/for-admin', authMiddleware, getSocietyApartmentsForAdmin);
 router.post('/', authMiddleware, createApartment);
 router.get('/my-apartments', authMiddleware, getApartmentsByUser);
 router.get('/', getApartmentsBySociety);

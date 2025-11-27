@@ -6,12 +6,9 @@ import chatRoutes from './chatRoutes.js';
 
 const router = express.Router();
 
-const apiRouter = express.Router();
-apiRouter.use('/auth', authRoutes);
-apiRouter.use('/societies', societyRoutes);
-apiRouter.use('/apartments', apartmentRoutes);
-apiRouter.use("/chat", chatRoutes);
-
-router.use('/api', apiRouter);
+router.use('/auth', authRoutes);
+router.use('/societies', societyRoutes);
+router.use('/apartments', apartmentRoutes);
+router.use("/chat", chatRoutes);
 
 export default router;

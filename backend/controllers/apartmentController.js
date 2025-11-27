@@ -1,15 +1,13 @@
 import Apartment from "../models/Apartment.js";
-import User from "../models/User.js";
 
 export const createApartment = async (req, res) => {
+  console.log("Create Apartment Request Body:", req.body);
   try {
     const { apartment_name, floor, block } = req.body;
-    const user = await User.findById(req.user.id); // Assuming auth middleware provides req.user
-
     const apartment = new Apartment({
-      society_id: user.society_id,
+      society_id: req.user.society_id,
       apartment_name,
-      owned_by: user._id,
+      owned_by: req.user._id,
       floor,
       block,
     });
@@ -22,6 +20,7 @@ export const createApartment = async (req, res) => {
 };
 
 export const getApartmentsByUser = async (req, res) => {
+  console.log("Get Apartments By User ID:", req.user.id);
   try {
     const apartments = await Apartment.find({ owned_by: req.user.id });
     res.status(200).json({ success: true, message: "User apartments fetched successfully.", result: apartments });
@@ -91,6 +90,22 @@ export const verifyApartment = async (req, res) => {
 
     const apartment = await Apartment.findByIdAndUpdate(id, { status }, { new: true });
     res.status(200).json({ success: true, message: `Apartment status updated to ${status}.`, result: apartment });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getSocietyApartmentsForAdmin = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: "Access denied. Admins only." });
+    }
+
+    const apartments = await Apartment.find({ society_id: req.user.society_id })
+      .populate('owned_by', 'name email')
+      .sort({ created_at: -1 });
+
+    res.status(200).json({ success: true, message: "Society apartments fetched for admin.", result: apartments });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
