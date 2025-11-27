@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiLogin } from '../services/AuthService';
+import { saveAuthData } from '@/hooks/helperHooks';
+import { PrimaryButton } from '@/components/PrimaryButton';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -53,32 +55,32 @@ export default function LoginScreen() {
   }
 
   // ✅ 2. Handle login logic
-//   const handleLogin = async () => {
-//     if (!email || !password) {
-//       Alert.alert('Missing Info', 'Please enter both email and password.');
-//       return;
-//     }
+  //   const handleLogin = async () => {
+  //     if (!email || !password) {
+  //       Alert.alert('Missing Info', 'Please enter both email and password.');
+  //       return;
+  //     }
 
-//     try {
-//       setLoading(true);
-//       const response = await apiLogin({ email, password });
-// console.log("resp: ",response);
-//       if (response.status) {
-//         // ✅ Save token to AsyncStorage
-//         await AsyncStorage.setItem('token', response.result.token);
-//         await AsyncStorage.setItem('userData', JSON.stringify(response.result.user));
+  //     try {
+  //       setLoading(true);
+  //       const response = await apiLogin({ email, password });
+  // console.log("resp: ",response);
+  //       if (response.status) {
+  //         // ✅ Save token to AsyncStorage
+  //         await AsyncStorage.setItem('token', response.result.token);
+  //         await AsyncStorage.setItem('userData', JSON.stringify(response.result.user));
 
-//         Alert.alert('Welcome', `Logged in as ${response.result.user.name}`);
-//         router.replace('/(tabs)'); // ✅ Redirect to main tabs
-//       } else {
-//         Alert.alert('Error', response.message || 'Invalid credentials');
-//       }
-//     } catch (error) {
-//       Alert.alert('Error', 'An unexpected error occurred.');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
+  //         Alert.alert('Welcome', `Logged in as ${response.result.user.name}`);
+  //         router.replace('/(tabs)'); // ✅ Redirect to main tabs
+  //       } else {
+  //         Alert.alert('Error', response.message || 'Invalid credentials');
+  //       }
+  //     } catch (error) {
+  //       Alert.alert('Error', 'An unexpected error occurred.');
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -89,8 +91,12 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       const response = await apiLogin({ email, password });
-      console.log("Login Response:", response.status);
-      if (response.status) {
+      console.log("Login Response:", response);
+
+      if (response.status && response.result) {
+        // Save token + userData
+        await saveAuthData(response.result.token, response.result.user);
+
         Alert.alert(
           'Welcome',
           `Logged in as ${response.result.user.name}`,
@@ -106,6 +112,7 @@ export default function LoginScreen() {
     }
   };
 
+
   const dynamicStyles = getStyles(isDark);
 
   // ✅ 3. Render Login Form
@@ -120,7 +127,7 @@ export default function LoginScreen() {
         />
 
         <Text style={dynamicStyles.title}>Welcome Back 👋</Text>
-        <Text style={dynamicStyles.subtitle}>Login to continue</Text>
+        <Text style={dynamicStyles.subtitle}>Login to cacjhas continue</Text>
 
         <View style={dynamicStyles.form}>
           <Text style={dynamicStyles.label}>Email</Text>
@@ -144,6 +151,8 @@ export default function LoginScreen() {
             secureTextEntry
           />
 
+          <PrimaryButton title={loading ? "Logging in..." : "Login"} onPress={handleLogin} disabled={loading} />
+{/* 
           <TouchableOpacity
             style={dynamicStyles.loginButton}
             onPress={handleLogin}
@@ -154,7 +163,7 @@ export default function LoginScreen() {
             ) : (
               <Text style={dynamicStyles.loginButtonText}>Login</Text>
             )}
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity onPress={() => router.push('/register')}>
             <Text style={dynamicStyles.registerLink}>

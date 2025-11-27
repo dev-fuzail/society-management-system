@@ -1,5 +1,6 @@
 export interface ResponseObject<T> {
   status: boolean;
+  success?: boolean;
   message: string;
   result: T;
 }
@@ -57,4 +58,19 @@ export interface InviteData {
 export interface RegResponse {
   user: UserData;
   token: string;
+}
+
+export interface ForgetPasswordResponse {
+  email: string;
+  resetUrl: string
+}
+
+export interface Society {
+  _id: string,
+  name: string,
+  address: string,
+  city: string,
+  total_apartments: number,
+  members: UserData[],
+  admins: UserData[],
 }

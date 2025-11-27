@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import { apiRegisterFromInvite, apiVerifyInvite } from "../services/AuthService";
 import { InviteData } from "../services/types";
+import { saveAuthData } from "@/hooks/helperHooks";
+import { PrimaryButton } from "@/components/PrimaryButton";
 
 export default function JoinScreen() {
     const router = useRouter();
@@ -34,7 +36,7 @@ export default function JoinScreen() {
             setLoading(false);
             return;
         }
-
+        console.log("Verifying invite with token:", token);
         const verifyInvite = async () => {
             try {
                 const response = await apiVerifyInvite(token);
@@ -56,7 +58,7 @@ export default function JoinScreen() {
         verifyInvite();
     }, [token]);
 
-    const handleRegister = async () => {
+    const handleJoin = async () => {
         if (!name || !password || !phone || !invite) {
             Alert.alert("Missing Information", "Please fill in all fields.");
             return;
@@ -74,7 +76,10 @@ export default function JoinScreen() {
                 token,
             });
 
-            if (response.status) {
+            if (response.status && response.result) {
+                // Save token + userData
+                await saveAuthData(response.result.token, response.result.user);
+
                 Alert.alert("Success", "You have successfully joined the society!", [
                     { text: "OK", onPress: () => router.replace("/login") },
                 ]);
@@ -167,13 +172,14 @@ export default function JoinScreen() {
                 />
             </View>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
                 style={[styles.button, submitting && styles.buttonDisabled]}
-                onPress={handleRegister}
+                onPress={handleJoin}
                 disabled={submitting}
             >
                 {submitting ? <ActivityIndicator color="#000" /> : <Text style={styles.buttonText}>Create Account</Text>}
-            </TouchableOpacity>
+            </TouchableOpacity> */}
+            <PrimaryButton title={submitting ? "Submitting..." : "Submit"} onPress={handleJoin} disabled={submitting} />
         </ScrollView>
     );
 }

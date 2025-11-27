@@ -1,5 +1,6 @@
 import apiService from './ApiService';
 import {
+  ForgetPasswordResponse,
   InviteData,
   LoginData,
   RegisterData,
@@ -35,18 +36,18 @@ export const apiSendEmailInvite = async (email: string): Promise<ResponseObject<
   return await apiService.request<null>('post', '/api/auth/send-email', { email });
 };
 
-export const apiRegisterFromInvite = async (data: RegisterData): Promise<ResponseObject<null>> => {
-  return await apiService.request<null>('post', '/api/auth/register-from-invite', { data });
+export const apiRegisterFromInvite = async (data: RegisterData): Promise<ResponseObject<RegResponse>> => {
+  return await apiService.request<RegResponse>('post', '/api/auth/register-from-invite', { data });
 };
 
 export const apiUpdateProfile = async (data: LoginData): Promise<ResponseObject<UserDataObject>> => {
-  return await apiService.request<UserDataObject>('post', '/api/auth/update-profile', { data });
+  return await apiService.request<UserDataObject>('put', '/api/auth/update-profile', { data });
 };
 
 export const apiResetPassword = async (email: string, token: string, newPassword: string) => {
   return await apiService.request<null>('post', '/api/auth/reset-password', { email, token, newPassword});
 };
 
-export const apiForgetPassword = async (email: string): Promise<ResponseObject<null>> => {
-  return await apiService.request<null>('post', '/api/auth/forget-password', { email });
+export const apiForgetPassword = async (email: string): Promise<ResponseObject<ForgetPasswordResponse>> => {
+  return await apiService.request<ForgetPasswordResponse>('post', '/api/auth/forgot-password', { email });
 };

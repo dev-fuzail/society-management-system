@@ -1,5 +1,5 @@
-import { Tabs, router } from 'expo-router';
-import React, { useState } from 'react';
+import { Tabs, router } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   TouchableOpacity,
   Image,
@@ -8,22 +8,53 @@ import {
   View,
   Text,
   Pressable,
-} from 'react-native';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Ionicons } from '@expo/vector-icons';
+  Platform,
+  Alert,
+} from "react-native";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { HapticTab } from "@/components/haptic-tab";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { UserData } from "@/services/types";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
+  const theme = Colors[colorScheme ?? "light"];
   const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<UserData | null>(null);
 
   const handleMenuNavigate = (path: string) => {
     setIsMenuVisible(false);
-    router.push(path);
+    router.push(`/${path.replace(/^\//, "")}`);
   };
+
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        let userDataString;
+        if (Platform.OS === "web") {
+          userDataString = localStorage.getItem("userData");
+        } else {
+          userDataString = await AsyncStorage.getItem("userData");
+        }
+
+        if (userDataString) {
+          const userData = JSON.parse(userDataString);
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error("Failed to load user data", error);
+        Alert.alert("Error", "Could not load profile data.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUserData();
+  }, []);
 
   return (
     <>
@@ -46,7 +77,7 @@ export default function TabLayout() {
           >
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => handleMenuNavigate('/profile')}
+              onPress={() => handleMenuNavigate("/profile")}
             >
               <Ionicons
                 name="person-outline"
@@ -58,10 +89,34 @@ export default function TabLayout() {
                 Profile Management
               </Text>
             </TouchableOpacity>
+
             <View style={[styles.separator, { backgroundColor: theme.icon }]} />
+
+            {user?.role === "admin" && (
+              <>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuNavigate("/society-update")}
+                >
+                  <Ionicons
+                    name="business-outline"
+                    size={20}
+                    color={theme.text}
+                    style={styles.menuIcon}
+                  />
+                  <Text style={[styles.menuText, { color: theme.text }]}>
+                    Society Update
+                  </Text>
+                </TouchableOpacity>
+                <View
+                  style={[styles.separator, { backgroundColor: theme.icon }]}
+                />
+              </>
+            )}
+
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => handleMenuNavigate('/forgot-password')}
+              onPress={() => handleMenuNavigate("/forgot-password")}
             >
               <Ionicons
                 name="lock-closed-outline"
@@ -77,6 +132,7 @@ export default function TabLayout() {
         </Pressable>
       </Modal>
 
+      {/* Bottom Tabs */}
       <Tabs
         screenOptions={({ route }) => ({
           headerShown: true,
@@ -86,13 +142,13 @@ export default function TabLayout() {
             shadowOpacity: 0,
           },
           title:
-            route.name === 'index'
-              ? 'Dashboard'
+            route.name === "index"
+              ? "Dashboard"
               : route.name.charAt(0).toUpperCase() + route.name.slice(1),
-          headerTitleAlign: 'left',
+          headerTitleAlign: "left",
           headerLeft: () => (
             <Image
-              source={require('@/assets/images/icon.png')}
+              source={require("@/assets/images/icon.png")}
               style={{ width: 32, height: 32, marginHorizontal: 16 }}
               resizeMode="contain"
             />
@@ -100,7 +156,7 @@ export default function TabLayout() {
           headerRight: () => (
             <TouchableOpacity
               style={{ marginRight: 16 }}
-              onPress={() => setIsMenuVisible(true)} // Open the modal
+              onPress={() => setIsMenuVisible(true)}
             >
               <Ionicons
                 name="person-circle-outline"
@@ -110,55 +166,44 @@ export default function TabLayout() {
             </TouchableOpacity>
           ),
           tabBarActiveTintColor: theme.tint,
+          tabBarShowLabel: false,
+          tabBarStyle: {
+            backgroundColor: theme.background,
+            height: 70,
+            borderTopWidth: 0.5,
+            borderColor: theme.icon,
+          },
           tabBarButton: HapticTab,
         })}
       >
-        {/* Your existing tabs */}
+        {/* Left - Home */}
         <Tabs.Screen
           name="index"
           options={{
-            tabBarIcon: ({ color }) => (
-              <IconSymbol name="house.fill" size={28} color={color} />
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="home-outline" size={28} color={color} />
             ),
           }}
         />
+
+        {/* Center - Community Chat */}
         <Tabs.Screen
-          name="explore"
+          name="community-chat"
           options={{
             tabBarIcon: ({ color }) => (
-              <IconSymbol name="paperplane.fill" size={28} color={color} />
+              // <View style={styles.centerTab}>
+                <Ionicons name="chatbubbles-outline" size={28} color={color} />
+              // </View>
             ),
+            title: "Community Chat",
           }}
         />
-        <Tabs.Screen
-          name="reels"
-          options={{
-            tabBarIcon: ({ color }) => (
-              <IconSymbol name="play.rectangle.fill" size={28} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="shop"
-          options={{
-            tabBarIcon: ({ color }) => (
-              <IconSymbol name="bag.fill" size={28} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            tabBarIcon: ({ color }) => (
-              <IconSymbol name="person.fill" size={28} color={color} />
-            ),
-          }}
-        />
-        {/* The new invite tab you added */}
+
+        {/* Right - Invite Members */}
         <Tabs.Screen
           name="invite"
           options={{
-            title: 'Invite Members',
+            title: "Invite Members",
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="person-add-outline" color={color} size={size} />
             ),
@@ -173,26 +218,24 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: "rgba(0,0,0,0.2)",
   },
   menuContainer: {
-    position: 'absolute',
-    top: 50, // Adjust as needed, approx height of header
+    position: "absolute",
+    top: 50,
     right: 16,
     width: 240,
     borderWidth: 1,
     borderRadius: 8,
-    // Shadow for iOS
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    // Shadow for Android
     elevation: 5,
   },
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
@@ -204,6 +247,13 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    width: '100%',
+    width: "100%",
+  },
+  centerTab: {
+    backgroundColor: "#4a90e2",
+    padding: 12,
+    borderRadius: 50,
+    marginBottom: 25,
+    elevation: 5,
   },
 });

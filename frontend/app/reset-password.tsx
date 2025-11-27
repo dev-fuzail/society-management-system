@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { apiResetPassword } from "@/services/AuthService";
+import { PrimaryButton } from "@/components/PrimaryButton";
 
 export default function ResetPasswordScreen() {
   const { token, email } = useLocalSearchParams<{ token: string; email: string }>();
@@ -58,13 +59,14 @@ export default function ResetPasswordScreen() {
         onChangeText={setConfirm}
       />
 
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={[styles.button, loading && { opacity: 0.6 }]}
         disabled={loading}
         onPress={handleReset}
       >
         <Text style={styles.buttonText}>{loading ? "Resetting..." : "Reset Password"}</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
+    <PrimaryButton title={loading ? "Resetting..." : "Reset Password"} onPress={handleReset} disabled={loading} />
     </View>
   );
 }

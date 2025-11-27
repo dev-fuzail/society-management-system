@@ -14,6 +14,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiRegister } from '../services/AuthService';
 import { Image } from 'expo-image';
+import { saveAuthData } from '@/hooks/helperHooks';
+import { PrimaryButton } from '@/components/PrimaryButton';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -48,10 +50,9 @@ export default function RegisterScreen() {
         society_city: societyCity,
       });
 
-      if (response.status) {
-        // Save token to AsyncStorage
-        await AsyncStorage.setItem('token', response.result.token);
-        await AsyncStorage.setItem('userData', JSON.stringify(response.result.user));
+      if (response.status && response.result) {
+        // Save token + userData
+        await saveAuthData(response.result.token, response.result.user);
 
         Alert.alert('Success', 'Registration successful!', [
           { text: 'OK', onPress: () => router.replace('/') },
@@ -97,14 +98,15 @@ export default function RegisterScreen() {
         <TextInput style={styles.input} placeholder="City" value={societyCity} onChangeText={setSocietyCity} placeholderTextColor={isDark ? '#aaa' : '#666'} />
       </View>
 
+      <PrimaryButton title={loading ? "Registering..." : "Register"} onPress={handleRegister} disabled={loading} />
       {/* Register Button */}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={[styles.button, loading && styles.buttonDisabled]}
         onPress={handleRegister}
         disabled={loading}
       >
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Register Society</Text>}
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       {/* Login Link */}
       <Text style={styles.link} onPress={() => router.push('/login')}>

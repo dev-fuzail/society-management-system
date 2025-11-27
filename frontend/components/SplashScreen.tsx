@@ -11,7 +11,7 @@ export default function CustomSplash() {
         // Fade in the content
         Animated.timing(fadeAnim, {
             toValue: 1,
-            duration: 1500,
+            duration: 1000,
             useNativeDriver: true,
         }).start();
 
@@ -20,7 +20,7 @@ export default function CustomSplash() {
             await SplashScreen.hideAsync();
             // Example: navigate to home after splash
             // navigation.replace("(tabs)" or "home");
-        }, 3000);
+        }, 2500);
 
         return () => clearTimeout(timer);
     }, []);

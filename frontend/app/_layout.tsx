@@ -27,7 +27,7 @@ export default function RootLayout() {
     const timer = setTimeout(async () => {
       setSplashVisible(false);
       await SplashScreen.hideAsync();
-    }, 3300); // splash duration
+    }, 2300); // splash duration
 
     return () => clearTimeout(timer);
   }, []);
@@ -48,7 +48,12 @@ export default function RootLayout() {
             <Stack.Screen name="join" />
           </>
         ) : (
-          <Stack.Screen name="(tabs)" />
+          <>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="profile" />
+            <Stack.Screen name="society-update" />
+            <Stack.Screen name="forgot-password" />
+          </>
         )}
       </Stack>
       <StatusBar style="auto" />
