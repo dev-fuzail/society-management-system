@@ -93,7 +93,7 @@ export default function LoginScreen() {
       const response = await apiLogin({ email, password });
       console.log("Login Response:", response);
 
-      if (response.status && response.result) {
+      if (response.success && response.result) {
         // Save token + userData
         await saveAuthData(response.result.token, response.result.user);
 

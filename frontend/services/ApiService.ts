@@ -86,7 +86,7 @@ class ApiService {
   //   }
   // }
   public async request<T>(
-    method: 'get' | 'post' | 'put' | 'delete',
+    method: 'get' | 'post' | 'put' | 'delete' | 'patch',
     url: string,
     data?: any,
     config?: any // <-- ✅ allow extra config (headers, etc.)

@@ -75,6 +75,16 @@ export default function HomeScreen() {
         <Ionicons name="chevron-forward" size={24} color={'#000'} />
       </TouchableOpacity>
 
+      {/* Apartment Management Card */}
+      <TouchableOpacity style={styles.apartmentCard} onPress={() => router.push('/apartments')}>
+        <Ionicons name="business-outline" size={32} color={'#fff'} />
+        <View style={styles.inviteCardTextContainer}>
+          <Text style={styles.inviteCardTitle}>My Apartments</Text>
+          <Text style={styles.inviteCardDescription}>View and manage your apartments.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color={'#fff'} />
+      </TouchableOpacity>
+
       {/* Noticeboard */}
       <View style={styles.noticeBoard}>
         <Text style={styles.noticeBoardTitle}>📌 Notices</Text>
@@ -207,4 +217,16 @@ const styles = StyleSheet.create({
   inviteCardTextContainer: { flex: 1, marginLeft: 16 },
   inviteCardTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
   inviteCardDescription: { fontSize: 14, color: '#e0e7ff', marginTop: 4 },
+  apartmentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#075E54', // A different color to distinguish
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4
+  },
 });
