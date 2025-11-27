@@ -1,7 +1,8 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
 # dependencies
-node_modules/
+frontend/node_modules/
+backend/node_modules/
 
 # Expo
 .expo/
@@ -41,13 +42,3 @@ app-example
 # generated native folders
 /ios
 /android
-backend/.env
-expo-env.d.ts
-.env
-
-frontend/.env
-frontend/expo-env.d.ts
-frontend/.expo
-frontend/.vscode
-frontend/node_modules
-backend/node_modules
