@@ -4,7 +4,7 @@ import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UpdateUser } from '@/services/types';
 import { apiUpdateProfile } from '@/services/AuthService';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -14,10 +14,8 @@ export default function ProfileScreen() {
     const theme = Colors[colorScheme ?? 'light'];
 
     const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [phoneNumber, setPhoneNumber] = useState(''); // Add phone number state
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
+    const [email, setEmail] = useState(''); // Email is not editable
+    const [phoneNumber, setPhoneNumber] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false); // For save loading
 
@@ -51,40 +49,32 @@ export default function ProfileScreen() {
 
 
     const handleSave = async () => {
-        // Password validations
-        if ((password || confirmPassword) && password !== confirmPassword) {
-            Alert.alert("Error", "Passwords do not match. Please re-enter.");
-            return;
-        }
-        if ((password || confirmPassword) && password.length < 6) {
-            Alert.alert("Error", "Password must be at least 6 characters long.");
-            return;
-        }
-
         setIsSubmitting(true);
 
         try {
-            const profileData: UpdateUser = { name, email, phone: phoneNumber };
-            if (password) profileData.password = password;
-
-            console.log("Profile Data:", profileData);
+            // The backend endpoint for profile update doesn't handle password changes.
+            // We only send name and phone.
+            const profileData: UpdateUser = { name, phone: phoneNumber };
 
             const response = await apiUpdateProfile(profileData);
 
-            if (response.status && response.result) {
-                // Save user data in storage depending on platform
-                const dataString = JSON.stringify(response.result);
+            if (response.success && response.result?.user) {
+                const updatedUser = response.result.user;
+
+                // Update state to reflect changes instantly
+                setName(updatedUser.name);
+                setPhoneNumber(updatedUser.phone);
+
+                // Save updated user data back to storage
+                const dataString = JSON.stringify(updatedUser);
                 if (Platform.OS === "web") {
                     localStorage.setItem("userData", dataString);
                 } else {
                     await AsyncStorage.setItem("userData", dataString);
                 }
 
-                Alert.alert("Success", "Profile updated successfully");
+                Alert.alert("Success", "Profile updated successfully!");
 
-                // Clear password fields
-                setPassword("");
-                setConfirmPassword("");
             } else {
                 throw new Error(response.message || "Failed to update profile");
             }
@@ -103,8 +93,13 @@ export default function ProfileScreen() {
                 text: 'Logout',
                 style: 'destructive',
                 onPress: async () => {
-                    await AsyncStorage.removeItem('token');
-                    await AsyncStorage.removeItem('userData'); // Also clear user data
+                    if (Platform.OS === 'web') {
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('userData');
+                    } else {
+                        await AsyncStorage.removeItem('token');
+                        await AsyncStorage.removeItem('userData');
+                    }
                     router.replace('/login');
                 },
             },
@@ -141,50 +136,21 @@ export default function ProfileScreen() {
                     <TextInput
                         style={[styles.input, { color: theme.text, borderColor: theme.icon, backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}
                         value={email}
-                        onChangeText={setEmail}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
+                        editable={false} // Email should not be editable
                         placeholderTextColor="#999"
                     />
 
-                    <Text style={[styles.label, { color: theme.text }]}>Phone Number (optional)</Text>
+                    <Text style={[styles.label, { color: theme.text }]}>Phone Number</Text>
                     <TextInput
                         style={[styles.input, { color: theme.text, borderColor: theme.icon, backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}
                         value={phoneNumber}
                         onChangeText={setPhoneNumber}
                         keyboardType="phone-pad"
-                        placeholder="Enter phone number"
-                        placeholderTextColor="#999"
-                    />
-
-                    <Text style={[styles.label, { color: theme.text }]}>New Password (optional)</Text>
-                    <TextInput
-                        style={[styles.input, { color: theme.text, borderColor: theme.icon, backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        placeholder="Enter new password"
-                        placeholderTextColor="#999"
-                    />
-
-                    <Text style={[styles.label, { color: theme.text }]}>Confirm New Password</Text>
-                    <TextInput
-                        style={[styles.input, { color: theme.text, borderColor: theme.icon, backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        secureTextEntry
-                        placeholder="Confirm new password"
+                        placeholder="Enter your phone number"
                         placeholderTextColor="#999"
                     />
                 </View>
 
-                {/* <TouchableOpacity
-                    style={[styles.button, { backgroundColor: theme.tint, opacity: isSubmitting ? 0.7 : 1 }]}
-                    onPress={handleSave}
-                    disabled={isSubmitting}
-                >
-                    <Text style={styles.buttonText}>{isSubmitting ? 'Saving...' : 'Save Changes'}</Text>
-                </TouchableOpacity> */}
                 <PrimaryButton title={isSubmitting ? 'Saving...' : 'Save Changes'} onPress={handleSave} disabled={isSubmitting} />
 
                 <TouchableOpacity style={[styles.logoutButton]} onPress={handleLogout} disabled={isSubmitting}>

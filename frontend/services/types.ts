@@ -69,8 +69,39 @@ export interface Society {
   _id: string,
   name: string,
   address: string,
+  contact_email?: string | null,
   city: string,
   total_apartments: number,
   members: UserData[],
   admins: UserData[],
+}
+
+export interface MessageResponse {
+  _id: string;
+  roomId: string; 
+  senderId: { _id: string; name: string; email: string };
+  text?: string;
+  attachment?: string | null;
+  createdAt: string;
+}
+
+export interface RoomResponse {
+  _id: string;
+  societyId: string;
+  name: string;
+  members: UserData[];
+}
+
+export interface SendMessageData {
+  roomId: string;
+  senderId: string; 
+  text?: string;
+  attachment?: string | null;
+}
+
+export interface CreateRoomData {
+  societyId: string;
+  name: string;
+  created_by: string;
+  welcomeText?: string;
 }

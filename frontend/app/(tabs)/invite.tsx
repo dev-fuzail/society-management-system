@@ -25,7 +25,7 @@ export default function InviteScreen() {
     setLoading('link');
     try {
       const response = await apiGenerateInviteLink();
-      if (response.status) {
+      if (response.success) {
         Clipboard.setString(response.result.link);
         Alert.alert('Link Generated', 'The invitation link has been copied to your clipboard.');
       } else {
@@ -46,7 +46,7 @@ export default function InviteScreen() {
     setLoading('email');
     try {
       const response = await apiSendEmailInvite(email);
-      if (response.status) {
+      if (response.success) {
         Alert.alert('Invite Sent', `An invitation has been sent to ${email}.`);
         setModalVisible(false);
         setEmail('');

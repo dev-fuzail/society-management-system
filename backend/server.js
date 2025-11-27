@@ -1,14 +1,24 @@
 import dotenv from "dotenv";
-dotenv.config(); // Move this to the top
+dotenv.config();
 
 import cors from "cors";
 import express from "express";
 import connectDB from "./config/db.js";
 // import authRoutes from './routes/authRoutes.js';
 import router from "./routes/index.js";
+import { createServer } from "http";
+import { Server } from "socket.io";
 
 const app = express();
+const httpServer = createServer(app);
 
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
 // app.use(
 //   cors({
 //     origin: "*", // open for all during development
@@ -27,7 +37,7 @@ const allowedOrigins = [
   "https://aeronautically-uncarpentered-dorthey.ngrok-free.dev",
   // "http://10.142.227.144:8081",
   "http://192.168.137.13:8081",
-  "http://192.168.137.10:8081"
+  "http://192.168.137.10:8081",
 ];
 
 app.use(
@@ -60,8 +70,22 @@ app.options("*", cors());
 app.use(express.json());
 
 app.use((req, res, next) => {
+  req.io = io;
   console.log(req.method, req.path);
   next();
+});
+
+io.on("connection", (socket) => {
+  console.log(`[SOCKET]: User connected: ${socket.id}`);
+
+  socket.on("joinRoom", (roomId) => {
+    socket.join(`room_${roomId}`);
+    console.log(`[SOCKET]: ${socket.id} joined room: room_${roomId}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log(`[SOCKET]: User disconnected: ${socket.id}`);
+  });
 });
 
 const PORT = process.env.PORT || 8001;
@@ -76,7 +100,8 @@ const startServer = async () => {
   try {
     await connectDB(); // Wait for Mongo connection first // // Only then mount routes // app.use("/api", router); // This is correct as your frontend API URL includes /api // Finally start the server
 
-    app.listen(PORT, "0.0.0.0", () => {
+    httpServer.listen(PORT, "0.0.0.0", () => {
+      console.log(`✅ Socket.IO running on port ${PORT}`);
       console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
     });
   } catch (error) {

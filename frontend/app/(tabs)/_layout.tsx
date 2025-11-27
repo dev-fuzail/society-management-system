@@ -169,9 +169,9 @@ export default function TabLayout() {
           tabBarShowLabel: false,
           tabBarStyle: {
             backgroundColor: theme.background,
-            height: 70,
             borderTopWidth: 0.5,
-            borderColor: theme.icon,
+            borderTopColor: theme.icon,
+            paddingBottom: 5, // Add some padding for the icons
           },
           tabBarButton: HapticTab,
         })}

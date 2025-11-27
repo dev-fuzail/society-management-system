@@ -1,7 +1,16 @@
 import apiService from './ApiService';
 import { ResponseObject, Society } from './types';
 
-export const apiUpdateSociety = async ({data}: {data: any}): Promise<ResponseObject<any>> => {
+interface SocietyData {
+  userId: string,
+  name: string,
+  address: string,
+  city: string,
+  contact_email: string,
+  total_apartments: number
+}
+
+export const apiUpdateSociety = async (data: SocietyData): Promise<ResponseObject<any>> => {
   return await apiService.request<any>("put", `/api/societies/update`, data);
 };
 

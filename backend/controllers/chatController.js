@@ -15,10 +15,10 @@ export const getMessages = async (req, res) => {
       .sort({ createdAt: -1 });
 
     log("Messages fetched:", messages.length);
-    res.json(messages);
+    return res.status(200).json({ success: true, message: "Messages fetched successfully.", result: messages });
   } catch (err) {
     log("❌ Error fetching messages:", err);
-    res.status(500).json({ error: "Failed to get messages" });
+    return res.status(500).json({ success: false, message: "Failed to get messages" });
   }
 };
 
@@ -39,10 +39,10 @@ export const sendMessage = async (req, res) => {
     // Emit to socket room
     req.io.to(`room_${req.body.roomId}`).emit("newMessage", newMsg);
 
-    res.json(newMsg);
+    return res.status(201).json({ success: true, message: "Message sent successfully.", result: newMsg });
   } catch (err) {
     log("❌ Error sending message:", err);
-    res.status(500).json({ error: "Failed to send message" });
+    return res.status(500).json({ success: false, message: "Failed to send message" });
   }
 };
 
@@ -58,10 +58,10 @@ export const editMessage = async (req, res) => {
     );
 
     log("Message updated:", updated);
-    res.json(updated);
+    return res.status(200).json({ success: true, message: "Message updated successfully.", result: updated });
   } catch (err) {
     log("❌ Error editing message:", err);
-    res.status(500).json({ error: "Failed to edit message" });
+    return res.status(500).json({ success: false, message: "Failed to edit message" });
   }
 };
 
@@ -73,48 +73,28 @@ export const deleteMessage = async (req, res) => {
     await ChatMessage.findByIdAndDelete(req.params.id);
 
     log("Message deleted");
-    res.json({ success: true });
+    return res.status(200).json({ success: true, message: "Message deleted successfully." });
   } catch (err) {
     log("❌ Error deleting message:", err);
-    res.status(500).json({ error: "Failed to delete message" });
+    return res.status(500).json({ success: false, message: "Failed to delete message" });
   }
 };
 
 export const createRoom = async (req, res) => {
   console.log("🚪 Incoming CREATE ROOM request:", req.body);
   try {
-    const { roomId, created_by, welcomeText } = req.body;
+    const { name, societyId, created_by } = req.body;
 
-    // Check if room already exists
-    let room = await ChatRoom.findOne({ roomId });
-    if (room) {
-      return res.status(200).json({ status: true, message: "Room already exists", result: room });
+    const existingRoom = await ChatRoom.findOne({ societyId });
+    if (existingRoom) {
+      return res.status(200).json({ success: true, message: "Room already exists.", room: existingRoom });
     }
 
-    // Create new room
-    room = new ChatRoom({
-      roomId,
-      created_by,
-      messages: [],
-    });
-    await room.save();
-
-    // Add welcome message if provided
-    if (welcomeText) {
-      const msg = new Message({
-        roomId: room._id,
-        text: welcomeText,
-        user_id: created_by,
-      });
-      await msg.save();
-
-      room.messages.push(msg._id);
-      await room.save();
-    }
-
-    return res.status(201).json({ status: true, message: "Room created", result: room });
+    const newRoom = new ChatRoom({ name, societyId, created_by });
+    await newRoom.save();
+    return res.status(201).json({ success: true, message: "Room created successfully.", room: newRoom });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ status: false, message: error.message });
+    console.warn(error);
+    return res.status(400).json({ success: false, message: error.message });
   }
 };

@@ -34,7 +34,8 @@ export const register = async (req, res) => {
     if (role === "admin") {
       if (!society_name || !society_address || !society_city) {
         return res.status(400).json({
-          message: "Society name, address, and city are required",
+          success: false,
+          message: "Society name, address, and city are required for admin registration.",
         });
       }
 
@@ -46,7 +47,8 @@ export const register = async (req, res) => {
 
       if (existingSociety) {
         return res.status(400).json({
-          message: "Society already exists in this location",
+          success: false,
+          message: "A society with this name and location already exists.",
         });
       }
 
@@ -67,12 +69,12 @@ export const register = async (req, res) => {
       if (!society_id || !apartment_id) {
         return res
           .status(400)
-          .json({ message: "Society and apartment required for residents" });
+          .json({ success: false, message: "Society and apartment are required for resident registration." });
       }
 
       society = await Society.findById(society_id);
       if (!society)
-        return res.status(404).json({ message: "Society not found" });
+        return res.status(404).json({ success: false, message: "Society not found." });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -107,11 +109,13 @@ export const register = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "User registered successfully",
-      user,
-      token,
+      result: {
+        user,
+        token,
+      }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -125,7 +129,7 @@ export const generateInviteLink = async (req, res) => {
 
     if (!admin || admin.role !== "admin") {
       return res.status(403).json({
-        status: false,
+        success: false,
         message: "Only admins can generate invite links.",
       });
     }
@@ -152,12 +156,12 @@ export const generateInviteLink = async (req, res) => {
     console.log("link----->: ", link, "<>----", process.env.FRONTEND_URL);
 
     res.status(200).json({
-      status: true,
+      success: true,
       message: "Invite link generated",
       result: { link },
     });
   } catch (error) {
-    res.status(500).json({ status: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -169,7 +173,7 @@ export const sendEmailInvite = async (req, res) => {
     const admin = await User.findById(req.user.id);
     if (!admin || admin.role !== "admin") {
       return res.status(403).json({
-        status: false,
+        success: false,
         message: "Only admins can send invites.",
         result: null,
       });
@@ -188,7 +192,7 @@ export const sendEmailInvite = async (req, res) => {
 
     if (existingInvite) {
       return res.status(400).json({
-        status: false,
+        success: false,
         message: "An active invite has already been sent to this email.",
         result: null,
       });
@@ -214,11 +218,11 @@ export const sendEmailInvite = async (req, res) => {
 
     res
       .status(200)
-      .json({ status: true, message: `Invite sent to ${email}`, result: null });
+      .json({ success: true, message: `Invite sent to ${email}` });
   } catch (error) {
     res
       .status(500)
-      .json({ status: false, message: error.message, result: null });
+      .json({ success: false, message: error.message });
   }
 };
 
@@ -231,7 +235,7 @@ export const verifyInvite = async (req, res) => {
     if (!token) {
       return res
         .status(400)
-        .json({ status: false, message: "Invite token is required." });
+        .json({ success: false, message: "Invite token is required." });
     }
 
     // Verify JWT first
@@ -242,11 +246,11 @@ export const verifyInvite = async (req, res) => {
       if (err.name === "TokenExpiredError") {
         return res
           .status(400)
-          .json({ status: false, message: "Invite has expired." });
+          .json({ success: false, message: "Invite has expired." });
       }
       return res
         .status(400)
-        .json({ status: false, message: "Invalid invite token." });
+        .json({ success: false, message: "Invalid invite token." });
     }
 
     // Then fetch invite from DB
@@ -256,15 +260,15 @@ export const verifyInvite = async (req, res) => {
     if (!invite) {
       return res
         .status(404)
-        .json({ status: false, message: "Invite not found or already used." });
+        .json({ success: false, message: "Invite not found or already used." });
     }
 
     return res
       .status(200)
-      .json({ status: true, message: "Invite verified.", result: { invite } });
+      .json({ success: true, message: "Invite verified.", result: { invite } });
   } catch (error) {
     console.error("Verify invite error:", error);
-    return res.status(500).json({ status: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -279,7 +283,7 @@ export const registerFromInvite = async (req, res) => {
     if (!invite) {
       return res
         .status(400)
-        .json({ status: false, message: "Invalid or used invite token." });
+        .json({ success: false, message: "Invalid or used invite token." });
     }
 
     // Determine email
@@ -288,7 +292,7 @@ export const registerFromInvite = async (req, res) => {
       return res
         .status(400)
         .json({
-          status: false,
+          success: false,
           message: "Email is required for registration.",
         });
     }
@@ -325,13 +329,15 @@ export const registerFromInvite = async (req, res) => {
     });
 
     return res.status(201).json({
-      status: true,
+      success: true,
       message: "User registered successfully!",
-      user,
-      token: authToken,
+      result: {
+        user,
+        token: authToken,
+      }
     });
   } catch (error) {
-    res.status(500).json({ status: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -342,18 +348,18 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const validPass = await bcrypt.compare(password, user.password);
     if (!validPass)
-      return res.status(401).json({ message: "Invalid password" });
+      return res.status(401).json({ success: false, message: "Invalid password" });
 
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
       expiresIn: "7d",
     });
 
     return res.status(200).json({
-      status: true,
+      success: true,
       message: "Login Successful!",
       result: {
         token,
@@ -366,7 +372,7 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -402,7 +408,7 @@ export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const resetToken = crypto.randomBytes(32).toString("hex");
     const hashedToken = crypto
@@ -420,12 +426,12 @@ export const forgotPassword = async (req, res) => {
     await sendResetEmail(email, resetUrl);
 
     res.status(200).json({
-      status: true,
+      success: true,
       message: "Password reset link sent to email",
-      resetUrl,
+      result: { resetUrl },
     });
   } catch (error) {
-    res.status(500).json({ status: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -467,7 +473,7 @@ export const resetPassword = async (req, res) => {
     if (!user)
       return res
         .status(400)
-        .json({ status: false, message: "Invalid or expired token" });
+        .json({ success: false, message: "Invalid or expired token" });
 
     // Update password
     const salt = await bcrypt.genSalt(10);
@@ -480,16 +486,16 @@ export const resetPassword = async (req, res) => {
 
     res
       .status(200)
-      .json({ status: true, message: "Password reset successful" });
+      .json({ success: true, message: "Password reset successful" });
   } catch (error) {
-    res.status(500).json({ status: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 export const updateProfile = async (req, res) => {
   try {
     const { name, phone, avatar } = req.body;
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ message: "User not found" });
 
     if (name) user.name = name;
@@ -498,8 +504,8 @@ export const updateProfile = async (req, res) => {
 
     await user.save();
 
-    res.status(200).json({ message: "Profile updated successfully", user });
+    res.status(200).json({ success: true, message: "Profile updated successfully", result: { user } });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };

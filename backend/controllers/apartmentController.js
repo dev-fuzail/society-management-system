@@ -12,9 +12,9 @@ export const createApartment = async (req, res) => {
     });
     await apartment.save();
 
-    res.status(201).json(apartment);
+    res.status(201).json({ success: true, message: "Apartment created successfully.", result: apartment });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -22,8 +22,8 @@ export const getApartmentsBySociety = async (req, res) => {
   try {
     const { society_id } = req.query;
     const apartments = await Apartment.find({ society_id });
-    res.json(apartments);
+    res.status(200).json({ success: true, message: "Apartments fetched successfully.", result: apartments });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };

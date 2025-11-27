@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
+    Modal,
     View,
     TextInput,
     TouchableOpacity,
@@ -9,12 +10,14 @@ import {
     Text,
     StyleSheet,
     Image,
+    Pressable,
     Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import uuid from "react-native-uuid";
 
 import {
+    apiDeleteMessage,
     apiGetMessages,
     apiSendMessage,
     apiUploadFile,
@@ -30,6 +33,8 @@ const CommunityChat = () => {
     const [roomId, setRoomId] = useState<string | null>(null);
     const [society, setSociety] = useState<any>(null);
     const [user, setUser] = useState<any>(null);
+    const [selectedMessage, setSelectedMessage] = useState<any>(null);
+    const [isMenuVisible, setIsMenuVisible] = useState(false);
 
     /* ---------------- Load user + society ---------------- */
     useEffect(() => {
@@ -40,37 +45,26 @@ const CommunityChat = () => {
             setUser(userData);
 
             const res = await apiGetUserSocieties(userData.id);
-            console.log("User societies response:", res);
             if (res.result) {
-                // Take the first society (or allow selection)
                 const selectedSociety = res?.result;
                 setSociety(selectedSociety[0]);
 
-                const generatedRoomId = `society-${selectedSociety[0]._id}`;
+                const generatedRoomId = selectedSociety[0]._id;
                 setRoomId(generatedRoomId);
-                console.log("Generated Room ID:", generatedRoomId);
 
-                // Check if room exists
                 try {
                     const roomMessages = await apiGetMessages(generatedRoomId);
-
-                    // If room is empty, create welcome message
-                    if (!roomMessages.result || roomMessages.result.length === 0) {
-                        await apiCreateRoom(
-                            generatedRoomId,
-                            userData.id,
-                            selectedSociety.name
-                        );
-                    }
-
-                    fetchMessages(generatedRoomId);
+                    setMessages(roomMessages.result || []);
                 } catch (err) {
-                    // room does NOT exist → create one
-                    await apiCreateRoom(
-                        generatedRoomId,
-                        userData.id,
-                        selectedSociety.name
-                    );
+                    const roomData = {
+                        societyId: generatedRoomId,
+                        name: selectedSociety[0]?.name,
+                        created_by: userData.id,
+                    };
+                    const createRoomResponse = await apiCreateRoom(roomData);
+                    if (createRoomResponse && createRoomResponse.result) {
+                        fetchMessages(generatedRoomId);
+                    }
                 }
             }
         };
@@ -112,7 +106,7 @@ const CommunityChat = () => {
                 roomId,
                 text: text.trim(),
                 attachment: attachmentUrl || null,
-                user_id: user?.id,
+                senderId: user?.id,
             });
 
             setText("");
@@ -147,9 +141,39 @@ const CommunityChat = () => {
         }
     };
 
+    /* ---------------- Delete Message ---------------- */
+    const handleDelete = async () => {
+        if (!selectedMessage) return;
+
+        Alert.alert(
+            "Delete Message",
+            "Are you sure you want to delete this message?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await apiDeleteMessage(selectedMessage._id);
+                            setMessages((prev) =>
+                                prev.filter((msg) => msg._id !== selectedMessage._id)
+                            );
+                            setIsMenuVisible(false);
+                            setSelectedMessage(null);
+                        } catch (error) {
+                            Alert.alert("Error", "Failed to delete message.");
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
     /* ---------------- Render Message ---------------- */
     const renderItem = ({ item }: any) => {
-        const isCurrentUser = item.user_id === user?.id;
+        const isCurrentUser = item.senderId?._id === user?.id;
+        const canDelete = user?.role === 'admin' || isCurrentUser;
 
         return (
             <View
@@ -158,25 +182,32 @@ const CommunityChat = () => {
                     isCurrentUser ? styles.messageRight : styles.messageLeft,
                 ]}
             >
-                {item.attachment && (
-                    <Image
-                        source={{ uri: item.attachment }}
-                        style={styles.attachmentImage}
-                    />
-                )}
+                <Pressable
+                    onLongPress={() => {
+                        setSelectedMessage(item);
+                        setIsMenuVisible(true);
+                    }}
+                >
+                    {item.attachment && (
+                        <Image
+                            source={{ uri: item.attachment }}
+                            style={styles.attachmentImage}
+                        />
+                    )}
 
-                {item.text ? (
-                    <View
-                        style={[
-                            styles.messageBubble,
-                            isCurrentUser ? styles.bubbleRight : styles.bubbleLeft,
-                        ]}
-                    >
-                        <Text style={isCurrentUser ? styles.textRight : styles.textLeft}>
-                            {item.text}
-                        </Text>
-                    </View>
-                ) : null}
+                    {item.text ? (
+                        <View
+                            style={[
+                                styles.messageBubble,
+                                isCurrentUser ? styles.bubbleRight : styles.bubbleLeft,
+                            ]}
+                        >
+                            <Text style={isCurrentUser ? styles.textRight : styles.textLeft}>
+                                {item.text}
+                            </Text>
+                        </View>
+                    ) : null}
+                </Pressable>
             </View>
         );
     };
@@ -184,20 +215,21 @@ const CommunityChat = () => {
     return (
         <KeyboardAvoidingView
             style={{ flex: 1, backgroundColor: "#ece5dd" }}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            keyboardVerticalOffset={80}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={100}
         >
             {roomId ? (
                 <FlatList
-                    data={[...messages].reverse()}
-                    keyExtractor={(item) => String(item.id)}
+                    data={messages}
+                    keyExtractor={(item) => String(item._id)}
+                    style={{ flex: 1, paddingHorizontal: 10 }}
                     renderItem={renderItem}
                     contentContainerStyle={{ padding: 10 }}
                     inverted
                 />
             ) : (
                 <Text style={{ textAlign: "center", marginTop: 50 }}>
-                    Loading chat......
+                    Loading chat...
                 </Text>
             )}
 
@@ -219,6 +251,42 @@ const CommunityChat = () => {
                     <Text style={{ color: "#fff", fontWeight: "bold" }}>Send</Text>
                 </TouchableOpacity>
             </View>
+
+            {/* Message Action Menu Modal */}
+            <Modal
+                visible={isMenuVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setIsMenuVisible(false)}
+            >
+                <Pressable
+                    style={styles.modalOverlay}
+                    onPress={() => setIsMenuVisible(false)}
+                >
+                    <View style={styles.menuContainer}>
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={() => Alert.alert("Edit", "Edit functionality coming soon!")}
+                        >
+                            <Text style={styles.menuText}>Edit</Text>
+                        </TouchableOpacity>
+
+                        {(user?.role === 'admin' || selectedMessage?.senderId?._id === user?.id) && (
+                            <>
+                                <View style={styles.separator} />
+                                <TouchableOpacity
+                                    style={styles.menuItem}
+                                    onPress={handleDelete}
+                                >
+                                    <Text style={[styles.menuText, { color: "red" }]}>
+                                        Delete
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </View>
+                </Pressable>
+            </Modal>
         </KeyboardAvoidingView>
     );
 };
@@ -227,7 +295,6 @@ const CommunityChat = () => {
 const styles = StyleSheet.create({
     messageContainer: {
         marginVertical: 5,
-        flexDirection: "row",
         alignItems: "flex-end",
     },
     messageLeft: { justifyContent: "flex-start" },
@@ -266,6 +333,38 @@ const styles = StyleSheet.create({
         marginLeft: 5,
         justifyContent: "center",
         alignItems: "center",
+    },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.4)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    menuContainer: {
+        width: 250,
+        backgroundColor: "#fff",
+        borderRadius: 10,
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 5,
+    },
+    menuItem: {
+        paddingVertical: 15,
+        paddingHorizontal: 20,
+        alignItems: "center",
+    },
+    menuText: {
+        fontSize: 18,
+        color: "#333",
+    },
+    separator: {
+        height: 1,
+        backgroundColor: "#eee",
+        width: "100%",
     },
 });
 

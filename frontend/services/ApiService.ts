@@ -15,7 +15,7 @@ class ApiService {
 
   constructor() {
     this.axiosInstance = axios.create({
-      baseURL: BASE_URL,
+      baseURL: EXPO_PUBLIC_API_BASE,
       headers: {
         'Content-Type': 'application/json',
       },

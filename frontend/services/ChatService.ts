@@ -1,6 +1,7 @@
 import apiService from "./ApiService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
+import { CreateRoomData, MessageResponse, ResponseObject, RoomResponse, SendMessageData, Society } from "./types";
 
 /* ---------------- Upload Attachment ---------------- */
 export const apiUploadFile = async (file: any) => {
@@ -21,23 +22,21 @@ export const apiUploadFile = async (file: any) => {
   return res.result.url;
 };
 
-/* ---------------- Get messages ---------------- */
-export const apiGetMessages = (roomId: string) =>
+export const apiGetMessages = (roomId: string): Promise<ResponseObject<MessageResponse[]>> =>
   apiService.request("get", `/api/chat/messages/${roomId}`);
 
-/* ---------------- Send message ---------------- */
-export const apiSendMessage = (data: any) =>
+export const apiSendMessage = (data: SendMessageData): Promise<ResponseObject<MessageResponse>> =>
   apiService.request("post", `/api/chat/messages`, data);
 
-/* ---------------- Edit ---------------- */
-export const apiEditMessage = (id: string, text: string) =>
+export const apiEditMessage = (id: string, text: string): Promise<ResponseObject<MessageResponse>> =>
   apiService.request("put", `/api/chat/messages/${id}`, { text });
 
-/* ---------------- Delete ---------------- */
-export const apiDeleteMessage = (id: string) =>
+export const apiDeleteMessage = (id: string): Promise<ResponseObject<any>> => // Assuming delete returns a success object
   apiService.request("delete", `/api/chat/messages/${id}`);
 
-/* ---------------- Get Chat Token ---------------- */
+export const apiCreateRoom = (data: CreateRoomData): Promise<ResponseObject<RoomResponse>> =>
+  apiService.request("post", `/api/chat/create-room`, data);
+
 export const apiGetChatToken = async (fallbackUserId: string): Promise<string> => {
   try {
     let user_id = await AsyncStorage.getItem("user_id");
@@ -56,9 +55,3 @@ export const apiGetChatToken = async (fallbackUserId: string): Promise<string> =
   }
 };
 
-export const apiCreateRoom = (roomId: string, userId: string, societyName: string) =>
-  apiService.request("post", "/api/chat/create-room", {
-    roomId,
-    created_by: userId,
-    welcomeText: `You created "${societyName}" group.`,
-  });

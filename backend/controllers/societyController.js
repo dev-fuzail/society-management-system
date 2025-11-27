@@ -6,14 +6,14 @@ export const createSociety = async (req, res) => {
     const { name, address } = req.body;
     const exists = await Society.findOne({ name });
     if (exists)
-      return res.status(400).json({ message: "Society already exists" });
+      return res.status(400).json({ success: false, message: "Society already exists" });
 
     const society = new Society({ name, address });
     await society.save();
 
-    res.status(201).json(society);
+    res.status(201).json({ success: true, message: "Society created successfully.", result: society });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -23,9 +23,9 @@ export const getSocieties = async (req, res) => {
       .populate("admins", "name email role") // admins ka sirf name, email, role
       .populate("members", "name email role"); // members ka sirf name, email, role
 
-    res.json(societies);
+    res.status(200).json({ success: true, message: "Societies fetched successfully.", result: societies });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -36,7 +36,7 @@ export const getUserSocieties = async (req, res) => {
     const { user_id } = req.params;
 
     if (!user_id) {
-      return res.status(400).json({ message: "User ID is required." });
+      return res.status(400).json({ success: false, message: "User ID is required." });
     }
 
     // Find all societies where user is admin or member
@@ -50,7 +50,7 @@ export const getUserSocieties = async (req, res) => {
     if (!societies || societies.length === 0) {
       return res
         .status(404)
-        .json({ message: "No societies found for this user." });
+        .json({ success: false, message: "No societies found for this user." });
     }
 
     return res.status(200).json({
@@ -58,7 +58,7 @@ export const getUserSocieties = async (req, res) => {
       result: societies,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -68,7 +68,7 @@ export const getSocietyMembers = async (req, res) => {
     const { societyId } = req.params; // society ID URL se
 
     if (!societyId) {
-      return res.status(400).json({ message: "Society ID is required." });
+      return res.status(400).json({ success: false, message: "Society ID is required." });
     }
 
     const society = await Society.findById(societyId)
@@ -76,18 +76,21 @@ export const getSocietyMembers = async (req, res) => {
       .populate("admins", "name email role phone");
 
     if (!society) {
-      return res.status(404).json({ message: "Society not found." });
+      return res.status(404).json({ success: false, message: "Society not found." });
     }
 
     return res.status(200).json({
       success: true,
-      society_id: society._id,
-      name: society.name,
-      members: society.members, // all members including admins
-      admins: society.admins, // all admins
+      message: "Society members fetched successfully.",
+      result: {
+        society_id: society._id,
+        name: society.name,
+        members: society.members, // all members including admins
+        admins: society.admins, // all admins
+      }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -161,20 +164,20 @@ export const updateSociety = async (req, res) => {
 
     // 🔹 Validate user existence
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     // 🔹 Ensure user is linked to a society
     if (!user.society_id) {
       return res
         .status(400)
-        .json({ message: "User is not associated with any society" });
+        .json({ success: false, message: "User is not associated with any society" });
     }
 
     // 🔹 Find society by user’s society_id
     const society = await Society.findById(user.society_id);
-    if (!society) return res.status(404).json({ message: "Society not found" });
+    if (!society) return res.status(404).json({ success: false, message: "Society not found" });
 
-    // 🔹 Check if user is admin of that society
+    // 🔹 Check if user is admin of that society (This was commented out, keeping it that way)
     // if (!society.admins.includes(userId)) {
     //   return res
     //     .status(403)
@@ -220,8 +223,8 @@ export const updateSociety = async (req, res) => {
     const updatedSociety = await society.save();
     res
       .status(200)
-      .json({ message: "Society updated successfully", data: updatedSociety });
+      .json({ success: true, message: "Society updated successfully", result: updatedSociety });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
