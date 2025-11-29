@@ -67,12 +67,24 @@ export default function HomeScreen() {
   return (
     <ScrollView style={styles.container}>
       <TouchableOpacity style={styles.inviteCard} onPress={() => router.push('/invite')}>
-        <Ionicons name="person-add-outline" size={32} color={'#fff'} />
-        <View style={styles.inviteCardTextContainer}>
-          <Text style={styles.inviteCardTitle}>Invite New Members</Text>
-          <Text style={styles.inviteCardDescription}>Send invitations to join the society.</Text>
+        <Ionicons name="person-add-outline" size={32} color={'#4f46e5'} />
+        <View style={styles.CardTextContainer}>
+          <Text style={styles.CardTitle}>Invite New Members</Text>
+          <Text style={styles.CardDescription}>Send invitations to join the society.</Text>
         </View>
-        <Ionicons name="chevron-forward" size={24} color={'#000'} />
+        <Ionicons name="chevron-forward" size={24} color={'#888'} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.actionCard}
+        onPress={() => router.push('/ticket-system')}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="megaphone-outline" size={32} color={'#D84315'} />
+        <View style={styles.CardTextContainer}>
+          <Text style={styles.CardTitle}>Lodge New Complaint</Text>
+          <Text style={styles.CardDescription}>Register maintenance or structural issues.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color={'#888'} />
       </TouchableOpacity>
 
       {/* Noticeboard */}
@@ -168,18 +180,19 @@ const styles = StyleSheet.create({
   cardTextContainer: { flex: 1, marginLeft: 16 },
   cardDescription: { fontSize: 14, color: '#000', marginTop: 4 },
 
-  // Invite Card
   inviteCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 6,
-    elevation: 4
+    elevation: 3,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4f46e5',
   },
   noteCard: {
     backgroundColor: '#fff',
@@ -204,7 +217,21 @@ const styles = StyleSheet.create({
     color: '#2196F3',
     marginTop: 4,
   },
-  inviteCardTextContainer: { flex: 1, marginLeft: 16 },
-  inviteCardTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  inviteCardDescription: { fontSize: 14, color: '#e0e7ff', marginTop: 4 },
+  CardTextContainer: { flex: 1, marginLeft: 16 },
+  CardTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  CardDescription: { fontSize: 14, color: '#555', marginTop: 4 },
+  actionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    borderLeftWidth: 4,
+    borderLeftColor: '#D84315',
+  },
 });

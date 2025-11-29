@@ -14,7 +14,6 @@ import {
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UserData } from "@/services/types";
@@ -192,7 +191,7 @@ export default function TabLayout() {
           options={{
             tabBarIcon: ({ color }) => (
               // <View style={styles.centerTab}>
-                <Ionicons name="chatbubbles-outline" size={28} color={color} />
+              <Ionicons name="chatbubbles-outline" size={28} color={color} />
               // </View>
             ),
             title: "Community Chat",
@@ -216,7 +215,21 @@ export default function TabLayout() {
           name="apartment-form"
           options={{
             title: "Apartment Form",
-            href: null, // This hides the screen from the tab bar
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="ticket-detail"
+          options={{
+            title: "Ticket Detail",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="ticket-system"
+          options={{
+            title: "Complaint Tickets System",
+            href: null,
           }}
         />
 

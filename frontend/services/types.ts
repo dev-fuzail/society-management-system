@@ -105,3 +105,31 @@ export interface CreateRoomData {
   created_by: string;
   welcomeText?: string;
 }
+
+// types.ts (Add these)
+
+export type TicketStatus = 'Pending' | 'In Progress' | 'Resolved' | 'Closed';
+
+export interface TicketData {
+    subject: string;
+    description: string;
+    createdBy: string; // User ObjectId
+    societyId: string; // Society ObjectId
+}
+
+export interface TicketResponse {
+    _id: string;
+    subject: string;
+    description: string;
+    status: TicketStatus;
+    createdBy: { _id: string; name: string; email: string; phone: string }; // Populated User
+    societyId: string;
+    assignedTo: { _id: string; name: string } | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface UpdateStatusData {
+    status?: TicketStatus;
+    assignedTo?: string; // User ObjectId (Staff)
+}

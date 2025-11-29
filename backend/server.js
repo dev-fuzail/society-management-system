@@ -11,7 +11,8 @@ import session from "express-session";
 import adminRouter from "./adminRoutes.js";
 import path from 'path';
 
-const APP_SCHEME = "livingsync://";
+// const APP_SCHEME = "livingsync://";
+const APP_SCHEME = "mynewproject://";
 const PORT = process.env.PORT || 8001;
 
 const app = express();

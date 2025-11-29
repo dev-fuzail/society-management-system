@@ -40,7 +40,7 @@ export default function SocietyUpdateScreen() {
       }
 
       try {
-        const res = await apiGetUserSocieties(userData._id);
+        const res = await apiGetUserSocieties(userData.id);
         if (res.success && res.result.length > 0) {
           const currentSociety = res.result[0];
           console.log('currentSociety: ', currentSociety);
