@@ -5,13 +5,31 @@ import {
   sendMessage,
   editMessage,
   deleteMessage,
-  createRoom
+  createRoom,
+  startTyping,
+  stopTyping,
 } from "../controllers/chatController.js";
 
 const router = express.Router();
 
 // multer storage (local)
-const upload = multer({ dest: "uploads/" });
+const storage = multer.diskStorage({
+  destination: "uploads/", // Files will be saved in the root 'uploads' folder
+  filename: (req, file, cb) => {
+    // Generate a unique name and keep the original file extension
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname +
+        "-" +
+        uniqueSuffix +
+        "." +
+        file.originalname.split(".").pop()
+    );
+  },
+});
+
+const upload = multer({ storage: storage });
 
 // GET messages
 router.get("/messages/:roomId", getMessages);
@@ -26,10 +44,21 @@ router.put("/messages/:id", editMessage);
 router.delete("/messages/:id", deleteMessage);
 router.post("/create-room", createRoom);
 
+router.post("/typing/start", startTyping);
+router.post("/typing/stop", stopTyping);
+
 // Upload file
 router.post("/upload", upload.single("file"), (req, res) => {
-  console.log("📁 File upload received:", req.file);
-  res.json({ url: `/uploads/${req.file.filename}` });
+  if (!req.file) {
+    return res
+      .status(400)
+      .json({ success: false, message: "No file uploaded." });
+  }
+
+  const relativeUrl = `/uploads/${req.file.filename}`;
+
+  console.log("📁 File upload successful. Path:", relativeUrl);
+  res.json({ success: true, result: { url: relativeUrl } });
 });
 
 export default router;

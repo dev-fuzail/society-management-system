@@ -12,20 +12,35 @@ import {
     Image,
     Pressable,
     Alert,
+    Dimensions,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import uuid from "react-native-uuid";
+import { useFocusEffect } from "expo-router";
+import { io } from "socket.io-client";
+import * as Linking from 'expo-linking';
 
+// Ensure these APIs are set up to return { success: bool, result: T }
 import {
     apiDeleteMessage,
     apiGetMessages,
     apiSendMessage,
     apiUploadFile,
     apiCreateRoom,
+    apiEditMessage,
+    // Assuming these two APIs exist and call the REST endpoints:
+    apiStartTyping,
+    apiStopTyping
 } from "@/services/ChatService";
 
 import { apiGetUserSocieties } from "@/services/SocietyService";
-import { getAuthData } from "@/hooks/helperHooks";
+import { formatTime, getAuthData } from "@/hooks/helperHooks";
+import { EXPO_PUBLIC_API_BASE } from "@/constants";
+
+// Debounce Utility for Typing
+let typingTimeout: number | null = null;
+let isTyping = false;
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const CommunityChat = () => {
     const [messages, setMessages] = useState<any[]>([]);
@@ -36,6 +51,14 @@ const CommunityChat = () => {
     const [selectedMessage, setSelectedMessage] = useState<any>(null);
     const [isMenuVisible, setIsMenuVisible] = useState(false);
 
+    // State for socket, typing, editing, and image viewer
+    const [socket, setSocket] = useState<any>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editMessageId, setEditMessageId] = useState<string | null>(null);
+    const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
+    const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
+    const [currentImageUri, setCurrentImageUri] = useState('');
+
     /* ---------------- Load user + society ---------------- */
     useEffect(() => {
         const init = async () => {
@@ -43,19 +66,21 @@ const CommunityChat = () => {
             if (!userData) return;
 
             setUser(userData);
-            console.log("Loaded user data:", userData);
 
             const res = await apiGetUserSocieties(userData.id);
+            // 🛠️ FIX 1: Use .result after apiGetUserSocieties call
             if (res.result) {
-                const selectedSociety = res?.result;
+                const selectedSociety = res.result;
                 setSociety(selectedSociety[0]);
 
                 const generatedRoomId = selectedSociety[0]._id;
                 setRoomId(generatedRoomId);
 
+                // Try to fetch messages, if fail, create room
                 try {
                     const roomMessages = await apiGetMessages(generatedRoomId);
-                    setMessages(roomMessages.result || []);
+                    // 🛠️ FIX 2: Use .result after apiGetMessages call
+                    setMessages(roomMessages.result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) || []);
                 } catch (err) {
                     const roomData = {
                         societyId: generatedRoomId,
@@ -63,6 +88,7 @@ const CommunityChat = () => {
                         created_by: userData.id,
                     };
                     const createRoomResponse = await apiCreateRoom(roomData);
+                    // 🛠️ FIX 3: Use .result after apiCreateRoom call
                     if (createRoomResponse && createRoomResponse.result) {
                         fetchMessages(generatedRoomId);
                     }
@@ -73,6 +99,91 @@ const CommunityChat = () => {
         init();
     }, []);
 
+    /* ---------------- Socket Connection & Typing Setup ---------------- */
+    useEffect(() => {
+        if (!roomId || !user) return;
+
+        const newSocket = io(EXPO_PUBLIC_API_BASE);
+        setSocket(newSocket);
+
+        newSocket.on('connect', () => {
+            newSocket.emit('joinRoom', roomId);
+        });
+
+        newSocket.on('userTyping', ({ userId, userName, isTyping }) => {
+            if (userId === user?.id) return;
+
+            setTypingUsers(prev => {
+                const next = { ...prev };
+                if (isTyping) {
+                    next[userId] = userName;
+                } else {
+                    delete next[userId];
+                }
+                return next;
+            });
+        });
+
+        return () => {
+            newSocket.disconnect();
+        };
+    }, [roomId, user]);
+
+    useFocusEffect(
+        React.useCallback(() => {
+            return () => {
+                if (socket) {
+                    socket.disconnect();
+                }
+            };
+        }, [socket])
+    );
+
+    /* ---------------- Typing Event Handlers (API based) ---------------- */
+    const sendTypingStatus = async (isStart: boolean) => {
+        if (!roomId || !user) return;
+
+        const data = { roomId, userId: user.id, userName: user.name };
+
+        // ⚠️ Placeholder: Assuming apiStartTyping/apiStopTyping exist and call the REST backend
+        try {
+            // 🛠️ Placeholder: Uncomment and implement the actual service call here
+            if (isStart) { await apiStartTyping(data); }
+            else { await apiStopTyping(data); }
+        } catch (e) {
+            console.error("Failed to send typing status:", e);
+        }
+    };
+
+    const startTypingHandler = () => {
+        if (!roomId || !user || isTyping) return;
+        isTyping = true;
+        sendTypingStatus(true);
+
+        if (typingTimeout) clearTimeout(typingTimeout);
+
+        typingTimeout = setTimeout(() => {
+            stopTypingHandler();
+        }, 3000);
+    };
+
+    const stopTypingHandler = () => {
+        if (!roomId || !user || !isTyping) return;
+        isTyping = false;
+        sendTypingStatus(false);
+        if (typingTimeout) clearTimeout(typingTimeout);
+    };
+
+    const handleInputChange = (newText: string) => {
+        setText(newText);
+
+        if (newText.length > 0) {
+            startTypingHandler();
+        } else {
+            stopTypingHandler();
+        }
+    };
+
     /* ---------------- Get messages ---------------- */
     const fetchMessages = async (rId?: string) => {
         if (!rId && !roomId) return;
@@ -81,7 +192,8 @@ const CommunityChat = () => {
 
         try {
             const res = await apiGetMessages(activeRoom!);
-            setMessages(res.result || []);
+            // 🛠️ FIX 4: Use .result after apiGetMessages call
+            setMessages(res.result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) || []);
         } catch {
             Alert.alert("Error", "Failed to load messages.");
         }
@@ -96,25 +208,33 @@ const CommunityChat = () => {
         return () => clearInterval(interval);
     }, [roomId]);
 
-    /* ---------------- Send Message ---------------- */
+    /* ---------------- Send / Edit Message ---------------- */
     const sendMessage = async (attachmentUrl?: string) => {
         if (!roomId) return;
-
         if (text.trim() === "" && !attachmentUrl) return;
 
+        stopTypingHandler();
+
         try {
-            console.log("Sending message:", text.trim(), roomId, user)
-            await apiSendMessage({
-                roomId,
-                text: text.trim(),
-                attachment: attachmentUrl || null,
-                senderId: user?.id,
-            });
+            if (isEditing && editMessageId) {
+                // 🛠️ FIX 5: Use .result after apiEditMessage call
+                await apiEditMessage(editMessageId, text.trim());
+                setIsEditing(false);
+                setEditMessageId(null);
+            } else {
+                // 🛠️ FIX 6: Use .result after apiSendMessage call
+                await apiSendMessage({
+                    roomId,
+                    text: text.trim(),
+                    attachment: attachmentUrl || null,
+                    senderId: user?.id,
+                });
+            }
 
             setText("");
             fetchMessages(roomId);
         } catch {
-            Alert.alert("Error", "Failed to send message.");
+            Alert.alert("Error", `Failed to ${isEditing ? 'edit' : 'send'} message.`);
         }
     };
 
@@ -122,8 +242,8 @@ const CommunityChat = () => {
     const pickAttachment = async () => {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.All,
-                allowsEditing: true,
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: false,
             });
 
             if (!result.canceled) {
@@ -131,16 +251,37 @@ const CommunityChat = () => {
 
                 const fileData = {
                     uri: asset.uri,
-                    name: `${uuid.v4()}.jpg`,
+                    name: `${uuid.v4()}.${asset.uri.split('.').pop()}`,
                     mimeType: asset.mimeType || "image/jpeg",
                 };
 
-                const uploadedUrl = await apiUploadFile(fileData);
+                const uploadedUrlResponse = await apiUploadFile(fileData);
+                // 🛠️ FIX 7: Use .result after apiUploadFile call
+                const uploadedUrl = uploadedUrlResponse;
+
                 if (uploadedUrl) sendMessage(uploadedUrl);
             }
-        } catch {
+        } catch (e) {
             Alert.alert("Error", "Failed to upload attachment.");
         }
+    };
+
+    /* ---------------- Image Viewer Action ---------------- */
+    const handleAttachmentPress = (uri: string) => {
+        setCurrentImageUri(uri);
+        setIsImageViewerVisible(true);
+    };
+
+    /* ---------------- Edit Action Menu ---------------- */
+    const handleEditAction = () => {
+        if (!selectedMessage) return;
+
+        setText(selectedMessage.text);
+        setIsEditing(true);
+        setEditMessageId(selectedMessage._id);
+
+        setIsMenuVisible(false);
+        setSelectedMessage(null);
     };
 
     /* ---------------- Delete Message ---------------- */
@@ -157,6 +298,7 @@ const CommunityChat = () => {
                     style: "destructive",
                     onPress: async () => {
                         try {
+                            // 🛠️ FIX 8: Use .result after apiDeleteMessage call
                             await apiDeleteMessage(selectedMessage._id);
                             setMessages((prev) =>
                                 prev.filter((msg) => msg._id !== selectedMessage._id)
@@ -174,14 +316,14 @@ const CommunityChat = () => {
 
     /* ---------------- Render Message ---------------- */
     const renderItem = ({ item }: any) => {
-        const isCurrentUser = item.senderId?._id === user?.id; // Check if the message is from the logged-in user
-        const sender = item.senderId; // The user object who sent the message
-    
-        // Fallback avatar if none is provided
+        const isCurrentUser = item.senderId?._id === user?.id;
+        const sender = item.senderId;
+        const messageTime = formatTime(item?.createdAt);
+
         const avatarSource = sender?.avatar
             ? { uri: sender.avatar }
             : require("@/assets/images/avatar-placeholder.png");
-    
+
         return (
             <View
                 style={[
@@ -192,24 +334,36 @@ const CommunityChat = () => {
                 {!isCurrentUser && (
                     <Image source={avatarSource} style={styles.avatar} />
                 )}
-    
+
                 <View style={{ maxWidth: "80%" }}>
                     {!isCurrentUser && (
                         <Text style={styles.senderName}>{sender?.name || "Unknown User"}</Text>
                     )}
                     <Pressable
                         onLongPress={() => {
-                            setSelectedMessage(item);
-                            setIsMenuVisible(true);
+                            if (isCurrentUser || user?.role === 'admin') {
+                                setSelectedMessage(item);
+                                setIsMenuVisible(true);
+                            }
                         }}
                     >
+                        {/* 🛠️ Image Attachment Display with Time */}
                         {item.attachment && (
-                            <Image
-                                source={{ uri: item.attachment }}
-                                style={styles.attachmentImage}
-                            />
+                            <View style={styles.attachmentWrapper}>
+                                <Pressable onPress={() => handleAttachmentPress(item.attachment)}>
+                                    <Image
+                                        source={{ uri: item.attachment }}
+                                        style={styles.attachmentImage}
+                                    />
+                                </Pressable>
+                                <View style={styles.imageTimestampContainer}>
+                                    <Text style={styles.imageTimestampText}>
+                                        {messageTime}
+                                    </Text>
+                                </View>
+                            </View>
                         )}
-    
+
                         {item.text ? (
                             <View
                                 style={[
@@ -220,6 +374,9 @@ const CommunityChat = () => {
                                 <Text style={isCurrentUser ? styles.currentUserText : styles.otherUserText}>
                                     {item.text}
                                 </Text>
+                                <Text style={styles.timestamp}>
+                                    {messageTime}
+                                </Text>
                             </View>
                         ) : null}
                     </Pressable>
@@ -227,6 +384,11 @@ const CommunityChat = () => {
             </View>
         );
     };
+
+    const typingUsersArray = Object.values(typingUsers);
+    const typingIndicatorText = typingUsersArray.length > 0
+        ? `${typingUsersArray.join(', ')} ${typingUsersArray.length > 1 ? 'are' : 'is'} typing...`
+        : null;
 
     return (
         <KeyboardAvoidingView
@@ -249,6 +411,13 @@ const CommunityChat = () => {
                 </Text>
             )}
 
+            {/* Typing Indicator */}
+            {typingIndicatorText && (
+                <View style={styles.typingIndicatorContainer}>
+                    <Text style={styles.typingIndicatorText}>{typingIndicatorText}</Text>
+                </View>
+            )}
+
             {/* Input */}
             <View style={styles.inputContainer}>
                 <TouchableOpacity style={styles.attachmentBtn} onPress={pickAttachment}>
@@ -258,17 +427,20 @@ const CommunityChat = () => {
                 <TextInput
                     style={styles.input}
                     value={text}
-                    onChangeText={setText}
-                    placeholder="Type a message..."
+                    onChangeText={handleInputChange}
+                    placeholder={isEditing ? "Editing message..." : "Type a message..."}
                     multiline
                 />
 
-                <TouchableOpacity style={styles.sendBtn} onPress={() => sendMessage()}>
-                    <Text style={{ color: "#fff", fontWeight: "bold" }}>Send</Text>
+                <TouchableOpacity
+                    style={styles.sendBtnWrapper}
+                    onPress={() => sendMessage()}
+                >
+                    <Text style={styles.sendBtnText}>{isEditing ? "Save" : "Send"}</Text>
                 </TouchableOpacity>
             </View>
 
-            {/* Message Action Menu Modal */}
+            {/* Message Action Menu Modal (remains the same) */}
             <Modal
                 visible={isMenuVisible}
                 transparent={true}
@@ -280,12 +452,14 @@ const CommunityChat = () => {
                     onPress={() => setIsMenuVisible(false)}
                 >
                     <View style={styles.menuContainer}>
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={() => Alert.alert("Edit", "Edit functionality coming soon!")}
-                        >
-                            <Text style={styles.menuText}>Edit</Text>
-                        </TouchableOpacity>
+                        {selectedMessage?.senderId?._id === user?.id && (
+                            <TouchableOpacity
+                                style={styles.menuItem}
+                                onPress={handleEditAction}
+                            >
+                                <Text style={styles.menuText}>Edit</Text>
+                            </TouchableOpacity>
+                        )}
 
                         {(user?.role === 'admin' || selectedMessage?.senderId?._id === user?.id) && (
                             <>
@@ -303,6 +477,27 @@ const CommunityChat = () => {
                     </View>
                 </Pressable>
             </Modal>
+
+            {/* 🛠️ Image Viewer Modal */}
+            <Modal
+                visible={isImageViewerVisible}
+                transparent={true}
+                onRequestClose={() => setIsImageViewerVisible(false)}
+            >
+                <View style={styles.imageViewerBackground}>
+                    <Image
+                        source={{ uri: currentImageUri }}
+                        style={styles.fullScreenImage}
+                        resizeMode="contain"
+                    />
+                    <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={() => setIsImageViewerVisible(false)}
+                    >
+                        <Text style={styles.closeButtonText}>X</Text>
+                    </TouchableOpacity>
+                </View>
+            </Modal>
         </KeyboardAvoidingView>
     );
 };
@@ -311,7 +506,7 @@ const CommunityChat = () => {
 const styles = StyleSheet.create({
     keyboardAvoidingView: {
         flex: 1,
-        backgroundColor: "#fff", // A clean white background
+        backgroundColor: "#E5DDD5",
     },
     messageContainer: {
         flexDirection: "row",
@@ -326,48 +521,78 @@ const styles = StyleSheet.create({
         justifyContent: "flex-start",
     },
     avatar: {
-        width: 35,
-        height: 35,
-        borderRadius: 17.5,
-        marginRight: 10,
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        marginRight: 8,
     },
     senderName: {
         fontSize: 12,
-        color: "#888",
-        marginLeft: 12,
+        color: "#1E88E5",
+        marginLeft: 10,
         marginBottom: 2,
     },
     messageBubble: {
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        borderRadius: 20,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 15,
+        maxWidth: 300,
+        flexDirection: 'row',
+        alignItems: 'flex-end',
     },
     currentUserBubble: {
-        backgroundColor: "#4B7BEC", // A nice blue for the current user
-        borderTopRightRadius: 5,
+        backgroundColor: "#128C7E",
+        borderBottomRightRadius: 2,
     },
     otherUserBubble: {
-        backgroundColor: "#f0f0f0", // A light grey for others
-        borderTopLeftRadius: 5,
+        backgroundColor: "#fff",
+        borderBottomLeftRadius: 2,
     },
     currentUserText: {
         color: "#fff",
         fontSize: 15,
+        flexShrink: 1,
     },
     otherUserText: {
-        color: "#000",
+        color: "#333",
         fontSize: 15,
+    },
+    // 🛠️ Message Bubble Timestamp
+    timestamp: {
+        fontSize: 10,
+        color: 'rgba(255, 255, 255, 0.7)',
+        marginLeft: 10,
+    },
+    // 🛠️ Image Wrapper and Time Overlay Styles
+    attachmentWrapper: {
+        borderRadius: 10,
+        overflow: 'hidden',
+        position: 'relative',
+        marginBottom: 5,
     },
     attachmentImage: {
         width: 200,
         height: 200,
-        borderRadius: 15,
-        marginBottom: 5,
+        borderRadius: 10,
+        resizeMode: 'cover',
+    },
+    imageTimestampContainer: {
+        position: 'absolute',
+        bottom: 5,
+        right: 5,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        borderRadius: 8,
+        paddingHorizontal: 5,
+        paddingVertical: 2,
+    },
+    imageTimestampText: {
+        fontSize: 10,
+        color: '#fff',
     },
     inputContainer: {
         flexDirection: "row",
-        paddingVertical: 8,
-        paddingHorizontal: 12,
+        paddingVertical: 5,
+        paddingHorizontal: 8,
         alignItems: "flex-end",
         backgroundColor: "#fff",
         borderTopWidth: 1,
@@ -375,49 +600,92 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
-        backgroundColor: "#f0f0f0",
-        borderRadius: 20,
-        paddingHorizontal: 18,
+        backgroundColor: "#f9f9f9",
+        borderRadius: 25,
+        paddingHorizontal: 15,
         paddingVertical: 10,
         fontSize: 15,
         maxHeight: 100,
-        marginHorizontal: 10,
+        marginHorizontal: 5,
+        borderWidth: 1,
+        borderColor: "#ddd",
     },
-    attachmentBtn: { padding: 5 },
-    sendBtn: {
-        padding: 5,
+    attachmentBtn: {
+        paddingHorizontal: 5,
+        paddingVertical: 10,
     },
-    // Modal Styles
+    sendBtnWrapper: {
+        backgroundColor: "#075E54",
+        borderRadius: 25,
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        marginLeft: 5,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    sendBtnText: {
+        color: "#fff",
+        fontWeight: "bold",
+        fontSize: 15,
+    },
+    typingIndicatorContainer: {
+        paddingHorizontal: 20,
+        paddingVertical: 5,
+        // backgroundColor: '#fff',
+    },
+    typingIndicatorText: {
+        color: '#075E54',
+        fontStyle: 'italic',
+        fontSize: 14,
+    },
     modalOverlay: {
         flex: 1,
-        backgroundColor: "rgba(0,0,0,0.4)",
+        backgroundColor: "rgba(0,0,0,0.6)",
         justifyContent: "center",
         alignItems: "center",
     },
     menuContainer: {
-        width: 250,
+        width: 220,
         backgroundColor: "#fff",
         borderRadius: 10,
         overflow: "hidden",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 5,
-        elevation: 5,
     },
     menuItem: {
-        paddingVertical: 15,
+        paddingVertical: 12,
         paddingHorizontal: 20,
-        alignItems: "center",
     },
     menuText: {
-        fontSize: 18,
+        fontSize: 16,
         color: "#333",
     },
     separator: {
         height: 1,
         backgroundColor: "#eee",
-        width: "100%",
+    },
+    // 🛠️ Image Viewer Styles
+    imageViewerBackground: {
+        flex: 1,
+        backgroundColor: 'black',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fullScreenImage: {
+        width: screenWidth,
+        height: screenHeight,
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 40,
+        right: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        borderRadius: 20,
+        padding: 8,
+        zIndex: 10,
+    },
+    closeButtonText: {
+        color: 'white',
+        fontSize: 18,
+        fontWeight: 'bold',
     },
 });
 

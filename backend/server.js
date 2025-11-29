@@ -9,6 +9,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import session from "express-session";
 import adminRouter from "./adminRoutes.js";
+import path from 'path';
 
 const APP_SCHEME = "livingsync://";
 const PORT = process.env.PORT || 8001;
@@ -18,14 +19,6 @@ const httpServer = createServer(app);
 
 app.set("view engine", "ejs");
 app.set("views", "./views");
-
-const isAdminAuthenticated = (req, res, next) => {
-  // Check if the session variable is set
-  if (req.session && req.session.isAdmin) {
-    return next();
-  } // If not logged in, redirect to the login page
-  return res.redirect("/admin-login");
-};
 
 // 1. SESSION MIDDLEWARE (Must run before routes that use session)
 app.use(
@@ -69,6 +62,8 @@ app.use((req, res, next) => {
   console.log(req.method, req.path);
   next();
 });
+
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 const webRouter = express.Router();
 
