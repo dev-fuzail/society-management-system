@@ -12,7 +12,9 @@ import adminRouter from "./adminRoutes.js";
 import path from 'path';
 
 // const APP_SCHEME = "livingsync://";
-const APP_SCHEME = "mynewproject://";
+// const APP_SCHEME = "mynewproject://";
+const APP_SCHEME = process.env.APP_SCHEME;
+
 const PORT = process.env.PORT || 8001;
 
 const app = express();
