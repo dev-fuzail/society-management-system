@@ -151,8 +151,9 @@ export const generateInviteLink = async (req, res) => {
     await invite.save();
 
     // Replace with your frontend URL
-    const link = `${process.env.FRONTEND_URL}/join?token=${token}`;
-    console.log("link----->: ", link, "<>----", process.env.FRONTEND_URL);
+    // const link = `${process.env.FRONTEND_URL}/join?token=${token}`;
+    const link = `${process.env.BACKEND_URL}/join?token=${token}`;
+    console.log("link----->: ", link, "<>----", process.env.BACKEND_URL);
 
     res.status(200).json({
       success: true,

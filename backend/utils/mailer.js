@@ -21,7 +21,8 @@ const transporter = nodemailer.createTransport({
  */
 export const sendInviteEmail = async (email, token) => {
   // Construct the invitation link using the frontend URL from your .env
-  const inviteLink = `${process.env.FRONTEND_URL}/join?token=${token}`;
+  // const inviteLink = `${process.env.FRONTEND_URL}/join?token=${token}`;
+  const inviteLink = `${process.env.BACKEND_URL}/join?token=${token}`;
 
   const mailOptions = {
     from: process.env.SMTP_FROM,
