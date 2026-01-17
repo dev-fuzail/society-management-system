@@ -232,6 +232,20 @@ export default function TabLayout() {
             href: null,
           }}
         />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: "Profile Management",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="society-update"
+          options={{
+            title: "Update Society Details",
+            href: null,
+          }}
+        />
 
         {/* Right - Invite Members */}
         <Tabs.Screen

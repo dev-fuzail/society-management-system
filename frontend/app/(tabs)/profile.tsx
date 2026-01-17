@@ -205,6 +205,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#ff3b30',
+        marginTop: 20,
     },
     logoutText: {
         color: '#ff3b30',

@@ -6,6 +6,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { apiForgetPassword } from '@/services/AuthService';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { Image } from 'expo-image';
 
 export default function ForgotPasswordScreen() {
     const colorScheme = useColorScheme();
@@ -81,6 +82,11 @@ export default function ForgotPasswordScreen() {
                 style={[styles.container, { backgroundColor: theme.background }]}
             >
                 <View style={styles.content}>
+                    <Image
+                        source={require('@/assets/images/logo.png')}
+                        style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
+                        resizeMode="contain"
+                    />
                     <Ionicons name="lock-closed-outline" size={64} color={theme.tint} style={styles.icon} />
 
                     <Text style={[styles.title, { color: theme.text }]}>Forgot Password?</Text>

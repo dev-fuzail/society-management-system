@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from "reac
 import { useLocalSearchParams, router } from "expo-router";
 import { apiResetPassword } from "@/services/AuthService";
 import { PrimaryButton } from "@/components/PrimaryButton";
+import { Image } from 'expo-image';
 
 export default function ResetPasswordScreen() {
   const { token, email } = useLocalSearchParams<{ token: string; email: string }>();
@@ -39,6 +40,11 @@ export default function ResetPasswordScreen() {
 
   return (
     <View style={styles.container}>
+      <Image
+        source={require('@/assets/images/logo.png')}
+        style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
+        resizeMode="contain"
+      />
       <Text style={styles.title}>Reset Your Password</Text>
       <Text style={styles.subtitle}>
         For <Text style={styles.email}>{email}</Text>

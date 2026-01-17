@@ -12,10 +12,11 @@ import {
   useColorScheme,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiRegister } from '../services/AuthService';
+// import { apiRegister } from '../services/AuthService';
 import { Image } from 'expo-image';
 import { saveAuthData } from '@/hooks/helperHooks';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { apiRegister } from '@/services/AuthService';
 
 export default function RegisterScreen() {
   const router = useRouter();

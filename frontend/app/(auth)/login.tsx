@@ -13,9 +13,10 @@ import {
   useColorScheme,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiLogin } from '../services/AuthService';
+// import { apiLogin } from '../services/AuthService';
 import { saveAuthData } from '@/hooks/helperHooks';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { apiLogin } from '@/services/AuthService';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -127,7 +128,7 @@ export default function LoginScreen() {
         />
 
         <Text style={dynamicStyles.title}>Welcome Back 👋</Text>
-        <Text style={dynamicStyles.subtitle}>Login to cacjhas continue</Text>
+        <Text style={dynamicStyles.subtitle}>Login to continue</Text>
 
         <View style={dynamicStyles.form}>
           <Text style={dynamicStyles.label}>Email</Text>

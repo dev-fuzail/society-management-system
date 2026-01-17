@@ -10,8 +10,8 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { apiRegisterFromInvite, apiVerifyInvite } from "../services/AuthService";
-import { InviteData } from "../services/types";
+import { apiRegisterFromInvite, apiVerifyInvite } from "../../services/AuthService";
+import { InviteData } from "../../services/types";
 import { saveAuthData } from "@/hooks/helperHooks";
 import { PrimaryButton } from "@/components/PrimaryButton";
 
