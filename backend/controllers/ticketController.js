@@ -2,7 +2,8 @@
 
 import mongoose from "mongoose";
 import Ticket from "../models/Ticket.js";
-import User from "../models/User.js"; // Assuming User model is available
+import User from "../models/User.js";
+import Society from "../models/Society.js";
 
 // Debug Utility
 const log = (...msg) => console.log("🎫 [TICKET-CONTROLLER]:", ...msg);
@@ -56,27 +57,55 @@ export const createTicket = async (req, res) => {
 export const updateTicketStatus = async (req, res) => {
     const { id } = req.params;
     const { status, assignedTo } = req.body;
-    
+
     try {
-        const updateData = {};
-        if (status) updateData.status = status;
-        if (assignedTo) updateData.assignedTo = assignedTo;
+        // 1. Find the ticket FIRST to get its context (e.g., societyId)
+        const ticket = await Ticket.findById(id);
 
-        if (Object.keys(updateData).length === 0) {
-            return res.status(400).json({ success: false, message: "No update parameters provided." });
-        }
-
-        const updatedTicket = await Ticket.findByIdAndUpdate(id, updateData, { new: true });
-
-        if (!updatedTicket) {
+        if (!ticket) {
             return res.status(404).json({ success: false, message: "Ticket not found." });
         }
 
-        log(`Ticket ${id} status updated to ${updatedTicket.status}.`);
-        return res.status(200).json({ success: true, message: "Ticket updated successfully.", result: updatedTicket });
+        // 2. Prepare the update object
+        if (status) ticket.status = status;
+
+        // 3. If assigning a user, VALIDATE they belong to the society
+        if (assignedTo) {
+            // Check if the society actually contains this user in members or admins
+            const society = await Society.findOne({
+                _id: ticket.societyId, // Assuming Ticket has a 'societyId' field
+                $or: [
+                    { members: assignedTo },
+                    { admins: assignedTo }
+                ]
+            });
+
+            if (!society) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: "The assigned user is not part of this society." 
+                });
+            }
+
+            ticket.assignedTo = assignedTo;
+        }
+
+        // 4. Save the changes
+        const updatedTicket = await ticket.save();
+
+        // Optional: Populate the assigned user details for the frontend response
+        await updatedTicket.populate("assignedTo", "name email");
+
+        console.log(`Ticket ${id} updated. Status: ${ticket.status}, Assigned: ${ticket.assignedTo}`);
+        
+        return res.status(200).json({ 
+            success: true, 
+            message: "Ticket updated successfully.", 
+            result: updatedTicket 
+        });
 
     } catch (err) {
-        log("❌ Error updating ticket status:", err);
+        console.error("❌ Error updating ticket:", err);
         return res.status(500).json({ success: false, message: err.message });
     }
 };

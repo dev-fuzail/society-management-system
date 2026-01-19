@@ -17,3 +17,7 @@ export const apiUpdateSociety = async (data: SocietyData): Promise<ResponseObjec
 export const apiGetUserSocieties = async (userId: string): Promise<ResponseObject<Society[]>> => {
   return await apiService.request<Society[]>("get", `/api/societies/user-society/${userId}`);
 }
+
+export const apiGetSocietyUsers = async (societyId: string): Promise<ResponseObject<Society>> => {
+    return await apiService.request<Society>("get", `/api/societies/${societyId}/members`);
+};

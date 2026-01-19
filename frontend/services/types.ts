@@ -12,11 +12,12 @@ export interface UserDataObject {
 
 export interface UserData {
   id: number;
+  _id: string;
   name: string;
   email: string;
   phone: string;
   role: string;
-  society_id: number;
+  society_id: string;
 }
 
 export interface LoginData {
