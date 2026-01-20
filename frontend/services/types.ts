@@ -8,6 +8,8 @@ export interface ResponseObject<T> {
 export interface UserDataObject {
   token: string;
   user: UserData;
+  require2FA?: boolean;
+  userId?: string;
 }
 
 export interface UserData {

@@ -8,8 +8,9 @@ import {
     verifyInvite,
     forgotPassword,
     resetPassword,
-    updateProfile
-
+    updateProfile,
+    verify2FALogin,
+    toggle2FA
 } from '../controllers/authController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 const router = express.Router();
@@ -23,5 +24,7 @@ router.post('/send-email', authMiddleware, sendEmailInvite);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 router.put("/update-profile", authMiddleware, updateProfile);
+router.post('/verify-2fa', verify2FALogin);
+router.post('/toggle-2fa', authMiddleware, toggle2FA);
 
 export default router;

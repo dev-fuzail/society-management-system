@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform, Switch } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UpdateUser } from '@/services/types';
-import { apiUpdateProfile } from '@/services/AuthService';
+import { apiToggle2FA, apiUpdateProfile } from '@/services/AuthService';
 import { PrimaryButton } from '@/components/PrimaryButton';
 
 export default function ProfileScreen() {
@@ -18,6 +18,7 @@ export default function ProfileScreen() {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false); // For save loading
+    const [isTwoFactorEnabled, setIsTwoFactorEnabled] = useState(false);
 
     // Load user data from AsyncStorage on mount
     useEffect(() => {
@@ -35,6 +36,7 @@ export default function ProfileScreen() {
                     setName(userData.name || "");
                     setEmail(userData.email || "");
                     setPhoneNumber(userData.phone || "");
+                    setIsTwoFactorEnabled(userData.isTwoFactorEnabled || false);
                 }
             } catch (error) {
                 console.error("Failed to load user data", error);
@@ -46,6 +48,31 @@ export default function ProfileScreen() {
 
         loadUserData();
     }, []);
+
+    const handleToggle2FA = async (value: boolean) => {
+        // Optimistic UI Update
+        setIsTwoFactorEnabled(value);
+
+        try {
+            const response = await apiToggle2FA(value);
+            if (response.success) {
+                // Update local storage to persist the new setting
+                const userDataString = await AsyncStorage.getItem("userData");
+                if (userDataString) {
+                    const userData = JSON.parse(userDataString);
+                    userData.isTwoFactorEnabled = value;
+                    await AsyncStorage.setItem("userData", JSON.stringify(userData));
+                }
+            } else {
+                // Revert if failed
+                setIsTwoFactorEnabled(!value);
+                Alert.alert("Error", "Failed to update 2FA settings.");
+            }
+        } catch (error) {
+            setIsTwoFactorEnabled(!value);
+            Alert.alert("Error", "Network error.");
+        }
+    };
 
 
     const handleSave = async () => {
@@ -121,6 +148,21 @@ export default function ProfileScreen() {
 
                 <View style={styles.avatarContainer}>
                     <Ionicons name="person-circle" size={100} color={theme.tint} />
+                </View>
+
+                <View style={[styles.settingRow, { borderBottomColor: theme.icon }]}>
+                    <View>
+                        <Text style={[styles.label, { color: theme.text, marginBottom: 0 }]}>Two-Factor Authentication</Text>
+                        <Text style={{ color: '#333', fontSize: 12, marginTop: 4 }}>
+                            Secure your account with Email OTP.
+                        </Text>
+                    </View>
+                    <Switch
+                        trackColor={{ false: "#767577", true: theme.tint }}
+                        thumbColor={isTwoFactorEnabled ? "#fff" : "#f4f3f4"}
+                        onValueChange={handleToggle2FA}
+                        value={isTwoFactorEnabled}
+                    />
                 </View>
 
                 <View style={styles.form}>
@@ -212,4 +254,13 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
+    settingRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 15,
+        borderBottomWidth: 1,
+        borderColor: '#eee',
+        marginBottom: 20
+    }
 });

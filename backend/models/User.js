@@ -17,7 +17,11 @@ const userSchema = new mongoose.Schema({
   resetPasswordToken: { type: String },
   resetPasswordExpires: { type: Date },
 
-  // Optionally, profile avatar
+  // 🛡️ 2FA Fields
+  isTwoFactorEnabled: { type: Boolean, default: false },
+  twoFactorCode: { type: String },
+  twoFactorCodeExpires: { type: Date },
+
   avatar: { type: String },
 }, { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } });
 

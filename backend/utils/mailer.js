@@ -87,3 +87,28 @@ export const sendResetEmail = async (email, link) => {
   await transporter.sendMail(mailOptions);
   console.log(`✅ Reset password email sent to ${email}`);
 };
+
+/**
+ * Sends a 2FA OTP email to the user.
+ * @param {string} email - The recipient's email address.
+ * @param {string} otp - The 6-digit OTP code.
+ */
+export const send2FAEmail = async (email, otp) => {
+  const mailOptions = {
+    from: process.env.SMTP_FROM,
+    to: email,
+    subject: "Your Login Verification Code",
+    text: `Your verification code is ${otp}. It is valid for 10 minutes.`,
+    html: `
+      <div style="font-family: sans-serif; padding: 20px; color: #333;">
+        <h2>Login Verification</h2>
+        <p>Your 2FA code is:</p>
+        <h1 style="color: #007bff; letter-spacing: 5px;">${otp}</h1>
+        <p>This code expires in 10 minutes.</p>
+      </div>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+  console.log(`✅ 2FA OTP sent to ${email}`);
+};

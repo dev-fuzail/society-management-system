@@ -8,6 +8,8 @@ import SocietyInvite from "../models/SocietyInvite.js";
 import User from "../models/User.js";
 import { sendInviteEmail } from "../utils/mailer.js"; // We will create this utility
 import { sendResetEmail } from "../utils/mailer.js";
+import { send2FAEmail } from '../utils/mailer.js';
+
 const JWT_SECRET = process.env.JWT_SECRET || "secret123";
 dotenv.config();
 
@@ -356,23 +358,53 @@ export const login = async (req, res) => {
     if (!validPass)
       return res.status(401).json({ success: false, message: "Invalid password" });
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    // const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
+    //   expiresIn: "7d",
+    // });
 
+    // return res.status(200).json({
+    //   success: true,
+    //   message: "Login Successful!",
+    //   result: {
+    //     token,
+    //     user: {
+    //       id: user._id,
+    //       name: user.name,
+    //       email: user.email,
+    //       role: user.role,
+    //     },
+    //   },
+    // });
+
+    if (user.isTwoFactorEnabled) {
+      // 1. Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      user.twoFactorCode = otp;
+      user.twoFactorCodeExpires = Date.now() + 10 * 60 * 1000; // 10 mins
+      await user.save();
+
+      // 3. Send Email
+      await send2FAEmail(user.email, otp);
+
+      // 4. Return special response telling Frontend to show OTP screen
+      return res.status(200).json({
+        success: true,
+        require2FA: true, 
+        userId: user._id, // Frontend needs this to send back with OTP
+        message: "OTP sent to email"
+      });
+    }
+
+    // 🟢 Normal Login (If 2FA is OFF)
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    
     return res.status(200).json({
       success: true,
-      message: "Login Successful!",
-      result: {
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      },
+      token,
+      user: { id: user._id, name: user.name, role: user.role }
     });
+
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -507,6 +539,58 @@ export const updateProfile = async (req, res) => {
     await user.save();
 
     res.status(200).json({ success: true, message: "Profile updated successfully", result: { user } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const verify2FALogin = async (req, res) => {
+  const { userId, otp } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Check if OTP matches and hasn't expired
+    if (user.twoFactorCode !== otp || user.twoFactorCodeExpires < Date.now()) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
+
+    // ✅ OTP is valid: Generate Token
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    // Clear the OTP fields
+    user.twoFactorCode = undefined;
+    user.twoFactorCodeExpires = undefined;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      token,
+      user: { id: user._id, name: user.name, role: user.role }
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const toggle2FA = async (req, res) => {
+  // req.user comes from your authMiddleware
+  const { enable } = req.body; // Boolean: true to enable, false to disable
+
+  try {
+    const user = await User.findById(req.user._id);
+    user.isTwoFactorEnabled = enable;
+    await user.save();
+
+    res.status(200).json({ 
+      success: true, 
+      message: `2FA ${enable ? 'enabled' : 'disabled'} successfully.` 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

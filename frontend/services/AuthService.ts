@@ -9,14 +9,37 @@ import {
   UserDataObject,
 } from './types';
 
+// export const apiLogin = async (data: LoginData): Promise<ResponseObject<UserDataObject>> => {
+//   const response = await apiService.request<UserDataObject>('post', '/api/auth/login', data);
+
+//   if (response.status && response.result.token) {
+//     await apiService.setToken(response.result.token);
+//   }
+
+//   return response;
+// };
+
 export const apiLogin = async (data: LoginData): Promise<ResponseObject<UserDataObject>> => {
   const response = await apiService.request<UserDataObject>('post', '/api/auth/login', data);
 
-  if (response.status && response.result.token) {
+  // Only set token if it exists (Normal Login)
+  if (response.success && response.result?.token) {
     await apiService.setToken(response.result.token);
   }
-
   return response;
+};
+
+export const apiVerify2FA = async (userId: string, otp: string): Promise<ResponseObject<UserDataObject>> => {
+  const response = await apiService.request<UserDataObject>('post', '/api/auth/verify-2fa', { userId, otp });
+
+  if (response.success && response.result.token) {
+    await apiService.setToken(response.result.token);
+  }
+  return response;
+};
+
+export const apiToggle2FA = async (enable: boolean): Promise<ResponseObject<{ isTwoFactorEnabled: boolean }>> => {
+  return await apiService.request<{ isTwoFactorEnabled: boolean }>('post', '/api/auth/toggle-2fa', { enable });
 };
 
 export const apiRegister = async (data: RegisterData): Promise<ResponseObject<RegResponse>> => {
@@ -45,7 +68,7 @@ export const apiUpdateProfile = async (data: LoginData): Promise<ResponseObject<
 };
 
 export const apiResetPassword = async (email: string, token: string, newPassword: string) => {
-  return await apiService.request<null>('post', '/api/auth/reset-password', { email, token, newPassword});
+  return await apiService.request<null>('post', '/api/auth/reset-password', { email, token, newPassword });
 };
 
 export const apiForgetPassword = async (email: string): Promise<ResponseObject<ForgetPasswordResponse>> => {
