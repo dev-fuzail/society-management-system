@@ -390,9 +390,11 @@ export const login = async (req, res) => {
       // 4. Return special response telling Frontend to show OTP screen
       return res.status(200).json({
         success: true,
-        require2FA: true, 
-        userId: user._id, // Frontend needs this to send back with OTP
-        message: "OTP sent to email"
+        message: "OTP sent to email",
+        result: { 
+          require2FA: true, 
+          userId: user._id 
+        }
       });
     }
 
@@ -402,8 +404,10 @@ export const login = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      token,
-      user: { id: user._id, name: user.name, role: user.role }
+      result: {
+        token,
+        user: { id: user._id, name: user.name, role: user.role }
+      }
     });
 
   } catch (error) {
@@ -563,7 +567,7 @@ export const verify2FALogin = async (req, res) => {
     // ✅ OTP is valid: Generate Token
     // const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-    
+
     // Clear the OTP fields
     user.twoFactorCode = undefined;
     user.twoFactorCodeExpires = undefined;
