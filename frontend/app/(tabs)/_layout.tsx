@@ -113,6 +113,28 @@ export default function TabLayout() {
               </>
             )}
 
+            {user?.role === "admin" && (
+              <>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuNavigate("/announcement")}
+                >
+                  <Ionicons
+                    name="business-outline"
+                    size={20}
+                    color={theme.text}
+                    style={styles.menuIcon}
+                  />
+                  <Text style={[styles.menuText, { color: theme.text }]}>
+                    Manage Announcements
+                  </Text>
+                </TouchableOpacity>
+                <View
+                  style={[styles.separator, { backgroundColor: theme.icon }]}
+                />
+              </>
+            )}
+
             {/* <TouchableOpacity
               style={styles.menuItem}
               onPress={() => handleMenuNavigate("/forgot-password")}
@@ -243,6 +265,13 @@ export default function TabLayout() {
           name="society-update"
           options={{
             title: "Update Society Details",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="announcement"
+          options={{
+            title: "Manage Announcements",
             href: null,
           }}
         />

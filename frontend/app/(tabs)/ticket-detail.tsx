@@ -121,8 +121,6 @@ export default function TicketDetailScreen() {
         }
     };
 
-    console.log("sadhajkhdjka",assignableUsers)
-
     // --- Initialization ---
     useEffect(() => {
         const init = async () => {

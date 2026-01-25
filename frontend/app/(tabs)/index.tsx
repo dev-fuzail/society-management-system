@@ -1,27 +1,52 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, Dimensions, Platform, Alert, TouchableOpacity } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, Dimensions, Platform, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { Ionicons } from "@expo/vector-icons";
+import { getAuthData } from '@/hooks/helperHooks'; // Import your auth helper
+import { apiGetAnnouncements } from '@/services/AnnouncementService'; // Import the service
+import { Announcement } from '@/services/types';
+import { apiGetUserSocieties } from '@/services/SocietyService';
+import { apiGetTickets } from '@/services/TicketService';
 
 const screenWidth = Dimensions.get('window').width;
 
+// Helper to cycle colors for announcements
+const NOTICE_COLORS = ['#FFEB3B', '#FFCDD2', '#C8E6C9', '#BBDEFB', '#E1BEE7'];
+
 export default function HomeScreen() {
-  const [showContent, setShowContent] = useState(Platform.OS !== 'web'); // show immediately on mobile
+  const [showContent, setShowContent] = useState(Platform.OS !== 'web');
   const [tokenChecked, setTokenChecked] = useState(false);
+  const [realNotices, setRealNotices] = useState<Announcement[]>([]); // State for real data
+  const [loadingNotices, setLoadingNotices] = useState(true);
+  const [ticketStats, setTicketStats] = useState({
+    total: 0,
+    resolved: 0,
+    processing: 0
+  });
+  
   const router = useRouter();
 
   useEffect(() => {
     const verifyToken = async () => {
       try {
-        const token = await AsyncStorage.getItem('authToken');
+        const { token, userData } = await getAuthData();
+        const res = await apiGetUserSocieties(userData.id);
+        const selectedSociety = res.result[0];
         if (!token) {
           router.replace('/login');
           return;
         }
-      } catch (error) {
-        Alert.alert('Error', 'Something went wrong while verifying login.');
+        
+        // ✅ Fetch Real Announcements if user has a society
+        if (userData && selectedSociety) {
+          fetchAnnouncements(selectedSociety._id);
+          fetchTicketStats(selectedSociety._id);
+        } else {
+          setLoadingNotices(false);
+        }
+
       } finally {
         setTokenChecked(true);
       }
@@ -29,28 +54,49 @@ export default function HomeScreen() {
     verifyToken();
   }, []);
 
+  const fetchAnnouncements = async (societyId: string) => {
+    try {
+      const response = await apiGetAnnouncements(societyId);
+      if (response.success) {
+        setRealNotices(response.result);
+      }
+    } catch (error) {
+      console.log("Error fetching notices:", error);
+    } finally {
+      setLoadingNotices(false);
+    }
+  };
+
   useEffect(() => {
     if (Platform.OS === 'web') {
-      const timer = setTimeout(() => setShowContent(true), 100); // delay for hydration
+      const timer = setTimeout(() => setShowContent(true), 100);
       return () => clearTimeout(timer);
     }
   }, []);
 
   if (!tokenChecked) return null;
 
-  // Dummy data
+  // Dummy data for charts/cards (kept as requested)
   const totalPayments = 50000;
   const totalExpenses = 32000;
   const issuesCovered = 45;
   const issuesResolved = 30;
   const issuesUnderProcess = 15;
 
+  // const dashboardCards = [
+  //   { title: 'Total Payments', value: `$${totalPayments}` },
+  //   { title: 'Total Expenses', value: `$${totalExpenses}` },
+  //   { title: 'Issues Covered', value: `${ticketStats.total}` },       // Real Total
+  //   { title: 'Issues Resolved', value: `${ticketStats.resolved}` },    // Real Resolved
+  //   { title: 'Issues Under Process', value: `${ticketStats.processing}` }, // Real Pending/In Progress
+  // ];
+
   const pieData = [
     { name: 'Total Payments', population: totalPayments, color: '#4CAF50', legendFontColor: '#333', legendFontSize: 14 },
     { name: 'Total Expenses', population: totalExpenses, color: '#F44336', legendFontColor: '#333', legendFontSize: 14 },
   ];
 
-  const dummyCards = [
+  const dashboardCards = [
     { title: 'Total Payments', value: `$${totalPayments}` },
     { title: 'Total Expenses', value: `$${totalExpenses}` },
     { title: 'Issues Covered', value: `${issuesCovered}` },
@@ -58,11 +104,24 @@ export default function HomeScreen() {
     { title: 'Issues Under Process', value: `${issuesUnderProcess}` },
   ];
 
-  const notices = [
-    { title: 'Maintenance', text: 'Last date to pay maintenance: 10th Nov', color: '#FFEB3B' },
-    { title: 'Elections', text: 'Upcoming elections: 20th Nov', color: '#FFCDD2' },
-    { title: 'Water Supply', text: 'Water supply maintenance: 15th Nov', color: '#C8E6C9' },
-  ];
+  const fetchTicketStats = async (societyId: string) => {
+    try {
+      const res = await apiGetTickets(societyId);
+      
+      if (res.success && res.result) {
+        const tickets = res.result;
+
+        // Calculate Stats
+        const total = tickets.length;
+        const resolved = tickets.filter((t: any) => t.status === 'Resolved' || t.status === 'Closed').length;
+        const processing = tickets.filter((t: any) => t.status === 'Pending' || t.status === 'In Progress').length;
+
+        setTicketStats({ total, resolved, processing });
+      }
+    } catch (error) {
+      console.log("Error fetching tickets:", error);
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -74,6 +133,7 @@ export default function HomeScreen() {
         </View>
         <Ionicons name="chevron-forward" size={24} color={'#888'} />
       </TouchableOpacity>
+      
       <TouchableOpacity
         style={styles.actionCard}
         onPress={() => router.push('/ticket-system')}
@@ -87,17 +147,33 @@ export default function HomeScreen() {
         <Ionicons name="chevron-forward" size={24} color={'#888'} />
       </TouchableOpacity>
 
-      {/* Noticeboard */}
+      {/* ✅ Real Noticeboard Section */}
       <View style={styles.noticeBoard}>
         <Text style={styles.noticeBoardTitle}>📌 Notices</Text>
-        <View style={styles.noteCard}>
-          {notices.map((notice, index) => (
-            <View key={index} style={[styles.stickyNote, { backgroundColor: notice.color }]}>
-              <Text style={styles.noteTitle}>{notice.title}</Text>
-              <Text style={styles.noteText}>{notice.text}</Text>
-            </View>
-          ))}
-        </View>
+        
+        {loadingNotices ? (
+          <ActivityIndicator size="small" color="#000" />
+        ) : realNotices.length > 0 ? (
+          <View style={styles.noteCard}>
+            {realNotices.map((notice, index) => (
+              <View 
+                key={notice._id} 
+                style={[
+                  styles.stickyNote, 
+                  { backgroundColor: NOTICE_COLORS[index % NOTICE_COLORS.length] } // Cycle through colors
+                ]}
+              >
+                <Text style={styles.noteTitle}>{notice.title}</Text>
+                <Text style={styles.noteText}>{notice.message}</Text>
+                <Text style={styles.noteDate}>
+                  {new Date(notice.created_at).toLocaleDateString()}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={{ fontStyle: 'italic', color: '#666' }}>No new announcements.</Text>
+        )}
       </View>
 
       {showContent && (
@@ -108,7 +184,7 @@ export default function HomeScreen() {
               <Text style={styles.sectionTitle}>Financial Overview</Text>
               <PieChart
                 data={pieData}
-                width={screenWidth * 0.85} // ✅ makes chart centered & fits smaller screens
+                width={screenWidth * 0.85}
                 height={220}
                 accessor="population"
                 backgroundColor="transparent"
@@ -124,7 +200,7 @@ export default function HomeScreen() {
 
           {/* Cards */}
           <View style={styles.cardsContainer}>
-            {dummyCards.map((card, index) => (
+            {dashboardCards.map((card, index) => (
               <View key={index} style={styles.card}>
                 <Text style={styles.cardTitle}>{card.title}</Text>
                 <Text style={styles.cardValue}>{card.value}</Text>
@@ -143,9 +219,8 @@ const styles = StyleSheet.create({
   // Noticeboard
   noticeBoard: { marginBottom: 20, padding: 16, borderRadius: 12, backgroundColor: '#fffbe6', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 3 },
   noticeBoardTitle: { fontSize: 20, fontWeight: '700', marginBottom: 10 },
-  notesContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'flex-start' },
   stickyNote: {
-    width: '100%', // ✅ takes full width of container
+    width: '100%',
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
@@ -153,8 +228,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-  },  // noteTitle: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  noteText: { fontSize: 13, color: '#333' },
+  },  
+  noteTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4, color: '#333' },
+  noteText: { fontSize: 14, color: '#444' },
+  noteDate: { fontSize: 10, color: '#666', marginTop: 6, textAlign: 'right' },
 
   // Pie chart
   chartContainer: {
@@ -173,7 +250,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
 
   // Generic Cards
-  cardsContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
+  cardsContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12, marginBottom: 30 },
   card: { flexBasis: '48%', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 3 },
   cardTitle: { fontSize: 14, fontWeight: '600', color: '#555' },
   cardValue: { fontSize: 18, fontWeight: '700', color: '#222', marginTop: 5 },
@@ -195,30 +272,12 @@ const styles = StyleSheet.create({
     borderLeftColor: '#4f46e5',
   },
   noteCard: {
-    backgroundColor: '#fff',
-    padding: 10,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 3,
-    marginBottom: 16,
+    // backgroundColor: '#fff', // Removed white bg here to let sticky notes shine on the yellow board
+    // padding: 10,
     width: '100%',
   },
-  noteTitle: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '600',
-  },
-  noteValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#2196F3',
-    marginTop: 4,
-  },
   CardTextContainer: { flex: 1, marginLeft: 16 },
-  CardTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  CardTitle: { fontSize: 16, fontWeight: '700', color: '#333' },
   CardDescription: { fontSize: 14, color: '#555', marginTop: 4 },
   actionCard: {
     flexDirection: 'row',

@@ -150,3 +150,13 @@ export interface Apartment {
   status: 'pending' | 'verified' | 'rejected';
   created_at?: string;
 }
+
+export interface Announcement {
+  _id: string;
+  society_id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  created_at: string;
+  updatedAt: string;
+}
