@@ -397,8 +397,9 @@ export const login = async (req, res) => {
     }
 
     // 🟢 Normal Login (If 2FA is OFF)
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    
+    // const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+
     return res.status(200).json({
       success: true,
       token,
@@ -560,8 +561,9 @@ export const verify2FALogin = async (req, res) => {
     }
 
     // ✅ OTP is valid: Generate Token
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
-
+    // const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    
     // Clear the OTP fields
     user.twoFactorCode = undefined;
     user.twoFactorCodeExpires = undefined;
