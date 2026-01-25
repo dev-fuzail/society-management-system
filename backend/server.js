@@ -70,41 +70,41 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 const webRouter = express.Router();
 
-webRouter.get("/join", async (req, res) => {
-  const { token } = req.query;
-  if (!token) {
-    return res
-      .status(400)
-      .send("<h1>Error</h1><p>Invitation token is missing.</p>");
-  }
-  try {
-    // ⚠️ Add Token Validation Logic Here ⚠️
-    const deepLinkUrl = `${APP_SCHEME}join?token=${token}`;
-    console.log(`[DEEPLINK]: Redirecting to mobile app: ${deepLinkUrl}`);
-    return res.redirect(302, deepLinkUrl);
-  } catch (error) {
-    const htmlError = `<h1>Link Expired or Invalid</h1><p>Please request a new invitation link.</p>`;
-    return res.status(400).send(htmlError);
-  }
-});
+// webRouter.get("/join", async (req, res) => {
+//   const { token } = req.query;
+//   if (!token) {
+//     return res
+//       .status(400)
+//       .send("<h1>Error</h1><p>Invitation token is missing.</p>");
+//   }
+//   try {
+//     // ⚠️ Add Token Validation Logic Here ⚠️
+//     const deepLinkUrl = `${APP_SCHEME}join?token=${token}`;
+//     console.log(`[DEEPLINK]: Redirecting to mobile app: ${deepLinkUrl}`);
+//     return res.redirect(302, deepLinkUrl);
+//   } catch (error) {
+//     const htmlError = `<h1>Link Expired or Invalid</h1><p>Please request a new invitation link.</p>`;
+//     return res.status(400).send(htmlError);
+//   }
+// });
 
-webRouter.get("/reset-password", async (req, res) => {
-  const { token, email } = req.query;
-  if (!token || !email) {
-    return res
-      .status(400)
-      .send("<h1>Error</h1><p>Reset link is incomplete.</p>");
-  }
-  try {
-    // ⚠️ Add Token Validation Logic Here ⚠️
-    const deepLinkUrl = `${APP_SCHEME}reset?token=${token}&email=${email}`;
-    console.log(`[DEEPLINK]: Redirecting to mobile app: ${deepLinkUrl}`);
-    return res.redirect(302, deepLinkUrl);
-  } catch (error) {
-    const htmlError = `<h1>Reset Failed</h1><p>This password reset link is invalid or has expired.</p>`;
-    return res.status(400).send(htmlError);
-  }
-});
+// webRouter.get("/reset-password", async (req, res) => {
+//   const { token, email } = req.query;
+//   if (!token || !email) {
+//     return res
+//       .status(400)
+//       .send("<h1>Error</h1><p>Reset link is incomplete.</p>");
+//   }
+//   try {
+//     // ⚠️ Add Token Validation Logic Here ⚠️
+//     const deepLinkUrl = `${APP_SCHEME}reset?token=${token}&email=${email}`;
+//     console.log(`[DEEPLINK]: Redirecting to mobile app: ${deepLinkUrl}`);
+//     return res.redirect(302, deepLinkUrl);
+//   } catch (error) {
+//     const htmlError = `<h1>Reset Failed</h1><p>This password reset link is invalid or has expired.</p>`;
+//     return res.status(400).send(htmlError);
+//   }
+// });
 
 // Mount the webRouter on the root path
 app.use("/", webRouter);
