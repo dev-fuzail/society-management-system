@@ -8,6 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UpdateUser } from '@/services/types';
 import { apiToggle2FA, apiUpdateProfile } from '@/services/AuthService';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { clearAuthData } from '../../hooks/helperHooks';
 
 export default function ProfileScreen() {
     const colorScheme = useColorScheme();
@@ -121,10 +122,10 @@ export default function ProfileScreen() {
                 style: 'destructive',
                 onPress: async () => {
                     if (Platform.OS === 'web') {
-                        localStorage.removeItem('token');
+                        localStorage.removeItem('authToken');
                         localStorage.removeItem('userData');
                     } else {
-                        await AsyncStorage.removeItem('token');
+                        await AsyncStorage.removeItem('authToken');
                         await AsyncStorage.removeItem('userData');
                     }
                     router.replace('/login');

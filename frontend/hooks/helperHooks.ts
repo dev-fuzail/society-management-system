@@ -15,6 +15,24 @@ export const saveAuthData = async (token: string, userData: any) => {
   }
 };
 
+// hooks/helperHooks.ts
+
+export const clearAuthData = async () => {
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.clear(); // Web ke liye sab saaf
+    } else {
+      // Mobile ke liye: Specific keys delete karein taake ghalti ki gunjaish na ho
+      const keys = ['authToken', 'userData', 'token']; // 'token' bhi daal diya safety ke liye
+      await AsyncStorage.multiRemove(keys);
+    }
+    console.log('Auth Data Cleared Successfully');
+  } catch (err) {
+    console.error('Failed to clear auth data', err);
+  }
+};
+
+
 export const getAuthData = async () => {
   try {
     if (Platform.OS === "web") {

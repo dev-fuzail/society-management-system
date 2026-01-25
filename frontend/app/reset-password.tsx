@@ -1,6 +1,16 @@
 // app/reset-password.tsx
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from "react-native";
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  Alert, 
+  StyleSheet, 
+  KeyboardAvoidingView, // ✅ Added
+  Platform,             // ✅ Added
+  ScrollView,           // ✅ Added
+  useColorScheme        // ✅ Added
+} from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { apiResetPassword } from "@/services/AuthService";
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -11,6 +21,17 @@ export default function ResetPasswordScreen() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // 🎨 Theme Logic (Text Visibility Fix)
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  
+  // Colors define kar rahe hain
+  const textColor = isDark ? '#FFFFFF' : '#000000';
+  const bgColor = isDark ? '#000000' : '#FFFFFF';
+  const inputBg = isDark ? '#1C1C1E' : '#F5F5F5';
+  const borderColor = isDark ? '#333' : '#ccc';
+  const placeholderColor = isDark ? '#888' : '#666';
 
   const handleReset = async () => {
     if (!password || !confirm) {
@@ -23,7 +44,9 @@ export default function ResetPasswordScreen() {
     try {
       setLoading(true);
       const res = await apiResetPassword(email!, token!, password);
-      if (res.status) {
+      
+      // ✅ Check both success and status just to be safe
+      if (res.status || res.success) {
         Alert.alert("Success", "Password reset successfully.", [
           { text: "Login", onPress: () => router.replace("/login") },
         ]);
@@ -39,50 +62,62 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Image
-        source={require('@/assets/images/logo.png')}
-        style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
-        resizeMode="contain"
-      />
-      <Text style={styles.title}>Reset Your Password</Text>
-      <Text style={styles.subtitle}>
-        For <Text style={styles.email}>{email}</Text>
-      </Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="New Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Confirm Password"
-        secureTextEntry
-        value={confirm}
-        onChangeText={setConfirm}
-      />
-
-      {/* <TouchableOpacity
-        style={[styles.button, loading && { opacity: 0.6 }]}
-        disabled={loading}
-        onPress={handleReset}
+    // ✅ 1. Keyboard Handling Wrapper
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: bgColor }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+    >
+      {/* ✅ 2. ScrollView for Scrolling Content */}
+      <ScrollView
+        contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.buttonText}>{loading ? "Resetting..." : "Reset Password"}</Text>
-      </TouchableOpacity> */}
-    <PrimaryButton title={loading ? "Resetting..." : "Reset Password"} onPress={handleReset} disabled={loading} />
-    </View>
+        <Image
+          source={require('@/assets/images/logo.png')}
+          style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
+          resizeMode="contain"
+        />
+        <Text style={[styles.title, { color: textColor }]}>Reset Your Password</Text>
+        <Text style={styles.subtitle}>
+          For <Text style={[styles.email, { color: textColor }]}>{email}</Text>
+        </Text>
+
+        <TextInput
+          style={[
+            styles.input, 
+            { color: textColor, backgroundColor: inputBg, borderColor: borderColor } // ✅ Dynamic Colors
+          ]}
+          placeholder="New Password"
+          placeholderTextColor={placeholderColor}
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+        <TextInput
+          style={[
+            styles.input, 
+            { color: textColor, backgroundColor: inputBg, borderColor: borderColor } // ✅ Dynamic Colors
+          ]}
+          placeholder="Confirm Password"
+          placeholderTextColor={placeholderColor}
+          secureTextEntry
+          value={confirm}
+          onChangeText={setConfirm}
+        />
+
+        <PrimaryButton title={loading ? "Resetting..." : "Reset Password"} onPress={handleReset} disabled={loading} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: 25,
-    backgroundColor: "#fff",
+    // backgroundColor: Removed hardcoded color here, handling in View above
   },
   title: {
     fontSize: 24,
@@ -97,23 +132,14 @@ const styles = StyleSheet.create({
   },
   email: {
     fontWeight: "600",
-    color: "#000",
+    // Color handled inline
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    // Border color handled inline
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
   },
-  button: {
-    backgroundColor: "#007AFF",
-    borderRadius: 8,
-    paddingVertical: 14,
-  },
-  buttonText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600",
-  },
+  // Button styles are handled by PrimaryButton component
 });

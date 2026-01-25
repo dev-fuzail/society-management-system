@@ -5,7 +5,7 @@ import { ThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { StatusBar } from 'expo-status-bar';
-import CustomSplash from "../components/SplashScreen"; // your splash file
+import CustomSplash from "../components/SplashScreen";
 import * as SplashScreen from "expo-splash-screen";
 
 SplashScreen.preventAutoHideAsync();
@@ -27,7 +27,7 @@ export default function RootLayout() {
     const timer = setTimeout(async () => {
       setSplashVisible(false);
       await SplashScreen.hideAsync();
-    }, 2300); // splash duration
+    }, 2300);
 
     return () => clearTimeout(timer);
   }, []);
@@ -42,14 +42,18 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         {!isLoggedIn ? (
+          // 🔓 PUBLIC ROUTES (Bina Login Ke)
           <>
             <Stack.Screen name="login" />
             <Stack.Screen name="register" />
             <Stack.Screen name="join" />
-            {/* <Stack.Screen name="reset" /> */}
+            
+            {/* ✅ YE DONO ZAROORI HAIN */}
+            <Stack.Screen name="forgot-password" options={{ title: "Forgot Password" }} />
             <Stack.Screen name="reset-password" options={{ title: "Reset Password" }} />
           </>
         ) : (
+          // 🔒 PROTECTED ROUTES (Login Ke Baad)
           <>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="profile" />

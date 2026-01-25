@@ -33,16 +33,21 @@ export default function ForgotPasswordScreen() {
         try {
             const response = await apiForgetPassword(email);
 
-            if (response.status) {
-                if (response.result.resetUrl) {
-                    router.push(`/reset-password?token=${response.result.resetUrl.split("token=")[1].split("&")[0]}&email=${email}`);
-                } else {
-                    Alert.alert(
-                        'Check your email',
-                        'If an account exists for this email, we have sent password reset instructions.',
-                        [{ text: 'OK', onPress: () => router.back() }]
-                    );
-                }
+            // ✅ Check success
+            if (response.success || response.status) {
+                
+                // ❌ Maine yahan se Auto-Redirect wala code hata diya hai.
+                // Ab sirf Alert ayega.
+                
+                Alert.alert(
+                    'Check your email',
+                    'If an account exists for this email, we have sent password reset instructions.',
+                    [
+                        // OK dabane par wapis Login screen par bhej den
+                        { text: 'OK', onPress: () => router.back() } 
+                    ]
+                );
+
             } else {
                 throw new Error(response.message || 'Failed to send reset link.');
             }

@@ -7,8 +7,9 @@ import {
     StyleSheet,
     Text,
     TextInput,
-    TouchableOpacity,
     View,
+    KeyboardAvoidingView, // 👈 Added
+    Platform, // 👈 Added
 } from "react-native";
 import { apiRegisterFromInvite, apiVerifyInvite } from "../services/AuthService";
 import { InviteData } from "../services/types";
@@ -70,14 +71,6 @@ export default function JoinScreen() {
         setSubmitting(true);
 
         try {
-            // const response = await apiRegisterFromInvite({
-            //     name,
-            //     email: invite.email || email,
-            //     role: invite.role,
-            //     phone,
-            //     password,
-            //     token,
-            // });
             const response = await apiRegisterFromInvite({
                 name,
                 email: invite.email || email,
@@ -91,7 +84,6 @@ export default function JoinScreen() {
             });
 
             if (response.success) {
-                // Save token + userData
                 await saveAuthData(response.result.token, response.result.user);
 
                 Alert.alert("Success", "You have successfully joined the society!", [
@@ -126,113 +118,112 @@ export default function JoinScreen() {
     }
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.title}>🤝 Join Society</Text>
-            <Text style={styles.subtitle}>You're invited to join. Complete your details below.</Text>
+        // 👇 Yahan KeyboardAvoidingView wrap kiya hai
+        <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1, backgroundColor: "#0a0a0a" }}
+        >
+            <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+                <Text style={styles.title}>🤝 Join Society</Text>
+                <Text style={styles.subtitle}>You're invited to join. Complete your details below.</Text>
 
-            <View style={styles.section}>
-                {invite.email ? (
-                    <>
-                        <Text style={styles.label}>Email Address (from invite)</Text>
-                        <TextInput
-                            style={[styles.input, styles.readonlyInput]}
-                            value={invite.email}
-                            editable={false}
-                        />
-                    </>
-                ) : (
-                    <>
-                        <Text style={styles.label}>Email Address</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Enter your email address"
-                            placeholderTextColor="#777"
-                            value={email}
-                            onChangeText={setEmail}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                        />
-                    </>
-                )}
+                <View style={styles.section}>
+                    {invite.email ? (
+                        <>
+                            <Text style={styles.label}>Email Address (from invite)</Text>
+                            <TextInput
+                                style={[styles.input, styles.readonlyInput]}
+                                value={invite.email}
+                                editable={false}
+                            />
+                        </>
+                    ) : (
+                        <>
+                            <Text style={styles.label}>Email Address</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Enter your email address"
+                                placeholderTextColor="#777"
+                                value={email}
+                                onChangeText={setEmail}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                            />
+                        </>
+                    )}
 
-                <Text style={styles.label}>Full Name</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Enter your full name"
-                    placeholderTextColor="#777"
-                    value={name}
-                    onChangeText={setName}
-                    autoCapitalize="words"
-                />
+                    <Text style={styles.label}>Full Name</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Enter your full name"
+                        placeholderTextColor="#777"
+                        value={name}
+                        onChangeText={setName}
+                        autoCapitalize="words"
+                    />
 
-                <Text style={styles.label}>Phone Number</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Enter your phone number"
-                    placeholderTextColor="#777"
-                    keyboardType="phone-pad"
-                    value={phone}
-                    onChangeText={setPhone}
-                />
+                    <Text style={styles.label}>Phone Number</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Enter your phone number"
+                        placeholderTextColor="#777"
+                        keyboardType="phone-pad"
+                        value={phone}
+                        onChangeText={setPhone}
+                    />
 
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Create a strong password"
-                    placeholderTextColor="#777"
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                />
-            </View>
-            <View style={styles.section}>
-                <Text style={[styles.title, { fontSize: 18, marginTop: 10, marginBottom: 15, color: '#FFD671' }]}>
-                    🏠 Apartment Details
-                </Text>
+                    <Text style={styles.label}>Password</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Create a strong password"
+                        placeholderTextColor="#777"
+                        secureTextEntry
+                        value={password}
+                        onChangeText={setPassword}
+                    />
+                </View>
+                <View style={styles.section}>
+                    <Text style={[styles.title, { fontSize: 18, marginTop: 10, marginBottom: 15, color: '#FFD671' }]}>
+                        🏠 Apartment Details
+                    </Text>
 
-                <Text style={styles.label}>Apartment Number *</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="e.g., A-101"
-                    placeholderTextColor="#777"
-                    value={apartmentName}
-                    onChangeText={setApartmentName}
-                />
+                    <Text style={styles.label}>Apartment Number *</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="e.g., A-101"
+                        placeholderTextColor="#777"
+                        value={apartmentName}
+                        onChangeText={setApartmentName}
+                    />
 
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.label}>Floor</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="e.g., 2"
-                            placeholderTextColor="#777"
-                            keyboardType="number-pad"
-                            value={floor}
-                            onChangeText={setFloor}
-                        />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.label}>Block</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="e.g., B"
-                            placeholderTextColor="#777"
-                            value={block}
-                            onChangeText={setBlock}
-                        />
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.label}>Floor</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="e.g., 2"
+                                placeholderTextColor="#777"
+                                keyboardType="number-pad"
+                                value={floor}
+                                onChangeText={setFloor}
+                            />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.label}>Block</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="e.g., B"
+                                placeholderTextColor="#777"
+                                value={block}
+                                onChangeText={setBlock}
+                            />
+                        </View>
                     </View>
                 </View>
-            </View>
 
-            {/* <TouchableOpacity
-                style={[styles.button, submitting && styles.buttonDisabled]}
-                onPress={handleJoin}
-                disabled={submitting}
-            >
-                {submitting ? <ActivityIndicator color="#000" /> : <Text style={styles.buttonText}>Create Account</Text>}
-            </TouchableOpacity> */}
-            <PrimaryButton title={submitting ? "Submitting..." : "Submit"} onPress={handleJoin} disabled={submitting} />
-        </ScrollView>
+                <PrimaryButton title={submitting ? "Submitting..." : "Submit"} onPress={handleJoin} disabled={submitting} />
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
 

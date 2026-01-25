@@ -85,7 +85,7 @@ export const sendResetEmail = async (email, link) => {
     `,
   };
   await transporter.sendMail(mailOptions);
-  console.log(`✅ Reset password email sent to ${email}`);
+  console.log(`✅ Reset password email sent to ${email} ${link}`);
 };
 
 /**
