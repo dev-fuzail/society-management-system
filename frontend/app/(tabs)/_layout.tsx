@@ -113,7 +113,7 @@ export default function TabLayout() {
               </>
             )}
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.menuItem}
               onPress={() => handleMenuNavigate("/forgot-password")}
             >
@@ -126,7 +126,7 @@ export default function TabLayout() {
               <Text style={[styles.menuText, { color: theme.text }]}>
                 Forgot Password
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </Pressable>
       </Modal>

@@ -31,7 +31,6 @@ export const getSocieties = async (req, res) => {
 
 // Get all users of a specific society
 export const getUserSocieties = async (req, res) => {
-  console.log("🔍 Fetching societies for user...");
   try {
     const { user_id } = req.params;
 
@@ -46,7 +45,6 @@ export const getUserSocieties = async (req, res) => {
       .populate("members", "name email role phone")
       .populate("admins", "name email role phone");
 
-      console.log("🔍 Societies for user:", societies);
     if (!societies || societies.length === 0) {
       return res
         .status(404)

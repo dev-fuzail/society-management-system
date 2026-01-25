@@ -29,22 +29,55 @@ export const getApartmentsByUser = async (req, res) => {
   }
 };
 
+// export const updateApartment = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { apartment_name, floor, block } = req.body;
+
+//     const apartment = await Apartment.findById(id);
+//     if (!apartment) {
+//       return res.status(404).json({ success: false, message: "Apartment not found." });
+//     }
+
+//     // Ensure the user owns the apartment
+//     if (apartment.owned_by.toString() !== req.user.id) {
+//       return res.status(403).json({ success: false, message: "You are not authorized to update this apartment." });
+//     }
+
+//     const updatedApartment = await Apartment.findByIdAndUpdate(id, { apartment_name, floor, block }, { new: true });
+//     res.status(200).json({ success: true, message: "Apartment updated successfully.", result: updatedApartment });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
 export const updateApartment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { apartment_name, floor, block } = req.body;
+    const { apartment_name, floor, block, owned_by } = req.body; // Add owned_by
 
     const apartment = await Apartment.findById(id);
     if (!apartment) {
       return res.status(404).json({ success: false, message: "Apartment not found." });
     }
 
-    // Ensure the user owns the apartment
-    if (apartment.owned_by.toString() !== req.user.id) {
-      return res.status(403).json({ success: false, message: "You are not authorized to update this apartment." });
+    // Check Permissions
+    const isOwner = apartment.owned_by.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: "Unauthorized." });
     }
 
-    const updatedApartment = await Apartment.findByIdAndUpdate(id, { apartment_name, floor, block }, { new: true });
+    // Prepare Update Data
+    const updateData = { apartment_name, floor, block };
+
+    // ✅ Only Admins can re-assign ownership
+    if (isAdmin && owned_by) {
+      updateData.owned_by = owned_by;
+    }
+
+    const updatedApartment = await Apartment.findByIdAndUpdate(id, updateData, { new: true });
     res.status(200).json({ success: true, message: "Apartment updated successfully.", result: updatedApartment });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -70,6 +103,16 @@ export const getApartmentsBySociety = async (req, res) => {
     const { society_id } = req.query;
     const apartments = await Apartment.find({ society_id });
     res.status(200).json({ success: true, message: "Apartments fetched successfully.", result: apartments });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getApartmentsById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const apartment = await Apartment.findById(id);
+    res.status(200).json({ success: true, message: "Apartment fetched successfully.", result: apartment });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

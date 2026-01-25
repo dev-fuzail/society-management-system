@@ -1,4 +1,5 @@
 import ApiService from "./ApiService";
+import { Apartment, ResponseObject } from "./types";
 
 export const apiGetSocietyApartmentsForAdmin = async () => {
   return await ApiService.request<any>('get', "/api/apartments/for-admin");
@@ -33,6 +34,6 @@ export const apiVerifyApartment = async (id: string, status: 'verified' | 'rejec
   return await ApiService.request('patch', `/api/apartments/${id}/verify`, { status });
 };
 
-export const apiGetApartmentById = async (id: string) => {
-    return await ApiService.request('get', `/api/apartments/${id}`); 
-}
+export const apiGetApartmentById = async (id: string): Promise<ResponseObject<Apartment>> => {
+  return await ApiService.request<Apartment>('get', `/api/apartments/${id}`); 
+};

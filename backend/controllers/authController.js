@@ -6,7 +6,7 @@ import Apartment from "../models/Apartment.js";
 import Society from "../models/Society.js";
 import SocietyInvite from "../models/SocietyInvite.js";
 import User from "../models/User.js";
-import { sendInviteEmail } from "../utils/mailer.js"; // We will create this utility
+import { sendInviteEmail } from "../utils/mailer.js"; 
 import { sendResetEmail } from "../utils/mailer.js";
 import { send2FAEmail } from '../utils/mailer.js';
 
@@ -30,6 +30,15 @@ export const register = async (req, res) => {
       society_city,
     } = req.body;
 
+    // ✅ 1. Check if Email Already Exists (Pre-check)
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Email is already registered. Please login." 
+      });
+    }
+
     let society = null;
 
     // For Admin registration (first user → creates society)
@@ -41,18 +50,18 @@ export const register = async (req, res) => {
         });
       }
 
-      const existingSociety = await Society.findOne({
-        name: society_name,
-        city: society_city,
-        address: society_address,
-      });
+      // const existingSociety = await Society.findOne({
+      //   name: society_name,
+      //   city: society_city,
+      //   address: society_address,
+      // });
 
-      if (existingSociety) {
-        return res.status(400).json({
-          success: false,
-          message: "A society with this name and location already exists.",
-        });
-      }
+      // if (existingSociety) {
+      //   return res.status(400).json({
+      //     success: false,
+      //     message: "A society with this name and location already exists.",
+      //   });
+      // }
 
       // Create new society
       society = new Society({
@@ -117,7 +126,39 @@ export const register = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Registration Error:", error);
+
+    // ✅ SMART ERROR HANDLING
+    
+    // 1. Handle Duplicate Key Error (MongoDB Error 11000)
+    if (error.code === 11000) {
+      // Check if Email is duplicate
+      if (error.keyPattern && error.keyPattern.email) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "This email is already registered. Please login instead." 
+        });
+      }
+      // Check if Phone is duplicate (if unique index exists)
+      if (error.keyPattern && error.keyPattern.phone) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "This phone number is already in use." 
+        });
+      }
+    }
+
+    // 2. Handle Mongoose Validation Errors (Missing required fields etc.)
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((val) => val.message);
+      return res.status(400).json({ 
+        success: false, 
+        message: messages.join(", ") 
+      });
+    }
+
+    // 3. Fallback for unexpected errors
+    res.status(500).json({ success: false, message: "An unexpected server error occurred." });
   }
 };
 
@@ -182,9 +223,6 @@ export const sendEmailInvite = async (req, res) => {
     }
 
     // Check if an active invite already exists for this email
-    // console.log("Incoming token:", token);
-    // const invite = await SocietyInvite.findOne({ token, status: "pending" });
-
     const existingInvite = await SocietyInvite.findOne({
       email,
       society_id: admin.society_id,
@@ -278,67 +316,62 @@ export const verifyInvite = async (req, res) => {
 export const registerFromInvite = async (req, res) => {
   console.log("request received in register from invite", req.body);
   try {
-    const { name, password, phone, token, email } = req.body;
+    const { name, password, phone, token, email, apartment_name, floor, block } = req.body;
 
-    // Check invite
+    // 1. Validate Invite
     const invite = await SocietyInvite.findOne({ token });
-    console.log('invite: ', invite);
+    if (!invite) return res.status(400).json({ success: false, message: "Invalid or used invite token." });
 
-    if (!invite) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid or used invite token." });
-    }
-
-    // Determine email
     const userEmail = invite.email || email;
-    if (!userEmail) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Email is required for registration.",
-        });
-    }
+    if (!userEmail) return res.status(400).json({ success: false, message: "Email is required." });
 
-    // Hash password & create user
+    // 2. Create User
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({
       name,
       email: userEmail,
       password: hashedPassword,
       phone,
-      role: invite.role, // member
+      role: invite.role, // 'member'
       society_id: invite.society_id,
     });
     await user.save();
 
-    // 🔹 Add user to society members array
-    const society = await Society.findById(invite.society_id);
-    if (society) {
-      // Check if user already exists in members (avoid duplicates)
-      if (!society.members.includes(user._id)) {
-        society.members.push(user._id);
-        await society.save();
-      }
+    // 3. ✅ Create Apartment (if provided)
+    if (apartment_name) {
+      const apartment = new Apartment({
+        apartment_name,
+        floor: floor || 0,
+        block: block || '',
+        society_id: invite.society_id,
+        owned_by: user._id, // Link to new user
+        status: 'pending'   // Admin must verify later
+      });
+      await apartment.save();
+
+      // Link apartment back to user (optional but good)
+      user.apartment_id = apartment._id;
+      await user.save();
     }
 
-    // Mark invite as accepted
+    // 4. Add to Society Members
+    const society = await Society.findById(invite.society_id);
+    if (society && !society.members.includes(user._id)) {
+      society.members.push(user._id);
+      await society.save();
+    }
+
+    // 5. Mark invite accepted
     invite.status = "accepted";
     await invite.save();
 
-    // JWT token
-    const authToken = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    // 6. Generate Token
+    const authToken = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
     return res.status(201).json({
       success: true,
-      message: "User registered successfully!",
-      result: {
-        user,
-        token: authToken,
-      }
+      message: "User and Apartment registered successfully!",
+      result: { user, token: authToken }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -357,24 +390,6 @@ export const login = async (req, res) => {
     const validPass = await bcrypt.compare(password, user.password);
     if (!validPass)
       return res.status(401).json({ success: false, message: "Invalid password" });
-
-    // const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
-    //   expiresIn: "7d",
-    // });
-
-    // return res.status(200).json({
-    //   success: true,
-    //   message: "Login Successful!",
-    //   result: {
-    //     token,
-    //     user: {
-    //       id: user._id,
-    //       name: user.name,
-    //       email: user.email,
-    //       role: user.role,
-    //     },
-    //   },
-    // });
 
     if (user.isTwoFactorEnabled) {
       // 1. Generate 6-digit OTP
@@ -399,7 +414,6 @@ export const login = async (req, res) => {
     }
 
     // 🟢 Normal Login (If 2FA is OFF)
-    // const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
 
     return res.status(200).json({
@@ -414,34 +428,6 @@ export const login = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-// export const forgotPassword = async (req, res) => {
-//   try {
-//     const { email } = req.body;
-//     const user = await User.findOne({ email });
-//     if (!user) return res.status(404).json({ message: "User not found" });
-
-//     // Generate token
-//     const resetToken = crypto.randomBytes(32).toString("hex");
-//     const hashedToken = crypto
-//       .createHash("sha256")
-//       .update(resetToken)
-//       .digest("hex");
-
-//     // Save token and expiration to user
-//     user.resetPasswordToken = hashedToken;
-//     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
-//     await user.save();
-
-//     // Send email with token link
-//     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${email}`;
-//     await sendResetEmail(email, resetUrl);
-
-//     res.status(200).json({ message: "Password reset link sent to email" });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
 
 export const forgotPassword = async (req, res) => {
   try {
@@ -460,7 +446,7 @@ export const forgotPassword = async (req, res) => {
     await user.save();
 
     // This URL will be opened on mobile app or web
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${email}`;
+    const resetUrl = `${process.env.BACKEND_URL}/reset-password?token=${resetToken}&email=${email}`;
 
     await sendResetEmail(email, resetUrl);
 
@@ -475,30 +461,6 @@ export const forgotPassword = async (req, res) => {
 };
 
 export const resetPassword = async (req, res) => {
-  // try {
-  //   const { email, token, newPassword } = req.body;
-  //   const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-  //   const user = await User.findOne({
-  //     email,
-  //     resetPasswordToken: hashedToken,
-  //     resetPasswordExpires: { $gt: Date.now() },
-  //   });
-
-  //   if (!user)
-  //     return res.status(400).json({ message: "Invalid or expired token" });
-
-  //   user.password = await bcrypt.hash(newPassword, 10);
-  //   user.resetPasswordToken = undefined;
-  //   user.resetPasswordExpires = undefined;
-
-  //   await user.save();
-
-  //   res.status(200).json({ message: "Password has been reset successfully" });
-  // } catch (error) {
-  //   res.status(500).json({ message: error.message });
-  // }
-
   try {
     const { token, email, newPassword } = req.body;
 
@@ -565,7 +527,6 @@ export const verify2FALogin = async (req, res) => {
     }
 
     // ✅ OTP is valid: Generate Token
-    // const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
 
     // Clear the OTP fields
@@ -575,8 +536,11 @@ export const verify2FALogin = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      token,
-      user: { id: user._id, name: user.name, role: user.role }
+      message: "Login successful",
+      result: {
+        token,
+        user: { id: user._id, name: user.name, role: user.role }
+      }
     });
 
   } catch (error) {

@@ -10,9 +10,10 @@ import {
   TouchableOpacity,
   View,
   useColorScheme,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { apiRegister } from '../services/AuthService';
 import { Image } from 'expo-image';
 import { saveAuthData } from '@/hooks/helperHooks';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -51,18 +52,22 @@ export default function RegisterScreen() {
         society_city: societyCity,
       });
 
-      if (response.status && response.result) {
-        // Save token + userData
+      // ✅ FIX 1: Check both success and status properties to be safe
+      if ((response.success || response.status) && response.result) {
         await saveAuthData(response.result.token, response.result.user);
 
         Alert.alert('Success', 'Registration successful!', [
           { text: 'OK', onPress: () => router.replace('/') },
         ]);
       } else {
-        Alert.alert('Error', response.message || 'Registration failed.');
+        // Handle case where API returns 200 OK but logical failure
+        Alert.alert('Alert', response.message || 'Registration failed.');
       }
-    } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred.');
+    } catch (error: any) {
+      // ✅ FIX 2: Show the ACTUAL backend error message
+      // This will now show "Email is already registered..." instead of "Unexpected error"
+      const errorMessage = error.message || 'An unexpected error occurred.';
+      Alert.alert('Alert', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -71,49 +76,46 @@ export default function RegisterScreen() {
   const styles = getStyles(isDark);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Logo at top */}
-      <Image
-        source={require('@/assets/images/logo.png')}
-        style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
-        resizeMode="contain"
-      />
-
-      <Text style={styles.title}>🏢 Society Admin Registration</Text>
-      <Text style={styles.subtitle}>Create your society and admin account</Text>
-
-      {/* Admin Info */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>👤 Admin Details</Text>
-        <TextInput style={styles.input} placeholder="Full Name" value={name} onChangeText={setName} placeholderTextColor={isDark ? '#aaa' : '#666'} />
-        <TextInput style={styles.input} placeholder="Email Address" value={email} onChangeText={setEmail} keyboardType="email-address" placeholderTextColor={isDark ? '#aaa' : '#666'} />
-        <TextInput style={styles.input} placeholder="Phone Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholderTextColor={isDark ? '#aaa' : '#666'} />
-        <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry placeholderTextColor={isDark ? '#aaa' : '#666'} />
-      </View>
-
-      {/* Society Info */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🏠 Society Details</Text>
-        <TextInput style={styles.input} placeholder="Society Name" value={societyName} onChangeText={setSocietyName} placeholderTextColor={isDark ? '#aaa' : '#666'} />
-        <TextInput style={styles.input} placeholder="Society Address" value={societyAddress} onChangeText={setSocietyAddress} placeholderTextColor={isDark ? '#aaa' : '#666'} />
-        <TextInput style={styles.input} placeholder="City" value={societyCity} onChangeText={setSocietyCity} placeholderTextColor={isDark ? '#aaa' : '#666'} />
-      </View>
-
-      <PrimaryButton title={loading ? "Registering..." : "Register"} onPress={handleRegister} disabled={loading} />
-      {/* Register Button */}
-      {/* <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={handleRegister}
-        disabled={loading}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+    >
+      <ScrollView
+        contentContainerStyle={[styles.container, { paddingBottom: 100 }]}
+        keyboardShouldPersistTaps="handled"
       >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Register Society</Text>}
-      </TouchableOpacity> */}
+        <Image
+          source={require('@/assets/images/logo.png')}
+          style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
+          resizeMode="contain"
+        />
 
-      {/* Login Link */}
-      <Text style={styles.link} onPress={() => router.push('/login')}>
-        Already have an account? <Text style={styles.linkText}>Login</Text>
-      </Text>
-    </ScrollView>
+        <Text style={styles.title}>🏢 Society Admin Registration</Text>
+        <Text style={styles.subtitle}>Create your society and admin account</Text>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>👤 Admin Details</Text>
+          <TextInput style={styles.input} placeholder="Full Name" value={name} onChangeText={setName} placeholderTextColor={isDark ? '#aaa' : '#666'} />
+          <TextInput style={styles.input} placeholder="Email Address" value={email} onChangeText={setEmail} keyboardType="email-address" placeholderTextColor={isDark ? '#aaa' : '#666'} />
+          <TextInput style={styles.input} placeholder="Phone Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholderTextColor={isDark ? '#aaa' : '#666'} />
+          <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry placeholderTextColor={isDark ? '#aaa' : '#666'} />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🏠 Society Details</Text>
+          <TextInput style={styles.input} placeholder="Society Name" value={societyName} onChangeText={setSocietyName} placeholderTextColor={isDark ? '#aaa' : '#666'} />
+          <TextInput style={styles.input} placeholder="Society Address" value={societyAddress} onChangeText={setSocietyAddress} placeholderTextColor={isDark ? '#aaa' : '#666'} />
+          <TextInput style={styles.input} placeholder="City" value={societyCity} onChangeText={setSocietyCity} placeholderTextColor={isDark ? '#aaa' : '#666'} />
+        </View>
+
+        <PrimaryButton title={loading ? "Registering..." : "Register"} onPress={handleRegister} disabled={loading} />
+
+        <Text style={styles.link} onPress={() => router.push('/login')}>
+          Already have an account? <Text style={styles.linkText}>Login</Text>
+        </Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

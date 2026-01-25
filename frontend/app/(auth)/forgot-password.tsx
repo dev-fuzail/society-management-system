@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  StyleSheet, 
+  Alert, 
+  KeyboardAvoidingView, 
+  Platform, 
+  ScrollView // ✅ Added ScrollView
+} from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -14,33 +23,6 @@ export default function ForgotPasswordScreen() {
     const [email, setEmail] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // const handleReset = async () => {
-    //     if (!email) {
-    //         Alert.alert('Error', 'Please enter your email address.');
-    //         return;
-    //     }
-
-    //     setIsSubmitting(true);
-    //     try {
-    //         // Call the API
-    //         const response = await apiForgetPassword(email);
-
-    //         if (response.status) {
-    //             Alert.alert(
-    //                 'Check your email',
-    //                 'If an account exists for this email, we have sent password reset instructions.',
-    //                 [{ text: 'OK', onPress: () => router.back() }]
-    //             );
-    //         } else {
-    //             throw new Error(response.message || 'Failed to send reset link.');
-    //         }
-    //     } catch (error: any) {
-    //         console.error('Forgot Password Error:', error);
-    //         Alert.alert('Error', error.message || 'An unexpected error occurred.');
-    //     } finally {
-    //         setIsSubmitting(false);
-    //     }
-    // };
     const handleReset = async () => {
         if (!email) {
             Alert.alert('Error', 'Please enter your email address.');
@@ -52,7 +34,6 @@ export default function ForgotPasswordScreen() {
             const response = await apiForgetPassword(email);
 
             if (response.status) {
-                // Optionally open the reset URL directly for in-app testing
                 if (response.result.resetUrl) {
                     router.push(`/reset-password?token=${response.result.resetUrl.split("token=")[1].split("&")[0]}&email=${email}`);
                 } else {
@@ -73,15 +54,19 @@ export default function ForgotPasswordScreen() {
         }
     };
 
-
     return (
         <>
             <Stack.Screen options={{ title: 'Reset Password', headerBackTitle: 'Back' }} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={[styles.container, { backgroundColor: theme.background }]}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0} // ✅ Header height adjustment
             >
-                <View style={styles.content}>
+                {/* ✅ Added ScrollView to allow scrolling when keyboard opens */}
+                <ScrollView 
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                >
                     <Image
                         source={require('@/assets/images/logo.png')}
                         style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
@@ -107,17 +92,8 @@ export default function ForgotPasswordScreen() {
                         />
                     </View>
 
-                    {/* <TouchableOpacity
-                        style={[styles.button, { backgroundColor: theme.tint, opacity: isSubmitting ? 0.7 : 1 }]}
-                        onPress={handleReset}
-                        disabled={isSubmitting}
-                    >
-                        <Text style={styles.buttonText}>
-                            {isSubmitting ? 'Sending...' : 'Send Reset Link'}
-                        </Text>
-                    </TouchableOpacity> */}
-                <PrimaryButton title={isSubmitting ? "Sending..." : "Send Reset Link"} onPress={handleReset} disabled={isSubmitting} />
-                </View>
+                    <PrimaryButton title={isSubmitting ? "Sending..." : "Send Reset Link"} onPress={handleReset} disabled={isSubmitting} />
+                </ScrollView>
             </KeyboardAvoidingView>
         </>
     );
@@ -127,10 +103,12 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    content: {
-        flex: 1,
+    // ✅ Replaced 'content' with 'scrollContent' for ScrollView
+    scrollContent: {
+        flexGrow: 1,
         padding: 24,
         justifyContent: 'center',
+        paddingBottom: 100 // ✅ Extra padding for keyboard
     },
     icon: {
         alignSelf: 'center',
@@ -161,15 +139,5 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         padding: 16,
         fontSize: 16,
-    },
-    button: {
-        padding: 16,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
-    buttonText: {
-        color: '#000',
-        fontSize: 16,
-        fontWeight: 'bold',
     },
 });

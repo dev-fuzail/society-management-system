@@ -10,8 +10,8 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { apiRegisterFromInvite, apiVerifyInvite } from "../../services/AuthService";
-import { InviteData } from "../../services/types";
+import { apiRegisterFromInvite, apiVerifyInvite } from "../services/AuthService";
+import { InviteData } from "../services/types";
 import { saveAuthData } from "@/hooks/helperHooks";
 import { PrimaryButton } from "@/components/PrimaryButton";
 
@@ -27,6 +27,9 @@ export default function JoinScreen() {
     const [submitting, setSubmitting] = useState(false);
     const [invite, setInvite] = useState<InviteData | null>(null);
     const [error, setError] = useState("");
+    const [apartmentName, setApartmentName] = useState("");
+    const [floor, setFloor] = useState("");
+    const [block, setBlock] = useState("");
 
     const token = params.token as string;
 
@@ -67,6 +70,14 @@ export default function JoinScreen() {
         setSubmitting(true);
 
         try {
+            // const response = await apiRegisterFromInvite({
+            //     name,
+            //     email: invite.email || email,
+            //     role: invite.role,
+            //     phone,
+            //     password,
+            //     token,
+            // });
             const response = await apiRegisterFromInvite({
                 name,
                 email: invite.email || email,
@@ -74,6 +85,9 @@ export default function JoinScreen() {
                 phone,
                 password,
                 token,
+                apartment_name: apartmentName,
+                floor: Number(floor),
+                block
             });
 
             if (response.success) {
@@ -170,6 +184,44 @@ export default function JoinScreen() {
                     value={password}
                     onChangeText={setPassword}
                 />
+            </View>
+            <View style={styles.section}>
+                <Text style={[styles.title, { fontSize: 18, marginTop: 10, marginBottom: 15, color: '#FFD671' }]}>
+                    🏠 Apartment Details
+                </Text>
+
+                <Text style={styles.label}>Apartment Number *</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="e.g., A-101"
+                    placeholderTextColor="#777"
+                    value={apartmentName}
+                    onChangeText={setApartmentName}
+                />
+
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.label}>Floor</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="e.g., 2"
+                            placeholderTextColor="#777"
+                            keyboardType="number-pad"
+                            value={floor}
+                            onChangeText={setFloor}
+                        />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.label}>Block</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="e.g., B"
+                            placeholderTextColor="#777"
+                            value={block}
+                            onChangeText={setBlock}
+                        />
+                    </View>
+                </View>
             </View>
 
             {/* <TouchableOpacity

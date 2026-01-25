@@ -1,4 +1,4 @@
-// RootLayout.tsx
+// // RootLayout.tsx
 import { Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native';
@@ -46,13 +46,14 @@ export default function RootLayout() {
             <Stack.Screen name="login" />
             <Stack.Screen name="register" />
             <Stack.Screen name="join" />
+            {/* <Stack.Screen name="reset" /> */}
+            <Stack.Screen name="reset-password" options={{ title: "Reset Password" }} />
           </>
         ) : (
           <>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="profile" />
             <Stack.Screen name="society-update" />
-            <Stack.Screen name="forgot-password" />
           </>
         )}
       </Stack>

@@ -97,7 +97,7 @@ webRouter.get("/reset-password", async (req, res) => {
   }
   try {
     // ⚠️ Add Token Validation Logic Here ⚠️
-    const deepLinkUrl = `${APP_SCHEME}reset?token=${token}&email=${email}`;
+    const deepLinkUrl = `${APP_SCHEME}reset-password?token=${token}&email=${email}`;
     console.log(`[DEEPLINK]: Redirecting to mobile app: ${deepLinkUrl}`);
     return res.redirect(302, deepLinkUrl);
   } catch (error) {

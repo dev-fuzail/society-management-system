@@ -13,7 +13,8 @@ import {
   useColorScheme,
   Modal,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  ScrollView // ✅ Added ScrollView import
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveAuthData } from '@/hooks/helperHooks';
@@ -60,6 +61,7 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       const response = await apiLogin({ email, password });
+      console.log("login response: ", response)
 
       if (response.success) {
         // CASE A: 2FA REQUIRED
@@ -67,7 +69,7 @@ export default function LoginScreen() {
           setTempUserId(response.result.userId); // Save ID for next step
           setIs2FAModalVisible(true);     // Show OTP Modal
           Alert.alert("Verification Required", "An OTP has been sent to your email.");
-        } 
+        }
         // CASE B: NORMAL LOGIN SUCCESS
         else if (response.result) {
           await saveAuthData(response.result.token, response.result.user);
@@ -115,47 +117,65 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <Image
-          source={require('@/assets/images/logo.png')}
-          style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
-          resizeMode="contain"
-        />
-
-        <Text style={styles.title}>Welcome Back 👋</Text>
-        <Text style={styles.subtitle}>Login to continue</Text>
-
-        <View style={styles.form}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            style={styles.input}
-            placeholder="Enter your email"
-            placeholderTextColor={isDark ? '#888' : '#aaa'}
-            keyboardType="email-address"
-            autoCapitalize="none"
+      {/* ✅ FIX 1: Wrap in KeyboardAvoidingView */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        {/* ✅ FIX 2: Add ScrollView with extra padding at bottom */}
+        <ScrollView
+          contentContainerStyle={[styles.container, { paddingBottom: 100 }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Image
+            source={require('@/assets/images/logo.png')}
+            style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
+            resizeMode="contain"
           />
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            style={styles.input}
-            placeholder="Enter your password"
-            placeholderTextColor={isDark ? '#888' : '#aaa'}
-            secureTextEntry
-          />
+          <Text style={styles.title}>Welcome Back 👋</Text>
+          <Text style={styles.subtitle}>Login to continue</Text>
 
-          <PrimaryButton title={loading ? "Logging in..." : "Login"} onPress={handleLogin} disabled={loading} />
+          <View style={styles.form}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              style={styles.input}
+              placeholder="Enter your email"
+              placeholderTextColor={isDark ? '#888' : '#aaa'}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
 
-          <TouchableOpacity onPress={() => router.push('/register')}>
-            <Text style={styles.registerLink}>
-              Don’t have an account? <Text style={styles.linkText}>Register</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              style={styles.input}
+              placeholder="Enter your password"
+              placeholderTextColor={isDark ? '#888' : '#aaa'}
+              secureTextEntry
+            />
+
+            <PrimaryButton title={loading ? "Logging in..." : "Login"} onPress={handleLogin} disabled={loading} />
+            
+            <TouchableOpacity
+              onPress={() => router.push('/forgot-password')}
+              style={{ alignSelf: 'flex-end', marginBottom: 20, marginTop: 10 }}
+            >
+              <Text style={{ color: '#3b5998', fontWeight: '600' }}>Forgot Password?</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/register')}>
+              <Text style={styles.registerLink}>
+                Don’t have an account? <Text style={styles.linkText}>Register</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* 🔐 OTP MODAL */}
       <Modal visible={is2FAModalVisible} transparent animationType="slide">
@@ -163,7 +183,7 @@ export default function LoginScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Enter Verification Code</Text>
             <Text style={styles.modalSubtitle}>Please enter the 6-digit code sent to your email.</Text>
-            
+
             <TextInput
               style={styles.otpInput}
               value={otp}
@@ -174,14 +194,15 @@ export default function LoginScreen() {
               textAlign="center"
             />
 
-            <PrimaryButton 
-              title={verifyingOtp ? "Verifying..." : "Verify Code"} 
-              onPress={handleVerifyOTP} 
-              disabled={verifyingOtp} 
+
+            <PrimaryButton
+              title={verifyingOtp ? "Verifying..." : "Verify Code"}
+              onPress={handleVerifyOTP}
+              disabled={verifyingOtp}
             />
 
-            <TouchableOpacity onPress={() => setIs2FAModalVisible(false)} style={{marginTop: 15}}>
-              <Text style={{color: 'red', textAlign:'center'}}>Cancel</Text>
+            <TouchableOpacity onPress={() => setIs2FAModalVisible(false)} style={{ marginTop: 15 }}>
+              <Text style={{ color: 'red', textAlign: 'center' }}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -193,7 +214,13 @@ export default function LoginScreen() {
 
 const getStyles = (isDark: boolean) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: isDark ? '#000' : '#fff' },
-  container: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
+  // ✅ Removed 'flex: 1' from container so ScrollView can calculate height properly
+  // Added flexGrow in ScrollView prop instead
+  container: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'center'
+  },
   title: { fontSize: 28, fontWeight: '700', color: isDark ? '#fff' : '#000', textAlign: 'center', marginBottom: 6 },
   subtitle: { fontSize: 15, color: isDark ? '#aaa' : '#666', textAlign: 'center', marginBottom: 30 },
   form: { backgroundColor: isDark ? '#111' : '#f8f8f8', padding: 20, borderRadius: 16, elevation: 3 },

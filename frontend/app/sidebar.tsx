@@ -11,7 +11,7 @@ export default function Sidebar() {
 
       {/* Example links */}
       <Button title="Profile" onPress={() => router.push('/(tabs)/profile')} />
-      <Button title="Explore" onPress={() => router.push('/(tabs)/explore')} />
+      {/* <Button title="Explore" onPress={() => router.push('/(tabs)/explore')} /> */}
       <Button title="Logout" onPress={() => alert('Logging out')} />
     </View>
   );

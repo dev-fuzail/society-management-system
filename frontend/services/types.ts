@@ -46,6 +46,9 @@ export interface RegisterData {
   society_name?: string; // For new society registration
   society_address?: string;
   society_city?: string;
+  apartment_name?: string;
+  floor?: number;
+  block?: string;
 }
 
 export interface InviteData {
@@ -135,4 +138,15 @@ export interface TicketResponse {
 export interface UpdateStatusData {
     status?: TicketStatus;
     assignedTo?: string; // User ObjectId (Staff)
+}
+
+export interface Apartment {
+  _id: string;
+  apartment_name: string;
+  floor: number;
+  block?: string;
+  society_id: string;
+  owned_by: { _id: string; name: string; email: string }; 
+  status: 'pending' | 'verified' | 'rejected';
+  created_at?: string;
 }

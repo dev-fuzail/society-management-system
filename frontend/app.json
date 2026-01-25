@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "livingsync",
+    "scheme": "living-sync",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

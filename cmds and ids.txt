@@ -1,0 +1,24 @@
+npx expo start --tunnel --dev-client
+npx expo start --dev-client
+
+
+
+npm install --global eas-cli && 
+eas init --id f57420da-3252-43e0-9173-2afb6d47bd7a
+
+eas build -p android --profile development
+eas build --profile development
+
+ngrok http 8001
+
+scrcpy
+
+society: 692454690915d25877305bcd
+admin-user: 6924546a0915d25877305bcf
+normal-user: 6928961a87ae0671644df07c
+
+society-admin: fuzailansari2314@gmail.com
+password
+
+normal-user: tabishali2@gmail.com
+password
