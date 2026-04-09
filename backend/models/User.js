@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
   phone: { type: String },
   role: { 
     type: String, 
-    enum: ["resident", "admin", "service_provider", "member"], 
+    enum: ["resident", "admin", "service_provider", "committee_member"], 
     required: true 
   },
   society_id: { type: mongoose.Schema.Types.ObjectId, ref: "Society" },

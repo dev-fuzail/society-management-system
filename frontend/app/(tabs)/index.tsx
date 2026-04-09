@@ -147,6 +147,45 @@ export default function HomeScreen() {
         <Ionicons name="chevron-forward" size={24} color={'#888'} />
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={[styles.actionCard, { borderLeftColor: '#059669' }]}
+        onPress={() => router.push('/elections')}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="stats-chart-outline" size={32} color={'#059669'} />
+        <View style={styles.CardTextContainer}>
+          <Text style={styles.CardTitle}>Committee Elections</Text>
+          <Text style={styles.CardDescription}>Participate in society decision making.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color={'#888'} />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.actionCard, { borderLeftColor: '#ea580c' }]}
+        onPress={() => router.push('/service-providers')}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="construct-outline" size={32} color={'#ea580c'} />
+        <View style={styles.CardTextContainer}>
+          <Text style={styles.CardTitle}>Service Providers</Text>
+          <Text style={styles.CardDescription}>Book plumbers, electricians and more.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color={'#888'} />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.actionCard, { borderLeftColor: '#8b5cf6' }]}
+        onPress={() => router.push('/amenities')}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="gift-outline" size={32} color={'#8b5cf6'} />
+        <View style={styles.CardTextContainer}>
+          <Text style={styles.CardTitle}>Society Amenities</Text>
+          <Text style={styles.CardDescription}>Book community hall, gym, and pool.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color={'#888'} />
+      </TouchableOpacity>
+
       {/* ✅ Real Noticeboard Section */}
       <View style={styles.noticeBoard}>
         <Text style={styles.noticeBoardTitle}>📌 Notices</Text>

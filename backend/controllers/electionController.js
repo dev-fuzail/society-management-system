@@ -1,0 +1,133 @@
+import mongoose from "mongoose";
+import Election from "../models/Election.js";
+import Candidate from "../models/Candidate.js";
+import Vote from "../models/Vote.js";
+import User from "../models/User.js";
+
+// Create a new election (Admin only)
+export const createElection = async (req, res) => {
+  try {
+    const { title, start_date, end_date, society_id } = req.body;
+    const election = new Election({ title, start_date, end_date, society_id });
+    await election.save();
+    res.status(201).json({ success: true, message: "Election created successfully", result: election });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Toggle election status (Admin only)
+export const toggleElectionStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // "ongoing" or "completed"
+    const election = await Election.findByIdAndUpdate(id, { status }, { new: true });
+    res.status(200).json({ success: true, message: `Election marked as ${status}`, result: election });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Add candidate to election (Admin only)
+export const addCandidate = async (req, res) => {
+  try {
+    const { election_id, user_id, manifesto } = req.body;
+    const candidate = new Candidate({ election_id, user_id, manifesto });
+    await candidate.save();
+    res.status(201).json({ success: true, message: "Candidate added successfully", result: candidate });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get all elections for a society
+export const getElections = async (req, res) => {
+  try {
+    const { society_id } = req.query;
+    const elections = await Election.find({ society_id }).sort({ created_at: -1 });
+    res.status(200).json({ success: true, result: elections });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get election details including candidates
+export const getElectionDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const election = await Election.findById(id);
+    if (!election) return res.status(404).json({ success: false, message: "Election not found" });
+
+    const candidates = await Candidate.find({ election_id: id }).populate("user_id", "name email avatar");
+    res.status(200).json({ success: true, result: { election, candidates } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Cast a vote (Resident)
+export const castVote = async (req, res) => {
+  try {
+    const { election_id, candidate_id } = req.body;
+    const voter_id = req.user.id;
+
+    // Check if election is ongoing
+    const election = await Election.findById(election_id);
+    if (!election) return res.status(404).json({ success: false, message: "Election not found" });
+    if (election.status !== "ongoing") return res.status(400).json({ success: false, message: "Election is not ongoing" });
+
+    const now = new Date();
+    if (now < election.start_date || now > election.end_date) {
+        return res.status(400).json({ success: false, message: "Election is not currently active based on dates" });
+    }
+
+    const vote = new Vote({ election_id, voter_id, candidate_id });
+    await vote.save();
+
+    res.status(201).json({ success: true, message: "Vote cast successfully" });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: "You have already cast your vote for this election" });
+    }
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get election results (Admin/Resident)
+export const getElectionResults = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const results = await Vote.aggregate([
+      { $match: { election_id: new mongoose.Types.ObjectId(id) } },
+      { $group: { _id: "$candidate_id", count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Populate candidate names
+    const populatedResults = await Promise.all(results.map(async (r) => {
+      const candidate = await Candidate.findById(r._id).populate("user_id", "name");
+      return {
+        candidate_name: candidate.user_id.name,
+        votes: r.count
+      };
+    }));
+
+    res.status(200).json({ success: true, result: populatedResults });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Update user role (Admin only)
+export const updateUserRole = async (req, res) => {
+    try {
+        const { user_id, role } = req.body;
+        if (!["resident", "admin", "committee_member"].includes(role)) {
+            return res.status(400).json({ success: false, message: "Invalid role" });
+        }
+        const user = await User.findByIdAndUpdate(user_id, { role }, { new: true });
+        res.status(200).json({ success: true, message: "User role updated successfully", result: user });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
