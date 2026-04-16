@@ -1,14 +1,12 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, Dimensions, Platform, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, Dimensions, Platform, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { Ionicons } from "@expo/vector-icons";
 import { getAuthData } from '@/hooks/helperHooks'; // Import your auth helper
 import { apiGetAnnouncements } from '@/services/AnnouncementService'; // Import the service
 import { Announcement } from '@/services/types';
 import { apiGetUserSocieties } from '@/services/SocietyService';
-import { apiGetTickets } from '@/services/TicketService';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -20,11 +18,7 @@ export default function HomeScreen() {
   const [tokenChecked, setTokenChecked] = useState(false);
   const [realNotices, setRealNotices] = useState<Announcement[]>([]); // State for real data
   const [loadingNotices, setLoadingNotices] = useState(true);
-  const [ticketStats, setTicketStats] = useState({
-    total: 0,
-    resolved: 0,
-    processing: 0
-  });
+  const [userRole, setUserRole] = useState<string>('resident');
   
   const router = useRouter();
 
@@ -38,11 +32,12 @@ export default function HomeScreen() {
           router.replace('/login');
           return;
         }
+
+        setUserRole(userData?.role || 'resident');
         
         // ✅ Fetch Real Announcements if user has a society
         if (userData && selectedSociety) {
           fetchAnnouncements(selectedSociety._id);
-          fetchTicketStats(selectedSociety._id);
         } else {
           setLoadingNotices(false);
         }
@@ -52,7 +47,7 @@ export default function HomeScreen() {
       }
     };
     verifyToken();
-  }, []);
+  }, [router]);
 
   const fetchAnnouncements = async (societyId: string) => {
     try {
@@ -104,87 +99,77 @@ export default function HomeScreen() {
     { title: 'Issues Under Process', value: `${issuesUnderProcess}` },
   ];
 
-  const fetchTicketStats = async (societyId: string) => {
-    try {
-      const res = await apiGetTickets(societyId);
-      
-      if (res.success && res.result) {
-        const tickets = res.result;
-
-        // Calculate Stats
-        const total = tickets.length;
-        const resolved = tickets.filter((t: any) => t.status === 'Resolved' || t.status === 'Closed').length;
-        const processing = tickets.filter((t: any) => t.status === 'Pending' || t.status === 'In Progress').length;
-
-        setTicketStats({ total, resolved, processing });
-      }
-    } catch (error) {
-      console.log("Error fetching tickets:", error);
-    }
-  };
-
   return (
     <ScrollView style={styles.container}>
-      <TouchableOpacity style={styles.inviteCard} onPress={() => router.push('/invite')}>
+      <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/community-chat')} activeOpacity={0.8}>
+        <Ionicons name="chatbubbles-outline" size={32} color={'#2563eb'} />
+        <View style={styles.CardTextContainer}>
+          <Text style={styles.CardTitle}>Community Chat</Text>
+          <Text style={styles.CardDescription}>Open society conversations and updates.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color={'#888'} />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={[styles.actionCard, { borderLeftColor: '#059669' }]} onPress={() => router.push('/apartments')} activeOpacity={0.8}>
+        <Ionicons name="business-outline" size={32} color={'#059669'} />
+        <View style={styles.CardTextContainer}>
+          <Text style={styles.CardTitle}>My Apartments</Text>
+          <Text style={styles.CardDescription}>View and manage apartment information.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color={'#888'} />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={[styles.actionCard, { borderLeftColor: '#4f46e5' }]} onPress={() => router.push('/invite')} activeOpacity={0.8}>
         <Ionicons name="person-add-outline" size={32} color={'#4f46e5'} />
         <View style={styles.CardTextContainer}>
-          <Text style={styles.CardTitle}>Invite New Members</Text>
-          <Text style={styles.CardDescription}>Send invitations to join the society.</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={24} color={'#888'} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={styles.actionCard}
-        onPress={() => router.push('/ticket-system')}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="megaphone-outline" size={32} color={'#D84315'} />
-        <View style={styles.CardTextContainer}>
-          <Text style={styles.CardTitle}>Lodge New Complaint</Text>
-          <Text style={styles.CardDescription}>Register maintenance or structural issues.</Text>
+          <Text style={styles.CardTitle}>Invite Members</Text>
+          <Text style={styles.CardDescription}>Send invitation links to new residents.</Text>
         </View>
         <Ionicons name="chevron-forward" size={24} color={'#888'} />
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.actionCard, { borderLeftColor: '#059669' }]}
-        onPress={() => router.push('/elections')}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="stats-chart-outline" size={32} color={'#059669'} />
-        <View style={styles.CardTextContainer}>
-          <Text style={styles.CardTitle}>Committee Elections</Text>
-          <Text style={styles.CardDescription}>Participate in society decision making.</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={24} color={'#888'} />
-      </TouchableOpacity>
+      <Text style={styles.sectionHeader}>More Modules</Text>
 
-      <TouchableOpacity
-        style={[styles.actionCard, { borderLeftColor: '#ea580c' }]}
-        onPress={() => router.push('/service-providers')}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="construct-outline" size={32} color={'#ea580c'} />
-        <View style={styles.CardTextContainer}>
-          <Text style={styles.CardTitle}>Service Providers</Text>
-          <Text style={styles.CardDescription}>Book plumbers, electricians and more.</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={24} color={'#888'} />
-      </TouchableOpacity>
+      <View style={styles.moduleGrid}>
+        <TouchableOpacity style={styles.moduleCard} onPress={() => router.push('/elections')} activeOpacity={0.85}>
+          <Ionicons name="stats-chart-outline" size={24} color="#2563eb" />
+          <Text style={styles.moduleTitle}>Elections</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.actionCard, { borderLeftColor: '#8b5cf6' }]}
-        onPress={() => router.push('/amenities')}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="gift-outline" size={32} color={'#8b5cf6'} />
-        <View style={styles.CardTextContainer}>
-          <Text style={styles.CardTitle}>Society Amenities</Text>
-          <Text style={styles.CardDescription}>Book community hall, gym, and pool.</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={24} color={'#888'} />
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.moduleCard} onPress={() => router.push('/service-providers')} activeOpacity={0.85}>
+          <Ionicons name="construct-outline" size={24} color="#2563eb" />
+          <Text style={styles.moduleTitle}>Services</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.moduleCard} onPress={() => router.push('/amenities')} activeOpacity={0.85}>
+          <Ionicons name="calendar-outline" size={24} color="#2563eb" />
+          <Text style={styles.moduleTitle}>Amenities</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.moduleCard} onPress={() => router.push('/ticket-system')} activeOpacity={0.85}>
+          <Ionicons name="alert-circle-outline" size={24} color="#2563eb" />
+          <Text style={styles.moduleTitle}>Tickets</Text>
+        </TouchableOpacity>
+
+        {userRole === 'admin' && (
+          <TouchableOpacity style={styles.moduleCard} onPress={() => router.push('/announcement')} activeOpacity={0.85}>
+            <Ionicons name="megaphone-outline" size={24} color="#2563eb" />
+            <Text style={styles.moduleTitle}>Announcements</Text>
+          </TouchableOpacity>
+        )}
+
+        {userRole === 'admin' && (
+          <TouchableOpacity style={styles.moduleCard} onPress={() => router.push('/society-update')} activeOpacity={0.85}>
+            <Ionicons name="business-outline" size={24} color="#2563eb" />
+            <Text style={styles.moduleTitle}>Society Update</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity style={styles.moduleCard} onPress={() => router.push('/profile')} activeOpacity={0.85}>
+          <Ionicons name="person-circle-outline" size={24} color="#2563eb" />
+          <Text style={styles.moduleTitle}>Profile</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* ✅ Real Noticeboard Section */}
       <View style={styles.noticeBoard}>
@@ -254,6 +239,41 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, backgroundColor: '#f5f5f5' },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#222',
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  moduleGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+    gap: 10,
+  },
+  moduleCard: {
+    width: '48%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  moduleTitle: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
 
   // Noticeboard
   noticeBoard: { marginBottom: 20, padding: 16, borderRadius: 12, backgroundColor: '#fffbe6', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 3 },
@@ -296,20 +316,6 @@ const styles = StyleSheet.create({
   cardTextContainer: { flex: 1, marginLeft: 16 },
   cardDescription: { fontSize: 14, color: '#000', marginTop: 4 },
 
-  inviteCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-    borderLeftWidth: 4,
-    borderLeftColor: '#4f46e5',
-  },
   noteCard: {
     // backgroundColor: '#fff', // Removed white bg here to let sticky notes shine on the yellow board
     // padding: 10,

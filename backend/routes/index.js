@@ -8,6 +8,17 @@ import announcementRoutes from './announcementRoutes.js';
 import electionRoutes from './electionRoutes.js';
 import serviceRoutes from './serviceRoutes.js';
 import amenityRoutes from './amenityRoutes.js';
+import authMiddleware from '../middleware/authMiddleware.js';
+import { updateUserRole } from '../controllers/electionController.js';
+import {
+	addServiceProvider,
+	getServiceProviders,
+	bookServiceProvider,
+	updateBookingStatus,
+	getUserBookings,
+	addReview,
+	getProviderReviews,
+} from '../controllers/serviceController.js';
 
 
 const router = express.Router();
@@ -19,6 +30,17 @@ router.use("/chat", chatRoutes);
 router.use('/tickets', ticketRoutes);
 router.use('/announcements', announcementRoutes);
 router.use('/elections', electionRoutes);
+router.patch('/users/roles', authMiddleware, updateUserRole);
+
+// Contract aliases from tasks.md
+router.post('/providers', authMiddleware, addServiceProvider);
+router.get('/providers', authMiddleware, getServiceProviders);
+router.get('/providers/:id/reviews', authMiddleware, getProviderReviews);
+router.post('/providers/:id/reviews', authMiddleware, addReview);
+router.post('/bookings', authMiddleware, bookServiceProvider);
+router.get('/bookings', authMiddleware, getUserBookings);
+router.patch('/bookings/:id/status', authMiddleware, updateBookingStatus);
+
 router.use('/services', serviceRoutes);
 router.use('/amenities', amenityRoutes);
 export default router;

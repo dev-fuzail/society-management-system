@@ -3,9 +3,18 @@ import ServiceBooking from "../models/ServiceBooking.js";
 import Review from "../models/Review.js";
 import mongoose from "mongoose";
 
+const requireRole = (req, res, roles) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    res.status(403).json({ success: false, message: "Access denied" });
+    return false;
+  }
+  return true;
+};
+
 // Add new service provider (Admin only)
 export const addServiceProvider = async (req, res) => {
   try {
+    if (!requireRole(req, res, ["admin"])) return;
     const { name, category, contact, society_id } = req.body;
     const provider = new ServiceProvider({ name, category, contact, society_id });
     await provider.save();
@@ -29,6 +38,7 @@ export const getServiceProviders = async (req, res) => {
 // Book a service provider (Resident)
 export const bookServiceProvider = async (req, res) => {
   try {
+    if (!requireRole(req, res, ["resident"])) return;
     const { provider_id, date, society_id } = req.body;
     const user_id = req.user.id;
 
@@ -44,6 +54,7 @@ export const bookServiceProvider = async (req, res) => {
 // Update booking status (Admin/Provider)
 export const updateBookingStatus = async (req, res) => {
   try {
+    if (!requireRole(req, res, ["admin", "service_provider"])) return;
     const { id } = req.params;
     const { status } = req.body; // PENDING, COMPLETED, CANCELLED
 
@@ -72,6 +83,7 @@ export const getUserBookings = async (req, res) => {
 // Add review (Resident)
 export const addReview = async (req, res) => {
   try {
+    if (!requireRole(req, res, ["resident"])) return;
     const { id: provider_id } = req.params;
     const { rating, comment } = req.body;
     const user_id = req.user.id;

@@ -19,6 +19,7 @@
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
       },
+      "usesCleartextTraffic": true,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.livingsync"

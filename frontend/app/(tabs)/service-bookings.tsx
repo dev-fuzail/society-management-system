@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Fla
 import { useRouter } from 'expo-router';
 import { Ionicons } from "@expo/vector-icons";
 import ServiceProviderService, { ServiceBooking } from '@/services/ServiceProviderService';
+import { getAuthData } from '@/hooks/helperHooks';
 
 export default function ServiceBookingsScreen() {
   const [bookings, setBookings] = useState<ServiceBooking[]>([]);
@@ -11,13 +12,40 @@ export default function ServiceBookingsScreen() {
   const [selectedBooking, setSelectedBooking] = useState<ServiceBooking | null>(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
+  const [reviewedProviderIds, setReviewedProviderIds] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   const fetchBookings = async () => {
     try {
+      const { userData } = await getAuthData();
+
       const res = await ServiceProviderService.getUserBookings();
       if (res.success) {
         setBookings(res.result);
+
+        const completedProviderIds = Array.from(
+          new Set(
+            res.result
+              .filter((b) => b.status === 'COMPLETED')
+              .map((b) => b.provider_id._id)
+          )
+        );
+
+        const reviewed = new Set<string>();
+        await Promise.all(
+          completedProviderIds.map(async (providerId) => {
+            try {
+              const reviewRes = await ServiceProviderService.getReviews(providerId);
+              if (reviewRes.success && reviewRes.result.some((r) => r.user_id._id === userData.id)) {
+                reviewed.add(providerId);
+              }
+            } catch {
+              // Ignore review fetch failures and keep UI usable.
+            }
+          })
+        );
+
+        setReviewedProviderIds(reviewed);
       }
     } catch (error) {
       console.error("Error fetching bookings:", error);
@@ -59,6 +87,7 @@ export default function ServiceBookingsScreen() {
         setReviewModalModalVisible(false);
         setComment('');
         setRating(5);
+        fetchBookings();
       }
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to submit review.");
@@ -81,10 +110,15 @@ export default function ServiceBookingsScreen() {
             <Text style={styles.buttonText}>Mark Completed</Text>
           </TouchableOpacity>
         )}
-        {item.status === 'COMPLETED' && (
+        {item.status === 'COMPLETED' && !reviewedProviderIds.has(item.provider_id._id) && (
           <TouchableOpacity style={styles.reviewButton} onPress={() => handleReview(item)}>
             <Text style={styles.reviewButtonText}>Leave Review</Text>
           </TouchableOpacity>
+        )}
+        {item.status === 'COMPLETED' && reviewedProviderIds.has(item.provider_id._id) && (
+          <View style={styles.reviewDonePill}>
+            <Text style={styles.reviewDonePillText}>Review Submitted</Text>
+          </View>
         )}
       </View>
     </View>
@@ -172,6 +206,8 @@ const styles = StyleSheet.create({
   reviewButton: { borderWidth: 1, borderColor: '#4f46e5', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   reviewButtonText: { color: '#4f46e5', fontWeight: '600', fontSize: 14 },
+  reviewDonePill: { backgroundColor: '#ecfdf5', borderColor: '#34d399', borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
+  reviewDonePillText: { color: '#047857', fontWeight: '600', fontSize: 13 },
   emptyState: { alignItems: 'center', marginTop: 100 },
   emptyText: { marginTop: 16, fontSize: 16, color: '#999' },
   

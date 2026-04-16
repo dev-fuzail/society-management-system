@@ -13,9 +13,20 @@ export const API_BASE = isWeb
 class ApiService {
   private axiosInstance: AxiosInstance;
 
+  private normalizeUrl(url: string): string {
+    // Keep absolute URLs untouched.
+    if (/^https?:\/\//i.test(url)) return url;
+
+    const path = url.startsWith('/') ? url : `/${url}`;
+    if (path === '/api' || path.startsWith('/api/')) {
+      return path;
+    }
+    return `/api${path}`;
+  }
+
   constructor() {
     this.axiosInstance = axios.create({
-      baseURL: EXPO_PUBLIC_API_BASE,
+      baseURL: API_BASE.replace(/\/+$/, ''),
       headers: {
         'Content-Type': 'application/json',
       },
@@ -92,9 +103,10 @@ class ApiService {
     config?: any // <-- ✅ allow extra config (headers, etc.)
   ): Promise<ResponseObject<T>> {
     try {
+      const normalizedUrl = this.normalizeUrl(url);
       const response: AxiosResponse<ResponseObject<T>> = await this.axiosInstance.request({
         method,
-        url,
+        url: normalizedUrl,
         data,
         ...config, // <-- ✅ spread config so custom headers are used
       });

@@ -121,7 +121,7 @@ export default function ApartmentsScreen() {
         renderItem={({ item }) => (
           <View style={[styles.card, { backgroundColor: styles.card.backgroundColor }]}>
             <View>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>{item.apartment_name}</Text>
+              <Text style={[styles.cardTitle]}>{item.apartment_name}</Text>
               {user?.role === 'admin' && item.owned_by && (
                 <Text style={styles.ownerText}>Owner: {item.owned_by.name}</Text>
               )}
@@ -203,6 +203,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: "600",
+    color: '#000',
   },
   cardSubtitle: {
     fontSize: 14,
@@ -236,7 +237,7 @@ const styles = StyleSheet.create({
   },
   ownerText: {
     fontSize: 12,
-    color: '#666',
+    color: '#000',
     fontStyle: 'italic',
     marginTop: 4,
   },

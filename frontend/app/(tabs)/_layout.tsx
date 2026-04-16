@@ -22,12 +22,11 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const [isMenuVisible, setIsMenuVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<UserData | null>(null);
 
-  const handleMenuNavigate = (path: string) => {
+  const handleMenuNavigate = (path: "/profile" | "/society-update" | "/announcement") => {
     setIsMenuVisible(false);
-    router.push(`/${path.replace(/^\//, "")}`);
+    router.push(path);
   };
 
   useEffect(() => {
@@ -47,8 +46,6 @@ export default function TabLayout() {
       } catch (error) {
         console.error("Failed to load user data", error);
         Alert.alert("Error", "Could not load profile data.");
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -186,14 +183,15 @@ export default function TabLayout() {
               />
             </TouchableOpacity>
           ),
-          tabBarActiveTintColor: theme.tint,
-          tabBarShowLabel: false,
           tabBarStyle: {
             backgroundColor: theme.background,
-            borderTopWidth: 0.5,
             borderTopColor: theme.icon,
-            paddingBottom: 5, // Add some padding for the icons
+            height: 62,
+            paddingBottom: 8,
+            paddingTop: 6,
           },
+          tabBarActiveTintColor: "#2563eb",
+          tabBarInactiveTintColor: theme.icon,
           tabBarButton: HapticTab,
         })}
       >
@@ -211,12 +209,11 @@ export default function TabLayout() {
         <Tabs.Screen
           name="community-chat"
           options={{
-            tabBarIcon: ({ color }) => (
-              // <View style={styles.centerTab}>
-              <Ionicons name="chatbubbles-outline" size={28} color={color} />
-              // </View>
-            ),
             title: "Community Chat",
+            tabBarLabel: "Chat",
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="chatbubbles-outline" size={24} color={color} />
+            ),
           }}
         />
 
@@ -225,10 +222,11 @@ export default function TabLayout() {
           name="apartments"
           options={{
             title: "My Apartments",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="business-outline" color={color} size={size} />
-            ),
             headerShown: true,
+            tabBarLabel: "Apartment",
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="business-outline" size={24} color={color} />
+            ),
           }}
         />
 
@@ -275,16 +273,59 @@ export default function TabLayout() {
             href: null,
           }}
         />
+        <Tabs.Screen
+          name="elections"
+          options={{
+            title: "Committee Elections",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="election-detail"
+          options={{
+            title: "Election Detail",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="service-providers"
+          options={{
+            title: "Service Providers",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="service-bookings"
+          options={{
+            title: "Service Bookings",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="amenities"
+          options={{
+            title: "Amenities",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="amenity-bookings"
+          options={{
+            title: "Amenity Bookings",
+            href: null,
+          }}
+        />
 
         {/* Right - Invite Members */}
         <Tabs.Screen
           name="invite"
           options={{
             title: "Invite Members",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person-add-outline" color={color} size={size} />
-            ),
             headerShown: true,
+            tabBarLabel: "Invitation",
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="person-add-outline" size={24} color={color} />
+            ),
           }}
         />
       </Tabs>

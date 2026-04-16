@@ -37,31 +37,31 @@ export interface Review {
 
 class ServiceProviderService {
   async getProviders(society_id: string): Promise<ResponseObject<ServiceProvider[]>> {
-    return ApiService.request('get', `/services/providers?society_id=${society_id}`);
+    return ApiService.request('get', `/providers?society_id=${society_id}`);
   }
 
   async addProvider(data: Partial<ServiceProvider>): Promise<ResponseObject<ServiceProvider>> {
-    return ApiService.request('post', '/services/providers', data);
+    return ApiService.request('post', '/providers', data);
   }
 
   async bookProvider(data: { provider_id: string; date: string; society_id: string }): Promise<ResponseObject<ServiceBooking>> {
-    return ApiService.request('post', '/services/bookings', data);
+    return ApiService.request('post', '/bookings', data);
   }
 
   async getUserBookings(): Promise<ResponseObject<ServiceBooking[]>> {
-    return ApiService.request('get', '/services/bookings');
+    return ApiService.request('get', '/bookings');
   }
 
   async updateBookingStatus(id: string, status: string): Promise<ResponseObject<ServiceBooking>> {
-    return ApiService.request('patch', `/services/bookings/${id}/status`, { status });
+    return ApiService.request('patch', `/bookings/${id}/status`, { status });
   }
 
   async addReview(provider_id: string, data: { rating: number; comment: string }): Promise<ResponseObject<Review>> {
-    return ApiService.request('post', `/services/providers/${provider_id}/reviews`, data);
+    return ApiService.request('post', `/providers/${provider_id}/reviews`, data);
   }
 
   async getReviews(provider_id: string): Promise<ResponseObject<Review[]>> {
-    return ApiService.request('get', `/services/providers/${provider_id}/reviews`);
+    return ApiService.request('get', `/providers/${provider_id}/reviews`);
   }
 }
 

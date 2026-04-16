@@ -22,3 +22,31 @@ password
 
 normal-user: tabishali2@gmail.com
 password
+
+2315 phone
+
+
+http://192.168.100.85:8081/reset-password?token=d6d1baf4a923b62aabdfb1c37f1ee260242c37a64e0c634d12b3e32af462ff5d&email=fuzailansari585@gmail.com
+
+3782 822463 10005
+4111 1111 1111 1111
+
+6011 0009 9013 9424
+
+stripe listen --forward-to localhost:5000/api/billing/webhook
+
+supplemore:
+supplemores_db_user
+aV5PPkBH1sCaBzmD
+
+mongodb+srv://supplemores_db_user:aV5PPkBH1sCaBzmD@cluster0.vagbdki.mongodb.net/supplemores
+
+
+cp evolure-digital-master/public/assets/img/portfolio/project1/1.jpg public_html/assets/img/portfolio/project1/
+
+ls -lah public_html/assets/img/upwork-white.png
+
+
+182.184.116.63
+14.192.157.25
+

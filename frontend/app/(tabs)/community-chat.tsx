@@ -35,7 +35,7 @@ import {
 
 import { apiGetUserSocieties } from "@/services/SocietyService";
 import { formatTime, getAuthData } from "@/hooks/helperHooks";
-import { EXPO_PUBLIC_API_BASE } from "@/constants";
+import { API_BASE } from "@/services/ApiService";
 
 // Debounce Utility for Typing
 let typingTimeout: number | null = null;
@@ -103,7 +103,7 @@ const CommunityChat = () => {
     useEffect(() => {
         if (!roomId || !user) return;
 
-        const newSocket = io(EXPO_PUBLIC_API_BASE);
+        const newSocket = io(API_BASE);
         setSocket(newSocket);
 
         newSocket.on('connect', () => {

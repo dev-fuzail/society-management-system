@@ -178,7 +178,7 @@ export const generateInviteLink = async (req, res) => {
     }
 
     const token = jwt.sign(
-      { society_id: admin.society_id, role: "member" },
+      { society_id: admin.society_id, role: "resident" },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -186,16 +186,18 @@ export const generateInviteLink = async (req, res) => {
 
     const invite = new SocietyInvite({
       society_id: admin.society_id,
-      role: "member",
+      role: "resident",
       token: token,
       status: "pending",
       // expires_at can be set based on token's exp
     });
     await invite.save();
 
-    // Replace with your frontend URL
-    // const link = `${process.env.FRONTEND_URL}/join?token=${token}`;
-    const link = `${process.env.BACKEND_URL}/join?token=${token}`;
+    const baseUrl =
+      process.env.BACKEND_URL ||
+      process.env.PUBLIC_BASE_URL ||
+      `${req.protocol}://${req.get("host")}`;
+    const link = `${baseUrl}/join?token=${token}`;
     console.log("link----->: ", link, "<>----", process.env.BACKEND_URL);
 
     res.status(200).json({
@@ -239,7 +241,7 @@ export const sendEmailInvite = async (req, res) => {
     }
 
     const token = jwt.sign(
-      { society_id: admin.society_id, email, role: "member" },
+      { society_id: admin.society_id, email, role: "resident" },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -247,7 +249,7 @@ export const sendEmailInvite = async (req, res) => {
     const invite = new SocietyInvite({
       society_id: admin.society_id,
       email,
-      role: "member",
+      role: "resident",
       token,
       status: "pending",
       // expires_at could be added here if needed
@@ -327,12 +329,13 @@ export const registerFromInvite = async (req, res) => {
 
     // 2. Create User
     const hashedPassword = await bcrypt.hash(password, 10);
+    const inviteRole = invite.role === "member" ? "resident" : invite.role;
     const user = new User({
       name,
       email: userEmail,
       password: hashedPassword,
       phone,
-      role: invite.role, // 'member'
+      role: inviteRole,
       society_id: invite.society_id,
     });
     await user.save();

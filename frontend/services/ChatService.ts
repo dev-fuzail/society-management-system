@@ -1,6 +1,5 @@
 import apiService from "./ApiService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as FileSystem from "expo-file-system";
 import { CreateRoomData, MessageResponse, ResponseObject, RoomResponse, SendMessageData, Society } from "./types";
 import { EXPO_PUBLIC_API_BASE } from "@/constants";
 

@@ -4,9 +4,18 @@ import Candidate from "../models/Candidate.js";
 import Vote from "../models/Vote.js";
 import User from "../models/User.js";
 
+const requireRole = (req, res, roles) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    res.status(403).json({ success: false, message: "Access denied" });
+    return false;
+  }
+  return true;
+};
+
 // Create a new election (Admin only)
 export const createElection = async (req, res) => {
   try {
+    if (!requireRole(req, res, ["admin"])) return;
     const { title, start_date, end_date, society_id } = req.body;
     const election = new Election({ title, start_date, end_date, society_id });
     await election.save();
@@ -19,6 +28,7 @@ export const createElection = async (req, res) => {
 // Toggle election status (Admin only)
 export const toggleElectionStatus = async (req, res) => {
   try {
+    if (!requireRole(req, res, ["admin"])) return;
     const { id } = req.params;
     const { status } = req.body; // "ongoing" or "completed"
     const election = await Election.findByIdAndUpdate(id, { status }, { new: true });
@@ -31,6 +41,7 @@ export const toggleElectionStatus = async (req, res) => {
 // Add candidate to election (Admin only)
 export const addCandidate = async (req, res) => {
   try {
+    if (!requireRole(req, res, ["admin"])) return;
     const { election_id, user_id, manifesto } = req.body;
     const candidate = new Candidate({ election_id, user_id, manifesto });
     await candidate.save();
@@ -68,6 +79,7 @@ export const getElectionDetails = async (req, res) => {
 // Cast a vote (Resident)
 export const castVote = async (req, res) => {
   try {
+    if (!requireRole(req, res, ["resident"])) return;
     const { election_id, candidate_id } = req.body;
     const voter_id = req.user.id;
 
@@ -79,6 +91,11 @@ export const castVote = async (req, res) => {
     const now = new Date();
     if (now < election.start_date || now > election.end_date) {
         return res.status(400).json({ success: false, message: "Election is not currently active based on dates" });
+    }
+
+    const candidate = await Candidate.findOne({ _id: candidate_id, election_id });
+    if (!candidate) {
+      return res.status(400).json({ success: false, message: "Candidate does not belong to this election" });
     }
 
     const vote = new Vote({ election_id, voter_id, candidate_id });
@@ -121,10 +138,20 @@ export const getElectionResults = async (req, res) => {
 // Update user role (Admin only)
 export const updateUserRole = async (req, res) => {
     try {
+    if (!requireRole(req, res, ["admin"])) return;
         const { user_id, role } = req.body;
-        if (!["resident", "admin", "committee_member"].includes(role)) {
+    if (!["admin", "committee_member"].includes(role)) {
             return res.status(400).json({ success: false, message: "Invalid role" });
         }
+
+    const currentUser = await User.findById(user_id);
+    if (!currentUser) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    if (currentUser.role !== "resident") {
+      return res.status(400).json({ success: false, message: "Only resident users can be promoted" });
+    }
+
         const user = await User.findByIdAndUpdate(user_id, { role }, { new: true });
         res.status(200).json({ success: true, message: "User role updated successfully", result: user });
     } catch (error) {

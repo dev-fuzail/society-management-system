@@ -63,7 +63,7 @@ class ElectionService {
   }
 
   async updateUserRole(user_id: string, role: string): Promise<ResponseObject<any>> {
-    return ApiService.request('patch', '/elections/roles', { user_id, role });
+    return ApiService.request('patch', '/users/roles', { user_id, role });
   }
 }
 

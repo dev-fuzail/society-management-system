@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, TextInput, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from "@expo/vector-icons";
 import { getAuthData } from '@/hooks/helperHooks';
@@ -12,6 +12,10 @@ export default function ServiceProvidersScreen() {
   const [userRole, setUserRole] = useState('');
   const [societyId, setSocietyId] = useState('');
   const [search, setSearch] = useState('');
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [providerName, setProviderName] = useState('');
+  const [providerCategory, setProviderCategory] = useState('');
+  const [providerContact, setProviderContact] = useState('');
   const router = useRouter();
 
   const fetchProviders = async () => {
@@ -38,6 +42,32 @@ export default function ServiceProvidersScreen() {
   useEffect(() => {
     fetchProviders();
   }, []);
+
+  const handleCreateProvider = async () => {
+    if (!providerName.trim() || !providerCategory.trim() || !providerContact.trim()) {
+      Alert.alert('Validation', 'Name, category and contact are required.');
+      return;
+    }
+
+    try {
+      const res = await ServiceProviderService.addProvider({
+        name: providerName.trim(),
+        category: providerCategory.trim().toUpperCase(),
+        contact: providerContact.trim(),
+        society_id: societyId,
+      });
+
+      if (res.success) {
+        setCreateModalVisible(false);
+        setProviderName('');
+        setProviderCategory('');
+        setProviderContact('');
+        fetchProviders();
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to add provider.');
+    }
+  };
 
   const handleBook = (provider: ServiceProvider) => {
     Alert.alert(
@@ -104,9 +134,16 @@ export default function ServiceProvidersScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Service Providers</Text>
-        <TouchableOpacity onPress={() => router.push('/service-bookings')}>
-          <Ionicons name="list-outline" size={24} color="#4f46e5" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          {userRole === 'admin' && (
+            <TouchableOpacity onPress={() => setCreateModalVisible(true)}>
+              <Ionicons name="add-circle-outline" size={24} color="#4f46e5" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => router.push('/service-bookings')}>
+            <Ionicons name="list-outline" size={24} color="#4f46e5" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.searchContainer}>
@@ -137,6 +174,42 @@ export default function ServiceProvidersScreen() {
           refreshing={loading}
         />
       )}
+
+      <Modal visible={createModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Service Provider</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={providerName}
+              onChangeText={setProviderName}
+              placeholder="Provider name"
+            />
+            <TextInput
+              style={styles.modalInput}
+              value={providerCategory}
+              onChangeText={setProviderCategory}
+              placeholder="Category (e.g. PLUMBING)"
+              autoCapitalize="characters"
+            />
+            <TextInput
+              style={styles.modalInput}
+              value={providerContact}
+              onChangeText={setProviderContact}
+              placeholder="Contact"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setCreateModalVisible(false)}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.submitButton} onPress={handleCreateProvider}>
+                <Text style={styles.submitButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -187,5 +260,21 @@ const styles = StyleSheet.create({
   bookButton: { flex: 2, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 8 },
   bookButtonText: { color: '#fff', fontWeight: '700' },
   emptyState: { alignItems: 'center', marginTop: 100 },
-  emptyText: { marginTop: 16, fontSize: 16, color: '#999' }
+  emptyText: { marginTop: 16, fontSize: 16, color: '#999' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: '86%', backgroundColor: '#fff', borderRadius: 12, padding: 18 },
+  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12, color: '#1f2937' },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 8 },
+  cancelButton: { paddingHorizontal: 14, paddingVertical: 10 },
+  cancelButtonText: { color: '#6b7280', fontWeight: '700' },
+  submitButton: { backgroundColor: '#4f46e5', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
+  submitButtonText: { color: '#fff', fontWeight: '700' },
 });

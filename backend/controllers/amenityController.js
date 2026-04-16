@@ -2,9 +2,18 @@ import Amenity from "../models/Amenity.js";
 import AmenityBooking from "../models/AmenityBooking.js";
 import mongoose from "mongoose";
 
+const requireRole = (req, res, roles) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    res.status(403).json({ success: false, message: "Access denied" });
+    return false;
+  }
+  return true;
+};
+
 // Define amenities (Admin only)
 export const createAmenity = async (req, res) => {
   try {
+    if (!requireRole(req, res, ["admin"])) return;
     const { name, type, base_price, max_capacity, society_id } = req.body;
     const amenity = new Amenity({ name, type, base_price, max_capacity, society_id });
     await amenity.save();
@@ -28,6 +37,7 @@ export const getAmenities = async (req, res) => {
 // Book an amenity (Resident)
 export const bookAmenity = async (req, res) => {
   try {
+    if (!requireRole(req, res, ["resident"])) return;
     const { amenity_id, society_id, start_time, end_time, guest_count } = req.body;
     const user_id = req.user.id;
 
@@ -101,6 +111,7 @@ export const getBookings = async (req, res) => {
 // Update booking status (Admin only)
 export const updateBookingStatus = async (req, res) => {
   try {
+    if (!requireRole(req, res, ["admin"])) return;
     const { id } = req.params;
     const { status } = req.body; // APPROVED, REJECTED, CANCELLED
 

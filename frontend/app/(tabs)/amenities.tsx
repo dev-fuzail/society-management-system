@@ -9,17 +9,24 @@ import { apiGetUserSocieties } from '@/services/SocietyService';
 export default function AmenitiesScreen() {
   const [amenities, setAmenities] = useState<Amenity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState('resident');
   const [societyId, setSocietyId] = useState('');
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
   const [selectedAmenity, setSelectedAmenity] = useState<Amenity | null>(null);
   const [guestCount, setGuestCount] = useState('1');
   const [bookingHours, setBookingHours] = useState('1');
   const [totalPrice, setTotalPrice] = useState(0);
+  const [newAmenityName, setNewAmenityName] = useState('');
+  const [newAmenityType, setNewAmenityType] = useState<'PER_USER' | 'FLAT_EVENT'>('PER_USER');
+  const [newBasePrice, setNewBasePrice] = useState('');
+  const [newCapacity, setNewCapacity] = useState('');
   const router = useRouter();
 
   const fetchAmenities = async () => {
     try {
       const { userData } = await getAuthData();
+      setUserRole(userData?.role || 'resident');
       const res = await apiGetUserSocieties(userData.id);
       if (res.success && res.result.length > 0) {
         const sId = res.result[0]._id;
@@ -39,6 +46,34 @@ export default function AmenitiesScreen() {
   useEffect(() => {
     fetchAmenities();
   }, []);
+
+  const createAmenity = async () => {
+    if (!newAmenityName.trim() || !newBasePrice.trim()) {
+      Alert.alert('Validation', 'Name and base price are required.');
+      return;
+    }
+
+    try {
+      const res = await AmenityService.createAmenity({
+        name: newAmenityName.trim(),
+        type: newAmenityType,
+        base_price: Number(newBasePrice),
+        max_capacity: Number(newCapacity || '1'),
+        society_id: societyId,
+      });
+
+      if (res.success) {
+        setCreateModalVisible(false);
+        setNewAmenityName('');
+        setNewBasePrice('');
+        setNewCapacity('');
+        setNewAmenityType('PER_USER');
+        fetchAmenities();
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to create amenity.');
+    }
+  };
 
   useEffect(() => {
     if (selectedAmenity) {
@@ -106,9 +141,16 @@ export default function AmenitiesScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Society Amenities</Text>
-        <TouchableOpacity onPress={() => router.push('/amenity-bookings')}>
-          <Ionicons name="calendar-outline" size={24} color="#4f46e5" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          {userRole === 'admin' && (
+            <TouchableOpacity onPress={() => setCreateModalVisible(true)}>
+              <Ionicons name="add-circle-outline" size={24} color="#4f46e5" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => router.push('/amenity-bookings')}>
+            <Ionicons name="calendar-outline" size={24} color="#4f46e5" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -173,6 +215,60 @@ export default function AmenitiesScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={createModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Create Amenity</Text>
+
+            <TextInput
+              style={styles.input}
+              value={newAmenityName}
+              onChangeText={setNewAmenityName}
+              placeholder="Amenity name"
+            />
+
+            <View style={styles.typeSwitchRow}>
+              <TouchableOpacity
+                style={[styles.typeSwitchBtn, newAmenityType === 'PER_USER' && styles.typeSwitchBtnActive]}
+                onPress={() => setNewAmenityType('PER_USER')}
+              >
+                <Text style={[styles.typeSwitchText, newAmenityType === 'PER_USER' && styles.typeSwitchTextActive]}>PER_USER</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typeSwitchBtn, newAmenityType === 'FLAT_EVENT' && styles.typeSwitchBtnActive]}
+                onPress={() => setNewAmenityType('FLAT_EVENT')}
+              >
+                <Text style={[styles.typeSwitchText, newAmenityType === 'FLAT_EVENT' && styles.typeSwitchTextActive]}>FLAT_EVENT</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={styles.input}
+              value={newBasePrice}
+              onChangeText={setNewBasePrice}
+              placeholder="Base price"
+              keyboardType="numeric"
+            />
+            <TextInput
+              style={styles.input}
+              value={newCapacity}
+              onChangeText={setNewCapacity}
+              placeholder="Max capacity"
+              keyboardType="numeric"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setCreateModalVisible(false)}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.submitButton} onPress={createAmenity}>
+                <Text style={styles.submitButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -206,4 +302,17 @@ const styles = StyleSheet.create({
   cancelButtonText: { color: '#666', fontWeight: '600' },
   submitButton: { flex: 2, backgroundColor: '#4f46e5', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
   submitButtonText: { color: '#fff', fontWeight: '700' }
+  ,
+  typeSwitchRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  typeSwitchBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  typeSwitchBtnActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
+  typeSwitchText: { color: '#6b7280', fontWeight: '600' },
+  typeSwitchTextActive: { color: '#312e81' },
 });
