@@ -94,41 +94,54 @@ export default function ServiceBookingsScreen() {
     }
   };
 
-  const renderBookingCard = ({ item }: { item: ServiceBooking }) => (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.providerName}>{item.provider_id.name}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: item.status === 'COMPLETED' ? '#C8E6C9' : item.status === 'CANCELLED' ? '#FFCDD2' : '#BBDEFB' }]}>
-          <Text style={styles.statusText}>{item.status}</Text>
+  const renderBookingCard = ({ item }: { item: ServiceBooking }) => {
+    const statusColor = item.status === 'COMPLETED' ? '#059669' : item.status === 'CANCELLED' ? '#dc2626' : '#2563eb';
+    const statusBg = item.status === 'COMPLETED' ? '#dcfce7' : item.status === 'CANCELLED' ? '#fef2f2' : '#dbeafe';
+
+    return (
+        <View style={styles.card}>
+            <View style={styles.cardHeader}>
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.providerName}>{item.provider_id.name}</Text>
+                    <View style={styles.dateRow}>
+                        <Ionicons name="calendar-outline" size={12} color="#64748b" />
+                        <Text style={styles.dateText}>{new Date(item.date).toLocaleDateString()}</Text>
+                    </View>
+                </View>
+                <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
+                    <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
+                </View>
+            </View>
+            
+            <View style={styles.actions}>
+                {item.status === 'PENDING' && (
+                <TouchableOpacity style={styles.completeButton} onPress={() => handleComplete(item._id)}>
+                    <Ionicons name="checkmark-done" size={16} color="#fff" style={{ marginRight: 6 }} />
+                    <Text style={styles.buttonText}>Complete</Text>
+                </TouchableOpacity>
+                )}
+                {item.status === 'COMPLETED' && !reviewedProviderIds.has(item.provider_id._id) && (
+                <TouchableOpacity style={styles.reviewButton} onPress={() => handleReview(item)}>
+                    <Ionicons name="star-outline" size={16} color="#4f46e5" style={{ marginRight: 6 }} />
+                    <Text style={styles.reviewButtonText}>Rate Service</Text>
+                </TouchableOpacity>
+                )}
+                {item.status === 'COMPLETED' && reviewedProviderIds.has(item.provider_id._id) && (
+                <View style={styles.reviewDonePill}>
+                    <Ionicons name="checkmark-circle" size={16} color="#059669" style={{ marginRight: 6 }} />
+                    <Text style={styles.reviewDonePillText}>Reviewed</Text>
+                </View>
+                )}
+            </View>
         </View>
-      </View>
-      <Text style={styles.dateText}>Date: {new Date(item.date).toLocaleDateString()}</Text>
-      
-      <View style={styles.actions}>
-        {item.status === 'PENDING' && (
-          <TouchableOpacity style={styles.completeButton} onPress={() => handleComplete(item._id)}>
-            <Text style={styles.buttonText}>Mark Completed</Text>
-          </TouchableOpacity>
-        )}
-        {item.status === 'COMPLETED' && !reviewedProviderIds.has(item.provider_id._id) && (
-          <TouchableOpacity style={styles.reviewButton} onPress={() => handleReview(item)}>
-            <Text style={styles.reviewButtonText}>Leave Review</Text>
-          </TouchableOpacity>
-        )}
-        {item.status === 'COMPLETED' && reviewedProviderIds.has(item.provider_id._id) && (
-          <View style={styles.reviewDonePill}>
-            <Text style={styles.reviewDonePillText}>Review Submitted</Text>
-          </View>
-        )}
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: '#f8fafc' }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#1e293b" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Bookings</Text>
       </View>
@@ -140,11 +153,12 @@ export default function ServiceBookingsScreen() {
           data={bookings}
           renderItem={renderBookingCard}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyText}>No bookings found.</Text>
+              <Ionicons name="calendar-outline" size={60} color="#cbd5e1" />
+              <Text style={styles.emptyText}>No service bookings yet.</Text>
             </View>
           }
           onRefresh={fetchBookings}
@@ -154,34 +168,36 @@ export default function ServiceBookingsScreen() {
 
       <Modal visible={reviewModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Rate Service</Text>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Rate Experience</Text>
+                <TouchableOpacity onPress={() => setReviewModalModalVisible(false)}>
+                    <Ionicons name="close" size={24} color="#1e293b" />
+                </TouchableOpacity>
+            </View>
+
             <Text style={styles.modalSubtitle}>How was your experience with {selectedBooking?.provider_id.name}?</Text>
             
             <View style={styles.ratingRow}>
               {[1, 2, 3, 4, 5].map((s) => (
-                <TouchableOpacity key={s} onPress={() => setRating(s)}>
-                  <Ionicons name={s <= rating ? "star" : "star-outline"} size={32} color="#fbbf24" />
+                <TouchableOpacity key={s} onPress={() => setRating(s)} activeOpacity={0.7}>
+                  <Ionicons name={s <= rating ? "star" : "star-outline"} size={40} color="#fbbf24" />
                 </TouchableOpacity>
               ))}
             </View>
 
             <TextInput
               style={styles.reviewInput}
-              placeholder="Write a comment (optional)..."
+              placeholder="Tell us more about the service..."
+              placeholderTextColor="#94a3b8"
               multiline
               value={comment}
               onChangeText={setComment}
             />
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setReviewModalModalVisible(false)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.submitButton} onPress={submitReview}>
-                <Text style={styles.submitButtonText}>Submit</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.submitBtn} onPress={submitReview}>
+                <Text style={styles.submitBtnText}>Submit Feedback</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -190,36 +206,66 @@ export default function ServiceBookingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: '#fff' },
-  backButton: { marginRight: 16 },
-  headerTitle: { fontSize: 20, fontWeight: '700' },
-  list: { padding: 16 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, elevation: 2 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  providerName: { fontSize: 18, fontWeight: '700', color: '#333' },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  statusText: { fontSize: 10, fontWeight: '700' },
-  dateText: { color: '#666', marginBottom: 12 },
-  actions: { flexDirection: 'row', gap: 12 },
-  completeButton: { backgroundColor: '#4f46e5', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
-  reviewButton: { borderWidth: 1, borderColor: '#4f46e5', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
-  buttonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  reviewButtonText: { color: '#4f46e5', fontWeight: '600', fontSize: 14 },
-  reviewDonePill: { backgroundColor: '#ecfdf5', borderColor: '#34d399', borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
-  reviewDonePillText: { color: '#047857', fontWeight: '600', fontSize: 13 },
-  emptyState: { alignItems: 'center', marginTop: 100 },
-  emptyText: { marginTop: 16, fontSize: 16, color: '#999' },
+  container: { flex: 1 },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 24, 
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9'
+  },
+  backButton: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 12, 
+    backgroundColor: '#f8fafc', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: '#1e293b' },
   
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#fff', width: '85%', padding: 24, borderRadius: 16 },
-  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-  modalSubtitle: { fontSize: 14, color: '#666', marginBottom: 20, textAlign: 'center' },
-  ratingRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 20 },
-  reviewInput: { backgroundColor: '#f9fafb', borderRadius: 8, padding: 12, height: 100, textAlignVertical: 'top', borderWidth: 1, borderColor: '#eee', marginBottom: 20 },
-  modalActions: { flexDirection: 'row', gap: 12 },
-  cancelButton: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  cancelButtonText: { color: '#666', fontWeight: '600' },
-  submitButton: { flex: 1, backgroundColor: '#4f46e5', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontWeight: '700' }
+  listContainer: { padding: 20, paddingBottom: 40 },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  providerName: { fontSize: 18, fontWeight: '700', color: '#1e293b', marginBottom: 4 },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dateText: { fontSize: 13, color: '#64748b', fontWeight: '500' },
+  statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  statusText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  
+  actions: { flexDirection: 'row', gap: 12 },
+  completeButton: { flex: 1, backgroundColor: '#4f46e5', paddingVertical: 12, borderRadius: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
+  reviewButton: { flex: 1, borderWidth: 1.5, borderColor: '#4f46e5', paddingVertical: 12, borderRadius: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
+  buttonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  reviewButtonText: { color: '#4f46e5', fontWeight: '700', fontSize: 14 },
+  reviewDonePill: { flex: 1, backgroundColor: '#f0fdf4', paddingVertical: 12, borderRadius: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: '#dcfce7' },
+  reviewDonePillText: { color: '#059669', fontWeight: '700', fontSize: 14 },
+  
+  emptyState: { alignItems: 'center', marginTop: 80 },
+  emptyText: { marginTop: 16, fontSize: 16, color: '#94a3b8', fontWeight: '500' },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
+  modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '80%', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 22, fontWeight: '800', color: '#1e293b' },
+  modalSubtitle: { fontSize: 15, color: '#64748b', marginBottom: 24, lineHeight: 22 },
+  ratingRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 30 },
+  reviewInput: { backgroundColor: '#f8fafc', borderRadius: 16, padding: 16, height: 120, textAlignVertical: 'top', borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 24, color: '#1e293b', fontSize: 15 },
+  submitBtn: { backgroundColor: '#4f46e5', padding: 18, borderRadius: 16, alignItems: 'center', shadowColor: '#4f46e5', shadowOpacity: 0.2, shadowRadius: 10, elevation: 4 },
+  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' }
 });

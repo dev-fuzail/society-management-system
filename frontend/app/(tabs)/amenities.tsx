@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, TextInput, Modal, ScrollView, KeyboardAvoidingView, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from "@expo/vector-icons";
 import { getAuthData } from '@/hooks/helperHooks';
@@ -121,33 +121,38 @@ export default function AmenitiesScreen() {
 
   const renderAmenityCard = ({ item }: { item: Amenity }) => (
     <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.amenityIcon}>
+      <View style={styles.cardMain}>
+        <View style={styles.amenityIconBox}>
           <Ionicons name={item.name.toLowerCase().includes('pool') ? 'water' : 'business'} size={24} color="#4f46e5" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.type}>{item.type === 'PER_USER' ? 'Per Person' : 'Flat Event Rate'}</Text>
+          <View style={styles.typeBadge}>
+            <Text style={styles.typeText}>{item.type === 'PER_USER' ? 'Per Person' : 'Flat Event Rate'}</Text>
+          </View>
         </View>
-        <Text style={styles.price}>${item.base_price}</Text>
+        <View style={styles.priceBox}>
+            <Text style={styles.priceLabel}>From</Text>
+            <Text style={styles.priceValue}>${item.base_price}</Text>
+        </View>
       </View>
-      <TouchableOpacity style={styles.bookButton} onPress={() => handleBookPress(item)}>
-        <Text style={styles.bookButtonText}>Book Now</Text>
+      <TouchableOpacity style={styles.bookBtn} onPress={() => handleBookPress(item)}>
+        <Text style={styles.bookBtnText}>Book Now</Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: '#f8fafc' }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Society Amenities</Text>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={styles.headerActions}>
           {userRole === 'admin' && (
-            <TouchableOpacity onPress={() => setCreateModalVisible(true)}>
-              <Ionicons name="add-circle-outline" size={24} color="#4f46e5" />
+            <TouchableOpacity style={styles.addBtn} onPress={() => setCreateModalVisible(true)}>
+              <Ionicons name="add" size={24} color="#fff" />
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={() => router.push('/amenity-bookings')}>
+          <TouchableOpacity style={styles.historyBtn} onPress={() => router.push('/amenity-bookings')}>
             <Ionicons name="calendar-outline" size={24} color="#4f46e5" />
           </TouchableOpacity>
         </View>
@@ -160,10 +165,11 @@ export default function AmenitiesScreen() {
           data={amenities}
           renderItem={renderAmenityCard}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="gift-outline" size={64} color="#ccc" />
+              <Ionicons name="gift-outline" size={60} color="#cbd5e1" />
               <Text style={styles.emptyText}>No amenities defined.</Text>
             </View>
           }
@@ -172,147 +178,189 @@ export default function AmenitiesScreen() {
         />
       )}
 
-      <Modal visible={bookingModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Book {selectedAmenity?.name}</Text>
-            
-            {selectedAmenity?.type === 'PER_USER' ? (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Number of Guests</Text>
-                <TextInput
-                  style={styles.input}
-                  keyboardType="numeric"
-                  value={guestCount}
-                  onChangeText={setGuestCount}
-                />
-              </View>
-            ) : (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Booking Duration (Hours)</Text>
-                <TextInput
-                  style={styles.input}
-                  keyboardType="numeric"
-                  value={bookingHours}
-                  onChangeText={setBookingHours}
-                />
-              </View>
-            )}
+      {/* Booking Modal */}
+      <Modal visible={bookingModalVisible} transparent animationType="slide">
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+        >
+            <Pressable style={styles.modalOverlay} onPress={() => setBookingModalVisible(false)}>
+                <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Book {selectedAmenity?.name}</Text>
+                        <TouchableOpacity onPress={() => setBookingModalVisible(false)}>
+                            <Ionicons name="close" size={24} color="#1e293b" />
+                        </TouchableOpacity>
+                    </View>
+                    
+                    {selectedAmenity?.type === 'PER_USER' ? (
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Number of Guests</Text>
+                        <TextInput
+                        style={styles.modalInput}
+                        keyboardType="numeric"
+                        value={guestCount}
+                        onChangeText={setGuestCount}
+                        />
+                    </View>
+                    ) : (
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Booking Duration (Hours)</Text>
+                        <TextInput
+                        style={styles.modalInput}
+                        keyboardType="numeric"
+                        value={bookingHours}
+                        onChangeText={setBookingHours}
+                        />
+                    </View>
+                    )}
 
-            <View style={styles.priceBreakdown}>
-              <Text style={styles.priceLabel}>Estimated Price:</Text>
-              <Text style={styles.priceValue}>${totalPrice}</Text>
-            </View>
+                    <View style={styles.priceBreakdown}>
+                    <Text style={styles.priceBreakdownLabel}>Total Estimated Price</Text>
+                    <Text style={styles.priceBreakdownValue}>${totalPrice}</Text>
+                    </View>
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setBookingModalVisible(false)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.submitButton} onPress={submitBooking}>
-                <Text style={styles.submitButtonText}>Confirm Booking</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+                    <TouchableOpacity style={styles.submitBtn} onPress={submitBooking}>
+                        <Text style={styles.submitBtnText}>Confirm Booking</Text>
+                    </TouchableOpacity>
+                </View>
+            </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={createModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Create Amenity</Text>
+      {/* Create Amenity Modal */}
+      <Modal visible={createModalVisible} transparent animationType="slide">
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+        >
+            <Pressable style={styles.modalOverlay} onPress={() => setCreateModalVisible(false)}>
+                <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Create Amenity</Text>
+                        <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
+                            <Ionicons name="close" size={24} color="#1e293b" />
+                        </TouchableOpacity>
+                    </View>
 
-            <TextInput
-              style={styles.input}
-              value={newAmenityName}
-              onChangeText={setNewAmenityName}
-              placeholder="Amenity name"
-            />
+                    <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                        <Text style={styles.label}>Amenity Name</Text>
+                        <TextInput
+                        style={styles.modalInput}
+                        value={newAmenityName}
+                        onChangeText={setNewAmenityName}
+                        placeholder="e.g. Swimming Pool"
+                        />
 
-            <View style={styles.typeSwitchRow}>
-              <TouchableOpacity
-                style={[styles.typeSwitchBtn, newAmenityType === 'PER_USER' && styles.typeSwitchBtnActive]}
-                onPress={() => setNewAmenityType('PER_USER')}
-              >
-                <Text style={[styles.typeSwitchText, newAmenityType === 'PER_USER' && styles.typeSwitchTextActive]}>PER_USER</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.typeSwitchBtn, newAmenityType === 'FLAT_EVENT' && styles.typeSwitchBtnActive]}
-                onPress={() => setNewAmenityType('FLAT_EVENT')}
-              >
-                <Text style={[styles.typeSwitchText, newAmenityType === 'FLAT_EVENT' && styles.typeSwitchTextActive]}>FLAT_EVENT</Text>
-              </TouchableOpacity>
-            </View>
+                        <Text style={styles.label}>Pricing Model</Text>
+                        <View style={styles.typeSwitchRow}>
+                        <TouchableOpacity
+                            style={[styles.typeSwitchBtn, newAmenityType === 'PER_USER' && styles.typeSwitchBtnActive]}
+                            onPress={() => setNewAmenityType('PER_USER')}
+                        >
+                            <Text style={[styles.typeSwitchText, newAmenityType === 'PER_USER' && styles.typeSwitchTextActive]}>Per User</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.typeSwitchBtn, newAmenityType === 'FLAT_EVENT' && styles.typeSwitchBtnActive]}
+                            onPress={() => setNewAmenityType('FLAT_EVENT')}
+                        >
+                            <Text style={[styles.typeSwitchText, newAmenityType === 'FLAT_EVENT' && styles.typeSwitchTextActive]}>Flat Rate</Text>
+                        </TouchableOpacity>
+                        </View>
 
-            <TextInput
-              style={styles.input}
-              value={newBasePrice}
-              onChangeText={setNewBasePrice}
-              placeholder="Base price"
-              keyboardType="numeric"
-            />
-            <TextInput
-              style={styles.input}
-              value={newCapacity}
-              onChangeText={setNewCapacity}
-              placeholder="Max capacity"
-              keyboardType="numeric"
-            />
+                        <Text style={styles.label}>Base Price ($)</Text>
+                        <TextInput
+                        style={styles.modalInput}
+                        value={newBasePrice}
+                        onChangeText={setNewBasePrice}
+                        placeholder="0.00"
+                        keyboardType="numeric"
+                        />
+                        
+                        <Text style={styles.label}>Max Capacity</Text>
+                        <TextInput
+                        style={styles.modalInput}
+                        value={newCapacity}
+                        onChangeText={setNewCapacity}
+                        placeholder="1"
+                        keyboardType="numeric"
+                        />
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setCreateModalVisible(false)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.submitButton} onPress={createAmenity}>
-                <Text style={styles.submitButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+                        <TouchableOpacity style={styles.submitBtn} onPress={createAmenity}>
+                            <Text style={styles.submitBtnText}>Save Amenity</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+                </View>
+            </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#333' },
-  list: { padding: 16 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, elevation: 3 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  amenityIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center' },
-  name: { fontSize: 18, fontWeight: '700', color: '#333' },
-  type: { fontSize: 12, color: '#666' },
-  price: { fontSize: 20, fontWeight: '700', color: '#4f46e5' },
-  bookButton: { backgroundColor: '#4f46e5', alignItems: 'center', paddingVertical: 12, borderRadius: 8 },
-  bookButtonText: { color: '#fff', fontWeight: '700' },
-  emptyState: { alignItems: 'center', marginTop: 100 },
-  emptyText: { marginTop: 16, fontSize: 16, color: '#999' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#fff', width: '85%', padding: 24, borderRadius: 16 },
-  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 20, textAlign: 'center' },
-  inputGroup: { marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '600', color: '#666', marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, fontSize: 16 },
-  priceBreakdown: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, backgroundColor: '#f9fafb', borderRadius: 8, marginBottom: 20 },
-  priceLabel: { fontWeight: '600', color: '#333' },
-  priceValue: { fontWeight: '700', color: '#4f46e5', fontSize: 18 },
-  modalActions: { flexDirection: 'row', gap: 12 },
-  cancelButton: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  cancelButtonText: { color: '#666', fontWeight: '600' },
-  submitButton: { flex: 2, backgroundColor: '#4f46e5', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontWeight: '700' }
-  ,
-  typeSwitchRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  typeSwitchBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
+  container: { flex: 1 },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    padding: 24,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9'
   },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1e293b' },
+  headerActions: { flexDirection: 'row', gap: 12 },
+  addBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#4f46e5', justifyContent: 'center', alignItems: 'center' },
+  historyBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center' },
+  
+  listContainer: { padding: 20, paddingBottom: 40 },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  cardMain: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
+  amenityIconBox: { width: 50, height: 50, borderRadius: 16, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center' },
+  name: { fontSize: 18, fontWeight: '700', color: '#1e293b' },
+  typeBadge: { backgroundColor: '#f1f5f9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 4 },
+  typeText: { fontSize: 11, fontWeight: '700', color: '#64748b' },
+  priceBox: { alignItems: 'flex-end' },
+  priceLabel: { fontSize: 10, color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' },
+  priceValue: { fontSize: 20, fontWeight: '800', color: '#4f46e5' },
+  
+  bookBtn: { backgroundColor: '#4f46e5', alignItems: 'center', paddingVertical: 14, borderRadius: 16, shadowColor: '#4f46e5', shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
+  bookBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  
+  emptyState: { alignItems: 'center', marginTop: 80 },
+  emptyText: { marginTop: 16, fontSize: 16, color: '#94a3b8', fontWeight: '500' },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
+  modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '85%', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#1e293b' },
+  
+  inputGroup: { marginBottom: 20 },
+  label: { fontSize: 14, fontWeight: '700', color: '#475569', marginBottom: 8, marginLeft: 4 },
+  modalInput: { backgroundColor: '#f8fafc', borderRadius: 14, padding: 16, fontSize: 16, color: '#1e293b', marginBottom: 20, borderWidth: 1, borderColor: '#e2e8f0' },
+  
+  priceBreakdown: { backgroundColor: '#f8fafc', padding: 20, borderRadius: 16, marginBottom: 24, borderWidth: 1, borderColor: '#e2e8f0', borderStyle: 'dashed' },
+  priceBreakdownLabel: { fontSize: 12, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: 4 },
+  priceBreakdownValue: { fontSize: 24, fontWeight: '800', color: '#1e293b' },
+  
+  submitBtn: { backgroundColor: '#4f46e5', padding: 18, borderRadius: 16, alignItems: 'center', marginTop: 10, shadowColor: '#4f46e5', shadowOpacity: 0.2, shadowRadius: 10, elevation: 4 },
+  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  typeSwitchRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  typeSwitchBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#f8fafc' },
   typeSwitchBtnActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
-  typeSwitchText: { color: '#6b7280', fontWeight: '600' },
-  typeSwitchTextActive: { color: '#312e81' },
+  typeSwitchText: { color: '#64748b', fontWeight: '700', fontSize: 14 },
+  typeSwitchTextActive: { color: '#4f46e5' },
 });

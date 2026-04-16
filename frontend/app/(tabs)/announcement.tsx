@@ -12,14 +12,11 @@ import {
     SafeAreaView,
     ScrollView,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    Pressable
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getAuthData } from '@/hooks/helperHooks';
-import { PrimaryButton } from '@/components/PrimaryButton';
 import {
     apiGetAnnouncements,
     apiCreateAnnouncement,
@@ -30,11 +27,6 @@ import { Announcement } from '@/services/types';
 import { apiGetUserSocieties } from '@/services/SocietyService';
 
 export default function AnnouncementsScreen() {
-    const colorScheme = useColorScheme();
-    const theme = Colors[colorScheme ?? 'light'];
-    const isDark = colorScheme === 'dark';
-    const router = useRouter();
-
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState<any>(null);
@@ -52,21 +44,20 @@ export default function AnnouncementsScreen() {
 
     const loadData = async () => {
         setLoading(true);
-        const { userData } = await getAuthData();
-        const res = await apiGetUserSocieties(userData.id);
-        console.log("jkashdkahsjkdhakjdha",res.result[0])
-        const selectedSociety = res.result;
-        if (userData && selectedSociety.length > 0) {
-            setUser(userData);
-            // if (selectedSociety[0]._id) {
-                const res = await apiGetAnnouncements(selectedSociety[0]._id);
-                console.log("sdjashjdajdhakjh",res)
-                if (res.success) {
-                    setAnnouncements(res.result);
+        try {
+            const { userData } = await getAuthData();
+            const res = await apiGetUserSocieties(userData.id);
+            const selectedSociety = res.result;
+            if (userData && selectedSociety.length > 0) {
+                setUser(userData);
+                const announcementsRes = await apiGetAnnouncements(selectedSociety[0]._id);
+                if (announcementsRes.success) {
+                    setAnnouncements(announcementsRes.result);
                 }
-            // }
+            }
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const openModal = (item?: Announcement) => {
@@ -89,24 +80,17 @@ export default function AnnouncementsScreen() {
         }
 
         setSubmitting(true);
-        const res = await apiGetUserSocieties(user.id);
-        const selectedSociety = res.result[0];
         try {
+            const resSoc = await apiGetUserSocieties(user.id);
+            const selectedSociety = resSoc.result[0];
             if (editingId) {
-                // Update
                 const res = await apiUpdateAnnouncement(editingId, { title: formTitle, message: formMessage });
                 if (res.success) {
                     setAnnouncements(prev => prev.map(item => item._id === editingId ? res.result : item));
                     setModalVisible(false);
-                } else {
-                    Alert.alert("Error", res.message);
                 }
             } else {
-                // Create
-                if (!selectedSociety._id) {
-                    Alert.alert("Error", "User society not found");
-                    return;
-                }
+                if (!selectedSociety._id) return;
                 const res = await apiCreateAnnouncement({
                     society_id: selectedSociety._id,
                     user_id: user.id,
@@ -116,12 +100,8 @@ export default function AnnouncementsScreen() {
                 if (res.success) {
                     setAnnouncements(prev => [res.result, ...prev]);
                     setModalVisible(false);
-                } else {
-                    Alert.alert("Error", res.message);
                 }
             }
-        } catch (e: any) {
-            Alert.alert("Error", e.message || "Operation failed");
         } finally {
             setSubmitting(false);
         }
@@ -137,7 +117,7 @@ export default function AnnouncementsScreen() {
                     try {
                         await apiDeleteAnnouncement(id);
                         setAnnouncements(prev => prev.filter(a => a._id !== id));
-                    } catch (e) {
+                    } catch {
                         Alert.alert("Error", "Failed to delete");
                     }
                 }
@@ -146,41 +126,51 @@ export default function AnnouncementsScreen() {
     };
 
     const renderItem = ({ item }: { item: Announcement }) => (
-        <View style={[styles.card, { backgroundColor: isDark ? '#1a1a1a' : '#fff' }]}>
+        <View style={styles.card}>
             <View style={styles.cardContent}>
-                <Text style={[styles.cardTitle, { color: theme.text }]}>{item.title}</Text>
-                <Text style={[styles.cardMessage, { color: '#666' }]}>{item.message}</Text>
-                <Text style={styles.date}>{new Date(item.created_at).toDateString()}</Text>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <Text style={styles.cardMessage}>{item.message}</Text>
+                <View style={styles.cardFooter}>
+                    <Ionicons name="calendar-outline" size={12} color="#94a3b8" />
+                    <Text style={styles.date}>{new Date(item.created_at).toDateString()}</Text>
+                </View>
             </View>
             <View style={styles.actions}>
                 <TouchableOpacity onPress={() => openModal(item)} style={styles.actionBtn}>
-                    <Ionicons name="create-outline" size={24} color="#2196F3" />
+                    <Ionicons name="create-outline" size={22} color="#4f46e5" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDelete(item._id)} style={styles.actionBtn}>
-                    <Ionicons name="trash-outline" size={24} color="#F44336" />
+                    <Ionicons name="trash-outline" size={22} color="#ef4444" />
                 </TouchableOpacity>
             </View>
         </View>
     );
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
             {loading ? (
-                <ActivityIndicator size="large" color={theme.tint} style={{ marginTop: 20 }} />
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color="#4f46e5" />
+                </View>
             ) : (
                 <FlatList
                     data={announcements}
                     renderItem={renderItem}
                     keyExtractor={item => item._id}
-                    contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
-                    ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#888', marginTop: 20 }}>No announcements found.</Text>}
+                    contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
+                    showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={
+                        <View style={styles.emptyState}>
+                            <Ionicons name="megaphone-outline" size={60} color="#cbd5e1" />
+                            <Text style={styles.emptyText}>No announcements posted.</Text>
+                        </View>
+                    }
                     ListHeaderComponent={
                         <View style={styles.header}>
-                            {/* <Text style={[styles.title, { color: theme.text }]}>Manage Announcements</Text> */}
-                            {/* Wrapper View to control Button Size */}
-                            <View style={{ width: 250 }}>
-                                <PrimaryButton title="Add New Announcement" onPress={() => openModal()} />
-                            </View>
+                            <Text style={styles.title}>Announcements</Text>
+                            <TouchableOpacity style={styles.addBtn} onPress={() => openModal()}>
+                                <Ionicons name="add" size={24} color="#fff" />
+                            </TouchableOpacity>
                         </View>
                     }
                 />
@@ -188,57 +178,51 @@ export default function AnnouncementsScreen() {
 
             {/* Create/Edit Modal */}
             <Modal visible={modalVisible} animationType="slide" transparent>
-                {/* 1. KeyboardAvoidingView Wrapper */}
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.modalOverlay}
+                    style={{ flex: 1 }}
                 >
-                    {/* 2. ScrollView to handle overflow */}
-                    <ScrollView
-                        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
-                        keyboardShouldPersistTaps="handled"
-                        showsVerticalScrollIndicator={false}
-                    >
-                        <View style={[styles.modalContent, { backgroundColor: isDark ? '#222' : '#fff' }]}>
-                            <Text style={[styles.modalTitle, { color: theme.text }]}>
-                                {editingId ? 'Edit Announcement' : 'New Announcement'}
-                            </Text>
-
-                            <Text style={[styles.label, { color: theme.text }]}>Title</Text>
-                            <TextInput
-                                style={[styles.input, { color: theme.text, borderColor: '#ccc' }]}
-                                value={formTitle}
-                                onChangeText={setFormTitle}
-                                placeholder="e.g. Water Supply Issue"
-                                placeholderTextColor="#888"
-                            />
-
-                            <Text style={[styles.label, { color: theme.text }]}>Message</Text>
-                            <TextInput
-                                style={[styles.input, { height: 100, textAlignVertical: 'top', color: theme.text, borderColor: '#ccc' }]}
-                                value={formMessage}
-                                onChangeText={setFormMessage}
-                                multiline
-                                placeholder="Enter detailed message..."
-                                placeholderTextColor="#888"
-                            />
-
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity onPress={() => setModalVisible(false)} style={{ marginRight: 20 }}>
-                                    <Text style={{ color: 'red', fontSize: 16 }}>Cancel</Text>
+                    <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
+                        <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>
+                                    {editingId ? 'Edit Post' : 'New Announcement'}
+                                </Text>
+                                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                    <Ionicons name="close" size={24} color="#1e293b" />
                                 </TouchableOpacity>
-
-                                {/* ✅ FIX: Wrapped PrimaryButton in a View to force width */}
-                                <View style={{ width: 100 }}>
-                                    <PrimaryButton
-                                        title={submitting ? "Saving..." : "Save"}
-                                        onPress={handleSave}
-                                        disabled={submitting}
-                                    />
-                                </View>
                             </View>
+
+                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                                <Text style={styles.label}>Headline</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={formTitle}
+                                    onChangeText={setFormTitle}
+                                    placeholder="e.g. Maintenance Scheduled"
+                                    placeholderTextColor="#94a3b8"
+                                />
+
+                                <Text style={styles.label}>Message Body</Text>
+                                <TextInput
+                                    style={[styles.input, { height: 120, textAlignVertical: 'top' }]}
+                                    value={formMessage}
+                                    onChangeText={setFormMessage}
+                                    multiline
+                                    placeholder="Enter details..."
+                                    placeholderTextColor="#94a3b8"
+                                />
+
+                                <TouchableOpacity 
+                                    style={styles.submitBtn} 
+                                    onPress={handleSave}
+                                    disabled={submitting}
+                                >
+                                    {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Post Announcement</Text>}
+                                </TouchableOpacity>
+                            </ScrollView>
                         </View>
-                    </ScrollView>
+                    </Pressable>
                 </KeyboardAvoidingView>
             </Modal>
         </SafeAreaView>
@@ -246,57 +230,61 @@ export default function AnnouncementsScreen() {
 }
 
 const styles = StyleSheet.create({
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     header: {
-        marginBottom: 20,
-        // flexDirection: 'row',
+        flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'center',
+        marginBottom: 24,
     },
     title: {
-        fontSize: 22, // Reduced slightly to fit row
-        fontWeight: "bold",
+        fontSize: 26,
+        fontWeight: "800",
+        color: '#1e293b',
+    },
+    addBtn: {
+        backgroundColor: '#4f46e5',
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#4f46e5',
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
     },
     card: {
+        backgroundColor: '#fff',
         flexDirection: 'row',
         justifyContent: 'space-between',
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 12,
+        padding: 20,
+        borderRadius: 24,
+        marginBottom: 16,
         shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    cardContent: { flex: 1 },
-    cardTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-    cardMessage: { fontSize: 14, marginBottom: 8 },
-    date: { fontSize: 12, color: '#888' },
-    actions: { justifyContent: 'center', alignItems: 'center', gap: 10 },
-    actionBtn: { padding: 5 },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        padding: 20,
-    },
-    modalContent: {
-        padding: 20,
-        borderRadius: 12,
-        elevation: 5,
-    },
-    modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-    label: { fontSize: 14, fontWeight: '600', marginBottom: 5 },
-    input: {
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 4,
         borderWidth: 1,
-        borderRadius: 8,
-        padding: 10,
-        marginBottom: 15,
-        fontSize: 16,
+        borderColor: '#f1f5f9',
     },
-    modalButtons: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        marginTop: 10,
-    }
+    cardContent: { flex: 1, marginRight: 10 },
+    cardTitle: { fontSize: 18, fontWeight: '700', color: '#1e293b', marginBottom: 6 },
+    cardMessage: { fontSize: 14, color: '#475569', lineHeight: 20, marginBottom: 12 },
+    cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    date: { fontSize: 12, color: '#94a3b8', fontWeight: '600' },
+    actions: { justifyContent: 'center', gap: 12 },
+    actionBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#f8fafc', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#f1f5f9' },
+    
+    emptyState: { alignItems: 'center', marginTop: 80 },
+    emptyText: { marginTop: 16, fontSize: 16, color: '#94a3b8', fontWeight: '500' },
+
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
+    modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '85%', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+    modalTitle: { fontSize: 20, fontWeight: '800', color: '#1e293b' },
+    label: { fontSize: 14, fontWeight: '700', color: '#475569', marginBottom: 8, marginLeft: 4 },
+    input: { backgroundColor: '#f8fafc', borderRadius: 14, padding: 16, fontSize: 16, color: '#1e293b', marginBottom: 20, borderWidth: 1, borderColor: '#e2e8f0' },
+    submitBtn: { backgroundColor: '#4f46e5', padding: 18, borderRadius: 16, alignItems: 'center', marginTop: 10, shadowColor: '#4f46e5', shadowOpacity: 0.2, shadowRadius: 10, elevation: 4 },
+    submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' }
 });

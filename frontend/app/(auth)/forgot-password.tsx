@@ -7,19 +7,15 @@ import {
   Alert, 
   KeyboardAvoidingView, 
   Platform, 
-  ScrollView // ✅ Added ScrollView
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator
 } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { apiForgetPassword } from '@/services/AuthService';
-import { PrimaryButton } from '@/components/PrimaryButton';
-import { Image } from 'expo-image';
 
 export default function ForgotPasswordScreen() {
-    const colorScheme = useColorScheme();
-    const theme = Colors[colorScheme ?? 'light'];
     const [email, setEmail] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,21 +29,14 @@ export default function ForgotPasswordScreen() {
         try {
             const response = await apiForgetPassword(email);
 
-            // ✅ Check success
             if (response.success || response.status) {
-                
-                // ❌ Maine yahan se Auto-Redirect wala code hata diya hai.
-                // Ab sirf Alert ayega.
-                
                 Alert.alert(
                     'Check your email',
-                    'If an account exists for this email, we have sent password reset instructions.',
+                    "If an account exists for this email, we have sent password reset instructions.",
                     [
-                        // OK dabane par wapis Login screen par bhej den
                         { text: 'OK', onPress: () => router.back() } 
                     ]
                 );
-
             } else {
                 throw new Error(response.message || 'Failed to send reset link.');
             }
@@ -59,90 +48,157 @@ export default function ForgotPasswordScreen() {
         }
     };
 
-    return (
-        <>
-            <Stack.Screen options={{ title: 'Reset Password', headerBackTitle: 'Back' }} />
+  return (
+    <>
+        <Stack.Screen options={{ title: '', headerTransparent: true, headerBackTitle: 'Back' }} />
+        <View style={styles.container}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={[styles.container, { backgroundColor: theme.background }]}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0} // ✅ Header height adjustment
+                style={{ flex: 1 }}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
-                {/* ✅ Added ScrollView to allow scrolling when keyboard opens */}
                 <ScrollView 
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
                 >
-                    <Image
-                        source={require('@/assets/images/logo.png')}
-                        style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
-                        resizeMode="contain"
-                    />
-                    <Ionicons name="lock-closed-outline" size={64} color={theme.tint} style={styles.icon} />
+                    <View style={styles.contentCard}>
+                        <View style={styles.iconCircle}>
+                            <Ionicons name="lock-closed" size={32} color="#4f46e5" />
+                        </View>
 
-                    <Text style={[styles.title, { color: theme.text }]}>Forgot Password?</Text>
-                    <Text style={[styles.subtitle, { color: theme.icon }]}>
-                        Enter your email address and we'll send you a link to reset your password.
-                    </Text>
+                        <Text style={styles.title}>Forgot Password?</Text>
+                        <Text style={styles.subtitle}>
+                            Enter your email address and we&apos;ll send you a link to reset your password.
+                        </Text>
 
-                    <View style={styles.form}>
-                        <Text style={[styles.label, { color: theme.text }]}>Email Address</Text>
-                        <TextInput
-                            style={[styles.input, { color: theme.text, borderColor: theme.icon, backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}
-                            value={email}
-                            onChangeText={setEmail}
-                            placeholder="you@example.com"
-                            placeholderTextColor="#999"
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                        />
+                        <View style={styles.form}>
+                            <Text style={styles.label}>Email Address</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={email}
+                                onChangeText={setEmail}
+                                placeholder="resident@example.com"
+                                placeholderTextColor="#94a3b8"
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                            />
+                        </View>
+
+                        <TouchableOpacity 
+                            style={[styles.resetBtn, isSubmitting && { opacity: 0.7 }]} 
+                            onPress={handleReset} 
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.resetBtnText}>Send Reset Link</Text>}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
+                            <Text style={styles.backText}>Return to <Text style={styles.linkText}>Sign In</Text></Text>
+                        </TouchableOpacity>
                     </View>
-
-                    <PrimaryButton title={isSubmitting ? "Sending..." : "Send Reset Link"} onPress={handleReset} disabled={isSubmitting} />
                 </ScrollView>
             </KeyboardAvoidingView>
-        </>
-    );
+        </View>
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: '#f8fafc',
     },
-    // ✅ Replaced 'content' with 'scrollContent' for ScrollView
     scrollContent: {
         flexGrow: 1,
         padding: 24,
         justifyContent: 'center',
-        paddingBottom: 100 // ✅ Extra padding for keyboard
     },
-    icon: {
-        alignSelf: 'center',
+    contentCard: {
+        backgroundColor: '#fff',
+        borderRadius: 32,
+        padding: 32,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+        elevation: 8,
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
+    },
+    iconCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 28,
+        backgroundColor: '#eef2ff',
+        justifyContent: 'center',
+        alignItems: 'center',
         marginBottom: 24,
     },
     title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        marginBottom: 12,
+        fontSize: 24,
+        fontWeight: '800',
+        color: '#1e293b',
+        marginBottom: 8,
         textAlign: 'center',
     },
     subtitle: {
-        fontSize: 16,
+        fontSize: 15,
+        color: '#64748b',
         textAlign: 'center',
         marginBottom: 32,
         lineHeight: 22,
-    },
-    form: {
-        marginBottom: 24,
-    },
-    label: {
-        fontSize: 16,
-        marginBottom: 8,
         fontWeight: '500',
     },
+    form: {
+        width: '100%',
+        marginBottom: 10,
+    },
+    label: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#475569',
+        marginBottom: 8,
+        marginLeft: 4,
+    },
     input: {
+        backgroundColor: '#f8fafc',
         borderWidth: 1,
-        borderRadius: 8,
+        borderColor: '#e2e8f0',
+        borderRadius: 16,
         padding: 16,
         fontSize: 16,
+        color: '#1e293b',
+        width: '100%',
+        marginBottom: 20,
+    },
+    resetBtn: {
+        backgroundColor: '#4f46e5',
+        width: '100%',
+        paddingVertical: 18,
+        borderRadius: 16,
+        alignItems: 'center',
+        shadowColor: '#4f46e5',
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        elevation: 4,
+        marginTop: 10,
+    },
+    resetBtnText: {
+        color: '#fff',
+        fontWeight: '700',
+        fontSize: 16,
+    },
+    backLink: {
+        marginTop: 24,
+    },
+    backText: {
+        color: '#64748b',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    linkText: {
+        color: '#4f46e5',
+        fontWeight: '700',
     },
 });

@@ -114,53 +114,63 @@ export default function ApartmentsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: '#f8fafc' }]}>
       <FlatList
         data={apartments}
         keyExtractor={(item) => item._id}
         renderItem={({ item }) => (
-          <View style={[styles.card, { backgroundColor: styles.card.backgroundColor }]}>
-            <View>
-              <Text style={[styles.cardTitle]}>{item.apartment_name}</Text>
-              {user?.role === 'admin' && item.owned_by && (
-                <Text style={styles.ownerText}>Owner: {item.owned_by.name}</Text>
-              )}
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-                <Text style={styles.statusText}>{item.status}</Text>
+          <View style={styles.card}>
+            <View style={styles.cardMain}>
+              <View style={styles.infoContainer}>
+                <Text style={styles.cardTitle}>{item.apartment_name}</Text>
+                {user?.role === 'admin' && item.owned_by && (
+                  <View style={styles.ownerRow}>
+                    <Ionicons name="person-outline" size={12} color="#64748b" />
+                    <Text style={styles.ownerText}>{item.owned_by.name}</Text>
+                  </View>
+                )}
+                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
+                  <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
+                  <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>{item.status}</Text>
+                </View>
+                <Text style={styles.cardSubtitle}>Floor: {item.floor || 'N/A'}</Text>
               </View>
-              <Text style={styles.cardSubtitle}>Floor: {item.floor || 'N/A'}</Text>
-            </View>
-            <View style={styles.actions}>
-              {/* Admin verification buttons */}
-              {user?.role === 'admin' && item.status === 'pending' && (
-                <>
-                  <TouchableOpacity onPress={() => handleVerify(item._id, 'verified')} style={styles.actionButton}>
-                    <Ionicons name="checkmark-circle-outline" size={26} color="green" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleVerify(item._id, 'rejected')} style={styles.actionButton}>
-                    <Ionicons name="close-circle-outline" size={26} color="red" />
-                  </TouchableOpacity>
-                </>
-              )}
-              <TouchableOpacity onPress={() => navigateToEdit(item)} style={styles.actionButton}>
-                <Ionicons name="pencil-outline" size={24} color={theme.tint} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDelete(item._id)}>
-                <Ionicons name="trash-outline" size={24} color={styles.trashIcon.color} />
-              </TouchableOpacity>
+              
+              <View style={styles.actions}>
+                {user?.role === 'admin' && item.status === 'pending' && (
+                  <View style={styles.adminActions}>
+                    <TouchableOpacity onPress={() => handleVerify(item._id, 'verified')} style={[styles.actionButton, styles.verifyBtn]}>
+                      <Ionicons name="checkmark" size={20} color="#059669" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleVerify(item._id, 'rejected')} style={[styles.actionButton, styles.rejectBtn]}>
+                      <Ionicons name="close" size={20} color="#dc2626" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                <TouchableOpacity onPress={() => navigateToEdit(item)} style={styles.actionButton}>
+                  <Ionicons name="pencil-outline" size={20} color="#4f46e5" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDelete(item._id)} style={styles.actionButton}>
+                  <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.text }]}>My Apartments</Text>
+            <Text style={styles.title}>My Apartments</Text>
             <PrimaryButton title="Add New Apartment" onPress={() => router.push('/apartment-form')} />
           </View>
         }
         ListEmptyComponent={
-          <Text style={styles.emptyText}>You haven't added any apartments yet.</Text>
+          <View style={styles.emptyState}>
+            <Ionicons name="business-outline" size={60} color="#cbd5e1" />
+            <Text style={styles.emptyText}>No apartments found.</Text>
+          </View>
         }
-        contentContainerStyle={{ padding: 20 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
       />
     </View>
   );
@@ -168,10 +178,10 @@ export default function ApartmentsScreen() {
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'verified': return '#28a745'; // green
-    case 'pending': return '#ffc107'; // yellow
-    case 'rejected': return '#dc3545'; // red
-    default: return '#6c757d'; // gray
+    case 'verified': return '#059669'; // green
+    case 'pending': return '#d97706'; // orange/yellow
+    case 'rejected': return '#dc2626'; // red
+    default: return '#64748b'; // slate
   }
 };
 
@@ -180,68 +190,116 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 20,
+    fontSize: 24,
+    fontWeight: "800",
+    color: '#1e293b',
+    marginBottom: 16,
   },
   card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    overflow: 'hidden',
+  },
+  cardMain: {
     padding: 20,
-    borderRadius: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 3,
-    backgroundColor: "#fff",
+  },
+  infoContainer: {
+    flex: 1,
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: '#000',
+    fontWeight: "700",
+    color: '#1e293b',
+  },
+  ownerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  ownerText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '500',
   },
   cardSubtitle: {
-    fontSize: 14,
-    marginTop: 4,
-    color: '#888',
+    fontSize: 13,
+    marginTop: 6,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    gap: 6,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   actions: {
     flexDirection: "row",
-    gap: 20,
+    alignItems: 'center',
+    gap: 12,
   },
-  emptyText: {
-    textAlign: "center",
-    marginTop: 50,
-    fontSize: 16,
-    color: '#888',
-  },
-  trashIcon: {
-    color: "#ff3b30"
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginTop: 8,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  ownerText: {
-    fontSize: 12,
-    color: '#000',
-    fontStyle: 'italic',
-    marginTop: 4,
+  adminActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginRight: 8,
+    paddingRight: 12,
+    borderRightWidth: 1,
+    borderRightColor: '#f1f5f9',
   },
   actionButton: {
-    padding: 4, // Add padding to make icons easier to press
-  }
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#f8fafc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  verifyBtn: {
+    backgroundColor: '#f0fdf4',
+  },
+  rejectBtn: {
+    backgroundColor: '#fef2f2',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 60,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
 });

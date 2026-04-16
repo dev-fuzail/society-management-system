@@ -9,20 +9,15 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  useColorScheme,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { saveAuthData } from '@/hooks/helperHooks';
-import { PrimaryButton } from '@/components/PrimaryButton';
 import { apiRegister } from '@/services/AuthService';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -52,20 +47,15 @@ export default function RegisterScreen() {
         society_city: societyCity,
       });
 
-      // ✅ FIX 1: Check both success and status properties to be safe
       if ((response.success || response.status) && response.result) {
         await saveAuthData(response.result.token, response.result.user);
-
         Alert.alert('Success', 'Registration successful!', [
           { text: 'OK', onPress: () => router.replace('/') },
         ]);
       } else {
-        // Handle case where API returns 200 OK but logical failure
         Alert.alert('Alert', response.message || 'Registration failed.');
       }
     } catch (error: any) {
-      // ✅ FIX 2: Show the ACTUAL backend error message
-      // This will now show "Email is already registered..." instead of "Unexpected error"
       const errorMessage = error.message || 'An unexpected error occurred.';
       Alert.alert('Alert', errorMessage);
     } finally {
@@ -73,123 +63,170 @@ export default function RegisterScreen() {
     }
   };
 
-  const styles = getStyles(isDark);
+  const styles = getStyles();
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-    >
-      <ScrollView
-        contentContainerStyle={[styles.container, { paddingBottom: 100 }]}
-        keyboardShouldPersistTaps="handled"
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
-        <Image
-          source={require('@/assets/images/logo.png')}
-          style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
-          resizeMode="contain"
-        />
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Image
+            source={require('@/assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
-        <Text style={styles.title}>🏢 Society Admin Registration</Text>
-        <Text style={styles.subtitle}>Create your society and admin account</Text>
+          <Text style={styles.title}>Society Registration</Text>
+          <Text style={styles.subtitle}>Create your management account</Text>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>👤 Admin Details</Text>
-          <TextInput style={styles.input} placeholder="Full Name" value={name} onChangeText={setName} placeholderTextColor={isDark ? '#aaa' : '#666'} />
-          <TextInput style={styles.input} placeholder="Email Address" value={email} onChangeText={setEmail} keyboardType="email-address" placeholderTextColor={isDark ? '#aaa' : '#666'} />
-          <TextInput style={styles.input} placeholder="Phone Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholderTextColor={isDark ? '#aaa' : '#666'} />
-          <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry placeholderTextColor={isDark ? '#aaa' : '#666'} />
-        </View>
+          <View style={styles.formCard}>
+            <View style={styles.section}>
+                <Text style={styles.sectionHeader}>Admin Account</Text>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput style={styles.input} placeholder="John Doe" value={name} onChangeText={setName} placeholderTextColor="#94a3b8" />
+                <Text style={styles.label}>Email Address</Text>
+                <TextInput style={styles.input} placeholder="admin@society.com" value={email} onChangeText={setEmail} keyboardType="email-address" placeholderTextColor="#94a3b8" />
+                <Text style={styles.label}>Phone Number</Text>
+                <TextInput style={styles.input} placeholder="+1 234 567 890" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholderTextColor="#94a3b8" />
+                <Text style={styles.label}>Password</Text>
+                <TextInput style={styles.input} placeholder="••••••••" value={password} onChangeText={setPassword} secureTextEntry placeholderTextColor="#94a3b8" />
+            </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🏠 Society Details</Text>
-          <TextInput style={styles.input} placeholder="Society Name" value={societyName} onChangeText={setSocietyName} placeholderTextColor={isDark ? '#aaa' : '#666'} />
-          <TextInput style={styles.input} placeholder="Society Address" value={societyAddress} onChangeText={setSocietyAddress} placeholderTextColor={isDark ? '#aaa' : '#666'} />
-          <TextInput style={styles.input} placeholder="City" value={societyCity} onChangeText={setSocietyCity} placeholderTextColor={isDark ? '#aaa' : '#666'} />
-        </View>
+            <View style={styles.section}>
+                <Text style={styles.sectionHeader}>Society Details</Text>
+                <Text style={styles.label}>Society Name</Text>
+                <TextInput style={styles.input} placeholder="e.g. Skyline Towers" value={societyName} onChangeText={setSocietyName} placeholderTextColor="#94a3b8" />
+                <Text style={styles.label}>Full Address</Text>
+                <TextInput style={styles.input} placeholder="Building, Street Name" value={societyAddress} onChangeText={setSocietyAddress} placeholderTextColor="#94a3b8" />
+                <Text style={styles.label}>City</Text>
+                <TextInput style={styles.input} placeholder="City Name" value={societyCity} onChangeText={setSocietyCity} placeholderTextColor="#94a3b8" />
+            </View>
 
-        <PrimaryButton title={loading ? "Registering..." : "Register"} onPress={handleRegister} disabled={loading} />
+            <TouchableOpacity 
+                style={[styles.registerBtn, loading && { opacity: 0.7 }]} 
+                onPress={handleRegister} 
+                disabled={loading}
+            >
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.registerBtnText}>Register Society</Text>}
+            </TouchableOpacity>
 
-        <Text style={styles.link} onPress={() => router.push('/login')}>
-          Already have an account? <Text style={styles.linkText}>Login</Text>
-        </Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <TouchableOpacity onPress={() => router.push('/login')} style={styles.loginLink}>
+                <Text style={styles.loginText}>
+                    Already registered? <Text style={styles.linkText}>Sign In</Text>
+                </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
-const getStyles = (isDark: boolean) =>
+const getStyles = () =>
   StyleSheet.create({
     container: {
+      flex: 1,
+      backgroundColor: '#f8fafc',
+    },
+    scrollContent: {
       flexGrow: 1,
       padding: 24,
-      backgroundColor: isDark ? '#111' : '#fff',
+      paddingBottom: 60,
+    },
+    logo: { 
+        width: 120, 
+        height: 40, 
+        alignSelf: 'center', 
+        marginBottom: 24 
     },
     title: {
-      fontSize: 22,
-      fontWeight: '700',
+      fontSize: 26,
+      fontWeight: '800',
       textAlign: 'center',
-      color: isDark ? '#fff' : '#111',
-      marginBottom: 4,
+      color: '#1e293b',
+      marginBottom: 6,
     },
     subtitle: {
       fontSize: 14,
       textAlign: 'center',
-      color: isDark ? '#aaa' : '#555',
-      marginBottom: 20,
+      color: '#64748b',
+      marginBottom: 32,
+      fontWeight: '500',
+    },
+    formCard: {
+      backgroundColor: '#fff',
+      borderRadius: 32,
+      padding: 24,
+      shadowColor: '#000',
+      shadowOpacity: 0.06,
+      shadowRadius: 15,
+      elevation: 6,
+      borderWidth: 1,
+      borderColor: '#f1f5f9',
     },
     section: {
-      marginBottom: 20,
-      backgroundColor: isDark ? '#1a1a1a' : '#f8f8f8',
-      padding: 15,
-      borderRadius: 12,
-      shadowColor: isDark ? '#000' : '#ccc',
-      shadowOpacity: 0.1,
-      shadowOffset: { width: 0, height: 2 },
-      shadowRadius: 5,
-      elevation: 3,
+      marginBottom: 24,
     },
-    sectionTitle: {
-      fontWeight: '600',
-      marginBottom: 10,
-      color: isDark ? '#fff' : '#111',
+    sectionHeader: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#4f46e5',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 16,
+        marginLeft: 4,
+    },
+    label: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#475569',
+      marginBottom: 8,
+      marginLeft: 4,
     },
     input: {
+      backgroundColor: '#f8fafc',
       borderWidth: 1,
-      borderColor: isDark ? '#333' : '#ccc',
-      borderRadius: 8,
-      padding: 12,
-      marginBottom: 12,
-      color: isDark ? '#fff' : '#111',
-      backgroundColor: isDark ? '#222' : '#fff',
+      borderColor: '#e2e8f0',
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 16,
+      color: '#1e293b',
+      fontSize: 15,
     },
-    button: {
-      backgroundColor: '#007AFF',
-      paddingVertical: 14,
-      borderRadius: 8,
+    registerBtn: {
+      backgroundColor: '#4f46e5',
+      paddingVertical: 18,
+      borderRadius: 16,
       alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowColor: '#4f46e5',
       shadowOpacity: 0.2,
-      shadowRadius: 4,
-      elevation: 3,
+      shadowRadius: 10,
+      elevation: 4,
+      marginTop: 10,
     },
-    buttonDisabled: {
-      opacity: 0.6,
-    },
-    buttonText: {
+    registerBtnText: {
       color: '#fff',
-      fontWeight: '600',
+      fontWeight: '700',
       fontSize: 16,
     },
-    link: {
-      marginTop: 20,
-      textAlign: 'center',
-      color: isDark ? '#aaa' : '#555',
+    loginLink: {
+      marginTop: 24,
+      alignItems: 'center',
+    },
+    loginText: {
+      color: '#64748b',
+      fontSize: 14,
+      fontWeight: '500',
     },
     linkText: {
-      color: '#007AFF',
-      fontWeight: '600',
+      color: '#4f46e5',
+      fontWeight: '700',
     },
   });

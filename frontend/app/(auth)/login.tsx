@@ -10,22 +10,19 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  useColorScheme,
   Modal,
   KeyboardAvoidingView,
   Platform,
-  ScrollView // ✅ Added ScrollView import
+  ScrollView
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveAuthData } from '@/hooks/helperHooks';
-import { PrimaryButton } from '@/components/PrimaryButton';
 import { apiLogin, apiVerify2FA } from '@/services/AuthService';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const styles = getStyles(isDark);
+  const styles = getStyles();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,7 +47,7 @@ export default function LoginScreen() {
       }
     };
     verifyToken();
-  }, []);
+  }, [router]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -61,16 +58,13 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       const response = await apiLogin({ email, password });
-      console.log("login response: ", response)
 
       if (response.success) {
-        // CASE A: 2FA REQUIRED
         if (response.result.require2FA && response.result.userId) {
-          setTempUserId(response.result.userId); // Save ID for next step
-          setIs2FAModalVisible(true);     // Show OTP Modal
+          setTempUserId(response.result.userId);
+          setIs2FAModalVisible(true);
           Alert.alert("Verification Required", "An OTP has been sent to your email.");
         }
-        // CASE B: NORMAL LOGIN SUCCESS
         else if (response.result) {
           await saveAuthData(response.result.token, response.result.user);
           Alert.alert('Welcome', `Logged in as ${response.result.user.name}`);
@@ -94,7 +88,7 @@ export default function LoginScreen() {
       const response = await apiVerify2FA(tempUserId, otp);
 
       if (response.success && response.result) {
-        setIs2FAModalVisible(false); // Close Modal
+        setIs2FAModalVisible(false);
         await saveAuthData(response.result.token, response.result.user);
         router.replace('/(tabs)');
       } else {
@@ -109,102 +103,118 @@ export default function LoginScreen() {
 
   if (checkingToken) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
+        <ActivityIndicator size="large" color="#4f46e5" />
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* ✅ FIX 1: Wrap in KeyboardAvoidingView */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        {/* ✅ FIX 2: Add ScrollView with extra padding at bottom */}
         <ScrollView
-          contentContainerStyle={[styles.container, { paddingBottom: 100 }]}
+          contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Image
-            source={require('@/assets/images/logo.png')}
-            style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
-            resizeMode="contain"
-          />
-
-          <Text style={styles.title}>Welcome Back 👋</Text>
-          <Text style={styles.subtitle}>Login to continue</Text>
-
-          <View style={styles.form}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              style={styles.input}
-              placeholder="Enter your email"
-              placeholderTextColor={isDark ? '#888' : '#aaa'}
-              keyboardType="email-address"
-              autoCapitalize="none"
+          <View style={styles.contentCard}>
+            <Image
+                source={require('@/assets/images/logo.png')}
+                style={styles.logo}
+                resizeMode="contain"
             />
 
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              style={styles.input}
-              placeholder="Enter your password"
-              placeholderTextColor={isDark ? '#888' : '#aaa'}
-              secureTextEntry
-            />
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Sign in to manage your society</Text>
 
-            <PrimaryButton title={loading ? "Logging in..." : "Login"} onPress={handleLogin} disabled={loading} />
-            
-            <TouchableOpacity
-              onPress={() => router.push('/forgot-password')}
-              style={{ alignSelf: 'flex-end', marginBottom: 20, marginTop: 10 }}
-            >
-              <Text style={{ color: '#3b5998', fontWeight: '600' }}>Forgot Password?</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/register')}>
-              <Text style={styles.registerLink}>
-                Don’t have an account? <Text style={styles.linkText}>Register</Text>
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.form}>
+                <Text style={styles.label}>Email Address</Text>
+                <TextInput
+                value={email}
+                onChangeText={setEmail}
+                style={styles.input}
+                placeholder="resident@example.com"
+                placeholderTextColor="#94a3b8"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                />
+
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                value={password}
+                onChangeText={setPassword}
+                style={styles.input}
+                placeholder="••••••••"
+                placeholderTextColor="#94a3b8"
+                secureTextEntry
+                />
+
+                <TouchableOpacity
+                onPress={() => router.push('/forgot-password')}
+                style={styles.forgotPassword}
+                >
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    style={[styles.loginBtn, loading && { opacity: 0.7 }]} 
+                    onPress={handleLogin} 
+                    disabled={loading}
+                >
+                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.loginBtnText}>Login</Text>}
+                </TouchableOpacity>
+                
+                <TouchableOpacity onPress={() => router.push('/register')} style={styles.registerLink}>
+                    <Text style={styles.registerText}>
+                        New admin? <Text style={styles.linkText}>Register Society</Text>
+                    </Text>
+                </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
       {/* 🔐 OTP MODAL */}
       <Modal visible={is2FAModalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Enter Verification Code</Text>
-            <Text style={styles.modalSubtitle}>Please enter the 6-digit code sent to your email.</Text>
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+        >
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Verification</Text>
+                        <TouchableOpacity onPress={() => setIs2FAModalVisible(false)}>
+                            <Ionicons name="close" size={24} color="#1e293b" />
+                        </TouchableOpacity>
+                    </View>
+                    
+                    <Text style={styles.modalSubtitle}>Please enter the 6-digit code sent to your email.</Text>
 
-            <TextInput
-              style={styles.otpInput}
-              value={otp}
-              onChangeText={setOtp}
-              placeholder="000000"
-              keyboardType="number-pad"
-              maxLength={6}
-              textAlign="center"
-            />
+                    <TextInput
+                    style={styles.otpInput}
+                    value={otp}
+                    onChangeText={setOtp}
+                    placeholder="000000"
+                    placeholderTextColor="#cbd5e1"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    textAlign="center"
+                    />
 
-
-            <PrimaryButton
-              title={verifyingOtp ? "Verifying..." : "Verify Code"}
-              onPress={handleVerifyOTP}
-              disabled={verifyingOtp}
-            />
-
-            <TouchableOpacity onPress={() => setIs2FAModalVisible(false)} style={{ marginTop: 15 }}>
-              <Text style={{ color: 'red', textAlign: 'center' }}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
+                    <TouchableOpacity
+                        style={[styles.loginBtn, verifyingOtp && { opacity: 0.7 }]}
+                        onPress={handleVerifyOTP}
+                        disabled={verifyingOtp}
+                    >
+                        {verifyingOtp ? <ActivityIndicator color="#fff" /> : <Text style={styles.loginBtnText}>Verify Code</Text>}
+                    </TouchableOpacity>
+                </View>
+            </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -212,26 +222,146 @@ export default function LoginScreen() {
   );
 }
 
-const getStyles = (isDark: boolean) => StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: isDark ? '#000' : '#fff' },
-  // ✅ Removed 'flex: 1' from container so ScrollView can calculate height properly
-  // Added flexGrow in ScrollView prop instead
+const getStyles = () => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#f8fafc' },
   container: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    padding: 24,
     justifyContent: 'center'
   },
-  title: { fontSize: 28, fontWeight: '700', color: isDark ? '#fff' : '#000', textAlign: 'center', marginBottom: 6 },
-  subtitle: { fontSize: 15, color: isDark ? '#aaa' : '#666', textAlign: 'center', marginBottom: 30 },
-  form: { backgroundColor: isDark ? '#111' : '#f8f8f8', padding: 20, borderRadius: 16, elevation: 3 },
-  label: { fontSize: 14, fontWeight: '600', color: isDark ? '#fff' : '#000', marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: isDark ? '#444' : '#ccc', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 14, fontSize: 15, color: isDark ? '#fff' : '#000', marginBottom: 16, backgroundColor: isDark ? '#222' : '#fff' },
-  registerLink: { marginTop: 18, textAlign: 'center', color: isDark ? '#aaa' : '#666' },
-  linkText: { color: '#3b5998', fontWeight: '600' },
+  contentCard: {
+    backgroundColor: '#fff',
+    borderRadius: 32,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  logo: { 
+    width: 140, 
+    height: 48, 
+    alignSelf: 'center', 
+    marginBottom: 32 
+  },
+  title: { 
+    fontSize: 28, 
+    fontWeight: '800', 
+    color: '#1e293b', 
+    textAlign: 'center', 
+    marginBottom: 8 
+  },
+  subtitle: { 
+    fontSize: 15, 
+    color: '#64748b', 
+    textAlign: 'center', 
+    marginBottom: 32,
+    fontWeight: '500'
+  },
+  form: {},
+  label: { 
+    fontSize: 13, 
+    fontWeight: '700', 
+    color: '#475569', 
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  input: { 
+    backgroundColor: '#f8fafc',
+    borderWidth: 1, 
+    borderColor: '#e2e8f0', 
+    borderRadius: 16, 
+    paddingHorizontal: 16, 
+    paddingVertical: 16, 
+    fontSize: 16, 
+    color: '#1e293b', 
+    marginBottom: 20 
+  },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginBottom: 24,
+    marginTop: -8,
+  },
+  forgotPasswordText: {
+    color: '#4f46e5',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  loginBtn: {
+    backgroundColor: '#4f46e5',
+    paddingVertical: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#4f46e5',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  loginBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  registerLink: { 
+    marginTop: 24, 
+    alignItems: 'center' 
+  },
+  registerText: { 
+    color: '#64748b',
+    fontSize: 14,
+    fontWeight: '500'
+  },
+  linkText: { 
+    color: '#4f46e5', 
+    fontWeight: '700' 
+  },
+  
   // Modal Styles
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: isDark ? '#222' : '#fff', padding: 25, borderRadius: 12, elevation: 5 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: isDark ? '#fff' : '#000', textAlign: 'center', marginBottom: 10 },
-  modalSubtitle: { color: isDark ? '#aaa' : '#666', textAlign: 'center', marginBottom: 20 },
-  otpInput: { fontSize: 24, letterSpacing: 5, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, marginBottom: 20, color: isDark ? '#fff' : '#000' }
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(15, 23, 42, 0.4)', 
+    justifyContent: 'flex-end' 
+  },
+  modalContainer: { 
+    backgroundColor: '#fff', 
+    borderTopLeftRadius: 32, 
+    borderTopRightRadius: 32, 
+    padding: 32, 
+    shadowColor: '#000', 
+    shadowOpacity: 0.1, 
+    shadowRadius: 20, 
+    elevation: 10 
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: { 
+    fontSize: 22, 
+    fontWeight: '800', 
+    color: '#1e293b', 
+  },
+  modalSubtitle: { 
+    color: '#64748b', 
+    fontSize: 15,
+    marginBottom: 32,
+    lineHeight: 22,
+    fontWeight: '500'
+  },
+  otpInput: { 
+    fontSize: 32, 
+    letterSpacing: 8, 
+    backgroundColor: '#f8fafc',
+    borderWidth: 1, 
+    borderColor: '#e2e8f0', 
+    borderRadius: 16, 
+    padding: 16, 
+    marginBottom: 32, 
+    color: '#1e293b',
+    fontWeight: '800'
+  }
 });

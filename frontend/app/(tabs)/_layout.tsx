@@ -11,6 +11,7 @@ import {
   Platform,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { HapticTab } from "@/components/haptic-tab";
@@ -21,11 +22,14 @@ import { UserData } from "@/services/types";
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
-  const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+  const [isProfileMenuVisible, setIsProfileMenuVisible] = useState(false);
+  const [isAdminMenuVisible, setIsAdminMenuVisible] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
 
-  const handleMenuNavigate = (path: "/profile" | "/society-update" | "/announcement") => {
-    setIsMenuVisible(false);
+  const handleMenuNavigate = (path: any) => {
+    setIsProfileMenuVisible(false);
+    setIsAdminMenuVisible(false);
     router.push(path);
   };
 
@@ -52,23 +56,25 @@ export default function TabLayout() {
     loadUserData();
   }, []);
 
+  const isAdmin = user?.role === "admin";
+
   return (
     <>
-      {/* Custom Dropdown Menu Modal */}
+      {/* Profile Menu Modal (Right) */}
       <Modal
-        visible={isMenuVisible}
+        visible={isProfileMenuVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setIsMenuVisible(false)}
+        onRequestClose={() => setIsProfileMenuVisible(false)}
       >
         <Pressable
           style={styles.modalOverlay}
-          onPress={() => setIsMenuVisible(false)}
+          onPress={() => setIsProfileMenuVisible(false)}
         >
           <View
             style={[
-              styles.menuContainer,
-              { backgroundColor: theme.background, borderColor: theme.icon },
+              styles.profileMenuContainer,
+              { backgroundColor: theme.background, borderColor: theme.icon, top: 60 + insets.top },
             ]}
           >
             <TouchableOpacity
@@ -85,67 +91,62 @@ export default function TabLayout() {
                 Profile Management
               </Text>
             </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
 
-            <View style={[styles.separator, { backgroundColor: theme.icon }]} />
-
-            {user?.role === "admin" && (
-              <>
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => handleMenuNavigate("/society-update")}
-                >
-                  <Ionicons
-                    name="business-outline"
-                    size={20}
-                    color={theme.text}
-                    style={styles.menuIcon}
-                  />
-                  <Text style={[styles.menuText, { color: theme.text }]}>
-                    Society Update
-                  </Text>
-                </TouchableOpacity>
-                <View
-                  style={[styles.separator, { backgroundColor: theme.icon }]}
-                />
-              </>
-            )}
-
-            {user?.role === "admin" && (
-              <>
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => handleMenuNavigate("/announcement")}
-                >
-                  <Ionicons
-                    name="business-outline"
-                    size={20}
-                    color={theme.text}
-                    style={styles.menuIcon}
-                  />
-                  <Text style={[styles.menuText, { color: theme.text }]}>
-                    Manage Announcements
-                  </Text>
-                </TouchableOpacity>
-                <View
-                  style={[styles.separator, { backgroundColor: theme.icon }]}
-                />
-              </>
-            )}
-
-            {/* <TouchableOpacity
+      {/* Admin Hamburger Menu Modal (Left) */}
+      <Modal
+        visible={isAdminMenuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsAdminMenuVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setIsAdminMenuVisible(false)}
+        >
+          <View
+            style={[
+              styles.adminMenuContainer,
+              { backgroundColor: theme.background, borderColor: theme.icon, top: 60 + insets.top },
+            ]}
+          >
+            <Text style={[styles.adminMenuHeader, { color: theme.text, borderBottomColor: theme.icon }]}>
+              Admin Settings
+            </Text>
+            
+            <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => handleMenuNavigate("/forgot-password")}
+              onPress={() => handleMenuNavigate("/society-update")}
             >
               <Ionicons
-                name="lock-closed-outline"
+                name="business-outline"
                 size={20}
                 color={theme.text}
                 style={styles.menuIcon}
               />
               <Text style={[styles.menuText, { color: theme.text }]}>
-                Forgot Password
+                Society Update
               </Text>
-            </TouchableOpacity> */}
+            </TouchableOpacity>
+
+            <View style={[styles.separator, { backgroundColor: theme.icon }]} />
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuNavigate("/announcement")}
+            >
+              <Ionicons
+                name="megaphone-outline"
+                size={20}
+                color={theme.text}
+                style={styles.menuIcon}
+              />
+              <Text style={[styles.menuText, { color: theme.text }]}>
+                Manage Announcements
+              </Text>
+            </TouchableOpacity>
           </View>
         </Pressable>
       </Modal>
@@ -158,23 +159,38 @@ export default function TabLayout() {
             backgroundColor: theme.background,
             elevation: 0,
             shadowOpacity: 0,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.icon + '20',
           },
           title:
             route.name === "index"
-              ? "Dashboard"
-              : route.name.charAt(0).toUpperCase() + route.name.slice(1),
-          headerTitleAlign: "left",
+              ? "Living Sync"
+              : route.name.charAt(0).toUpperCase() + route.name.slice(1).replace("-", " "),
+          headerTitleAlign: "center",
           headerLeft: () => (
-            <Image
-              source={require("@/assets/images/icon.png")}
-              style={{ width: 32, height: 32, marginHorizontal: 16 }}
-              resizeMode="contain"
-            />
+            isAdmin ? (
+              <TouchableOpacity
+                style={{ marginLeft: 16 }}
+                onPress={() => setIsAdminMenuVisible(true)}
+              >
+                <Ionicons
+                  name="menu-outline"
+                  size={28}
+                  color={theme.text}
+                />
+              </TouchableOpacity>
+            ) : (
+              <Image
+                source={require("@/assets/images/icon.png")}
+                style={{ width: 32, height: 32, marginLeft: 16 }}
+                resizeMode="contain"
+              />
+            )
           ),
           headerRight: () => (
             <TouchableOpacity
               style={{ marginRight: 16 }}
-              onPress={() => setIsMenuVisible(true)}
+              onPress={() => setIsProfileMenuVisible(true)}
             >
               <Ionicons
                 name="person-circle-outline"
@@ -185,10 +201,10 @@ export default function TabLayout() {
           ),
           tabBarStyle: {
             backgroundColor: theme.background,
-            borderTopColor: theme.icon,
-            height: 62,
-            paddingBottom: 8,
-            paddingTop: 6,
+            borderTopColor: theme.icon + '20',
+            height: 60 + insets.bottom,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+            paddingTop: 8,
           },
           tabBarActiveTintColor: "#2563eb",
           tabBarInactiveTintColor: theme.icon,
@@ -199,8 +215,9 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="home-outline" size={28} color={color} />
+            tabBarLabel: "Home",
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="home-outline" size={24} color={color} />
             ),
           }}
         />
@@ -210,27 +227,52 @@ export default function TabLayout() {
           name="community-chat"
           options={{
             title: "Community Chat",
-            tabBarLabel: "Chat",
+            tabBarLabel: "Chats",
             tabBarIcon: ({ color }) => (
               <Ionicons name="chatbubbles-outline" size={24} color={color} />
             ),
           }}
         />
 
-        {/* Apartments Screen */}
+        {/* Services Screen */}
         <Tabs.Screen
-          name="apartments"
+          name="service-providers"
           options={{
-            title: "My Apartments",
-            headerShown: true,
-            tabBarLabel: "Apartment",
+            title: "Services",
+            tabBarLabel: "Services",
             tabBarIcon: ({ color }) => (
-              <Ionicons name="business-outline" size={24} color={color} />
+              <Ionicons name="construct-outline" size={24} color={color} />
             ),
           }}
         />
 
-        {/* Hidden screen, but part of the layout */}
+        {/* Amenities Screen */}
+        <Tabs.Screen
+          name="amenities"
+          options={{
+            title: "Amenities",
+            tabBarLabel: "Amenities",
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="calendar-outline" size={24} color={color} />
+            ),
+          }}
+        />
+
+        {/* Hidden from Bottom Bar */}
+        <Tabs.Screen
+          name="apartments"
+          options={{
+            title: "My Apartments",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="invite"
+          options={{
+            title: "Invite Members",
+            href: null,
+          }}
+        />
         <Tabs.Screen
           name="apartment-form"
           options={{
@@ -248,7 +290,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="ticket-system"
           options={{
-            title: "Complaint Tickets System",
+            title: "Tickets",
             href: null,
           }}
         />
@@ -262,21 +304,21 @@ export default function TabLayout() {
         <Tabs.Screen
           name="society-update"
           options={{
-            title: "Update Society Details",
+            title: "Society Update",
             href: null,
           }}
         />
         <Tabs.Screen
           name="announcement"
           options={{
-            title: "Manage Announcements",
+            title: "Announcements",
             href: null,
           }}
         />
         <Tabs.Screen
           name="elections"
           options={{
-            title: "Committee Elections",
+            title: "Elections",
             href: null,
           }}
         />
@@ -288,23 +330,9 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="service-providers"
-          options={{
-            title: "Service Providers",
-            href: null,
-          }}
-        />
-        <Tabs.Screen
           name="service-bookings"
           options={{
             title: "Service Bookings",
-            href: null,
-          }}
-        />
-        <Tabs.Screen
-          name="amenities"
-          options={{
-            title: "Amenities",
             href: null,
           }}
         />
@@ -315,19 +343,6 @@ export default function TabLayout() {
             href: null,
           }}
         />
-
-        {/* Right - Invite Members */}
-        <Tabs.Screen
-          name="invite"
-          options={{
-            title: "Invite Members",
-            headerShown: true,
-            tabBarLabel: "Invitation",
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="person-add-outline" size={24} color={color} />
-            ),
-          }}
-        />
       </Tabs>
     </>
   );
@@ -336,20 +351,44 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.2)",
+    backgroundColor: "rgba(0,0,0,0.3)",
   },
-  menuContainer: {
+  profileMenuContainer: {
     position: "absolute",
-    top: 50,
+    top: 60,
     right: 16,
+    width: 220,
+    borderWidth: 1,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    overflow: "hidden",
+  },
+  adminMenuContainer: {
+    position: "absolute",
+    top: 60,
+    left: 16,
     width: 240,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    overflow: "hidden",
+  },
+  adminMenuHeader: {
+    padding: 16,
+    fontSize: 14,
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    borderBottomWidth: 1,
+    backgroundColor: "rgba(0,0,0,0.02)",
   },
   menuItem: {
     flexDirection: "row",
@@ -361,14 +400,16 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   menuText: {
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: "500",
   },
   separator: {
     height: 1,
     width: "100%",
+    opacity: 0.1,
   },
   centerTab: {
-    backgroundColor: "#4a90e2",
+    backgroundColor: "#2563eb",
     padding: 12,
     borderRadius: 50,
     marginBottom: 25,

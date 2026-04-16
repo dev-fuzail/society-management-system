@@ -80,29 +80,41 @@ export default function ElectionsScreen() {
     <TouchableOpacity 
       style={styles.card} 
       onPress={() => router.push({ pathname: '/election-detail', params: { id: item._id } })}
+      activeOpacity={0.7}
     >
       <View style={styles.cardHeader}>
         <Text style={styles.title}>{item.title}</Text>
-        <View style={[styles.badge, { backgroundColor: item.status === 'ongoing' ? '#C8E6C9' : '#FFCDD2' }]}>
-          <Text style={styles.badgeText}>{item.status.toUpperCase()}</Text>
+        <View style={[styles.badge, { backgroundColor: item.status === 'ongoing' ? '#dcfce7' : '#f1f5f9' }]}>
+          <Text style={[styles.badgeText, { color: item.status === 'ongoing' ? '#059669' : '#64748b' }]}>
+            {item.status.toUpperCase()}
+          </Text>
         </View>
       </View>
+      
       <View style={styles.cardBody}>
         <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={16} color="#666" />
+          <View style={styles.iconBox}>
+            <Ionicons name="time-outline" size={14} color="#4f46e5" />
+          </View>
           <Text style={styles.infoText}>Starts: {new Date(item.start_date).toLocaleDateString()}</Text>
         </View>
         <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={16} color="#666" />
+          <View style={styles.iconBox}>
+            <Ionicons name="calendar-outline" size={14} color="#ef4444" />
+          </View>
           <Text style={styles.infoText}>Ends: {new Date(item.end_date).toLocaleDateString()}</Text>
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#ccc" style={styles.chevron} />
+      
+      <View style={styles.cardFooter}>
+        <Text style={styles.footerLink}>View Candidates</Text>
+        <Ionicons name="chevron-forward" size={16} color="#4f46e5" />
+      </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: '#f8fafc' }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Committee Elections</Text>
         {userRole === 'admin' && (
@@ -123,10 +135,11 @@ export default function ElectionsScreen() {
           renderItem={renderElectionCard}
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="stats-chart-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyText}>No elections found.</Text>
+              <Ionicons name="stats-chart-outline" size={64} color="#cbd5e1" />
+              <Text style={styles.emptyText}>No elections scheduled.</Text>
             </View>
           }
           onRefresh={fetchElections}
@@ -134,39 +147,45 @@ export default function ElectionsScreen() {
         />
       )}
 
-      <Modal visible={createModalVisible} transparent animationType="fade">
+      <Modal visible={createModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Create Election</Text>
-            <TextInput
-              style={styles.input}
-              value={newTitle}
-              onChangeText={setNewTitle}
-              placeholder="Election title"
-            />
-            <TextInput
-              style={styles.input}
-              value={newStartDate}
-              onChangeText={setNewStartDate}
-              placeholder="Start date (YYYY-MM-DD)"
-              autoCapitalize="none"
-            />
-            <TextInput
-              style={styles.input}
-              value={newEndDate}
-              onChangeText={setNewEndDate}
-              placeholder="End date (YYYY-MM-DD)"
-              autoCapitalize="none"
-            />
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setCreateModalVisible(false)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={createElection}>
-                <Text style={styles.saveButtonText}>Create</Text>
-              </TouchableOpacity>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Create Election</Text>
+                <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
+                    <Ionicons name="close" size={24} color="#1e293b" />
+                </TouchableOpacity>
             </View>
+            
+            <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+                <Text style={styles.label}>Title</Text>
+                <TextInput
+                    style={styles.input}
+                    value={newTitle}
+                    onChangeText={setNewTitle}
+                    placeholder="e.g. Society President 2026"
+                />
+                <Text style={styles.label}>Start Date</Text>
+                <TextInput
+                    style={styles.input}
+                    value={newStartDate}
+                    onChangeText={setNewStartDate}
+                    placeholder="YYYY-MM-DD"
+                    autoCapitalize="none"
+                />
+                <Text style={styles.label}>End Date</Text>
+                <TextInput
+                    style={styles.input}
+                    value={newEndDate}
+                    onChangeText={setNewEndDate}
+                    placeholder="YYYY-MM-DD"
+                    autoCapitalize="none"
+                />
+
+                <TouchableOpacity style={styles.saveButton} onPress={createElection}>
+                    <Text style={styles.saveButtonText}>Launch Election</Text>
+                </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -175,54 +194,96 @@ export default function ElectionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1 },
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
-    padding: 20, 
+    padding: 24,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee'
+    borderBottomColor: '#f1f5f9'
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#333' },
-  addButton: { backgroundColor: '#4f46e5', padding: 8, borderRadius: 8 },
-  list: { padding: 16 },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1e293b' },
+  addButton: { 
+    backgroundColor: '#4f46e5', 
+    width: 40, 
+    height: 40, 
+    borderRadius: 12, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    shadowColor: '#4f46e5',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  list: { padding: 20, paddingBottom: 40 },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 3,
-    position: 'relative'
-  },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  title: { fontSize: 18, fontWeight: '700', color: '#333', flex: 1 },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  badgeText: { fontSize: 10, fontWeight: '700', color: '#333' },
-  cardBody: { gap: 8 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  infoText: { fontSize: 14, color: '#666' },
-  chevron: { position: 'absolute', right: 16, bottom: 16 },
-  emptyState: { alignItems: 'center', marginTop: 100 },
-  emptyText: { marginTop: 16, fontSize: 16, color: '#999' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: '86%', backgroundColor: '#fff', borderRadius: 12, padding: 18 },
-  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12, color: '#1f2937' },
-  input: {
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 10,
+    borderColor: '#f1f5f9',
   },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 8 },
-  cancelButton: { paddingHorizontal: 14, paddingVertical: 10 },
-  cancelButtonText: { color: '#6b7280', fontWeight: '700' },
-  saveButton: { backgroundColor: '#4f46e5', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
-  saveButtonText: { color: '#fff', fontWeight: '700' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  title: { fontSize: 18, fontWeight: '700', color: '#1e293b', flex: 1, marginRight: 10 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  badgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  cardBody: { gap: 10, marginBottom: 16 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  iconBox: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#f8fafc', justifyContent: 'center', alignItems: 'center' },
+  infoText: { fontSize: 14, color: '#64748b', fontWeight: '500' },
+  cardFooter: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  footerLink: { fontSize: 14, color: '#4f46e5', fontWeight: '700' },
+  emptyState: { alignItems: 'center', marginTop: 80 },
+  emptyText: { marginTop: 16, fontSize: 16, color: '#94a3b8', fontWeight: '500' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
+  modalContainer: { 
+    backgroundColor: '#fff', 
+    borderTopLeftRadius: 32, 
+    borderTopRightRadius: 32, 
+    padding: 24, 
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#1e293b' },
+  label: { fontSize: 14, fontWeight: '700', color: '#475569', marginBottom: 8, marginLeft: 4 },
+  input: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    padding: 16,
+    fontSize: 16,
+    color: '#1e293b',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  saveButton: { 
+    backgroundColor: '#4f46e5', 
+    padding: 18, 
+    borderRadius: 16, 
+    alignItems: 'center',
+    marginTop: 10,
+    shadowColor: '#4f46e5',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4
+  },
+  saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

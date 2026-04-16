@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, TextInput, Modal, ScrollView, KeyboardAvoidingView, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from "@expo/vector-icons";
 import { getAuthData } from '@/hooks/helperHooks';
@@ -104,53 +104,56 @@ export default function ServiceProvidersScreen() {
 
   const renderProviderCard = ({ item }: { item: ServiceProvider }) => (
     <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.providerIcon}>
+      <View style={styles.cardMain}>
+        <View style={styles.providerIconBox}>
           <Ionicons name="construct-outline" size={24} color="#4f46e5" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.category}>{item.category}</Text>
+          <View style={styles.categoryBadge}>
+            <Text style={styles.categoryText}>{item.category}</Text>
+          </View>
         </View>
-        <View style={styles.ratingContainer}>
-          <Ionicons name="star" size={16} color="#fbbf24" />
-          <Text style={styles.ratingText}>{item.average_rating.toFixed(1)}</Text>
+        <View style={styles.ratingBox}>
+          <Ionicons name="star" size={14} color="#fbbf24" />
+          <Text style={styles.ratingValue}>{item.average_rating.toFixed(1)}</Text>
         </View>
       </View>
       
-      <View style={styles.cardFooter}>
-        <TouchableOpacity style={styles.contactButton} onPress={() => Alert.alert("Contact", item.contact)}>
+      <View style={styles.cardActions}>
+        <TouchableOpacity style={styles.contactBtn} onPress={() => Alert.alert("Contact Info", `You can reach ${item.name} at: ${item.contact}`)}>
           <Ionicons name="call-outline" size={18} color="#4f46e5" />
-          <Text style={styles.contactText}>Call</Text>
+          <Text style={styles.contactBtnText}>Contact</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bookButton} onPress={() => handleBook(item)}>
-          <Text style={styles.bookButtonText}>Book Now</Text>
+        <TouchableOpacity style={styles.bookBtn} onPress={() => handleBook(item)}>
+          <Text style={styles.bookBtnText}>Book Service</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: '#f8fafc' }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Service Providers</Text>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={styles.headerActions}>
           {userRole === 'admin' && (
-            <TouchableOpacity onPress={() => setCreateModalVisible(true)}>
-              <Ionicons name="add-circle-outline" size={24} color="#4f46e5" />
+            <TouchableOpacity style={styles.addBtn} onPress={() => setCreateModalVisible(true)}>
+              <Ionicons name="add" size={24} color="#fff" />
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={() => router.push('/service-bookings')}>
-            <Ionicons name="list-outline" size={24} color="#4f46e5" />
+          <TouchableOpacity style={styles.historyBtn} onPress={() => router.push('/service-bookings')}>
+            <Ionicons name="time-outline" size={24} color="#4f46e5" />
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#999" />
+      <View style={styles.searchBox}>
+        <Ionicons name="search" size={18} color="#94a3b8" />
         <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name or category..."
+          style={styles.searchField}
+          placeholder="Search plumbing, electrical..."
+          placeholderTextColor="#94a3b8"
           value={search}
           onChangeText={setSearch}
         />
@@ -163,11 +166,12 @@ export default function ServiceProvidersScreen() {
           data={filteredProviders}
           renderItem={renderProviderCard}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyText}>No providers found.</Text>
+              <Ionicons name="people-outline" size={60} color="#cbd5e1" />
+              <Text style={styles.emptyText}>No service providers found.</Text>
             </View>
           }
           onRefresh={fetchProviders}
@@ -175,106 +179,125 @@ export default function ServiceProvidersScreen() {
         />
       )}
 
-      <Modal visible={createModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add Service Provider</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={providerName}
-              onChangeText={setProviderName}
-              placeholder="Provider name"
-            />
-            <TextInput
-              style={styles.modalInput}
-              value={providerCategory}
-              onChangeText={setProviderCategory}
-              placeholder="Category (e.g. PLUMBING)"
-              autoCapitalize="characters"
-            />
-            <TextInput
-              style={styles.modalInput}
-              value={providerContact}
-              onChangeText={setProviderContact}
-              placeholder="Contact"
-            />
+      <Modal visible={createModalVisible} transparent animationType="slide">
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+        >
+            <Pressable style={styles.modalOverlay} onPress={() => setCreateModalVisible(false)}>
+                <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Add Provider</Text>
+                        <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
+                            <Ionicons name="close" size={24} color="#1e293b" />
+                        </TouchableOpacity>
+                    </View>
+                    
+                    <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                        <Text style={styles.label}>Full Name</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            value={providerName}
+                            onChangeText={setProviderName}
+                            placeholder="Enter provider name"
+                        />
+                        <Text style={styles.label}>Category</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            value={providerCategory}
+                            onChangeText={setProviderCategory}
+                            placeholder="e.g. PLUMBING"
+                            autoCapitalize="characters"
+                        />
+                        <Text style={styles.label}>Contact Number</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            value={providerContact}
+                            onChangeText={setProviderContact}
+                            placeholder="Enter phone number"
+                            keyboardType="phone-pad"
+                        />
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setCreateModalVisible(false)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.submitButton} onPress={handleCreateProvider}>
-                <Text style={styles.submitButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+                        <TouchableOpacity style={styles.submitBtn} onPress={handleCreateProvider}>
+                            <Text style={styles.submitBtnText}>Add Provider</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+                </View>
+            </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1 },
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
-    padding: 20, 
+    padding: 24,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee'
+    borderBottomColor: '#f1f5f9'
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#333' },
-  searchContainer: {
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1e293b' },
+  headerActions: { flexDirection: 'row', gap: 12 },
+  addBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#4f46e5', justifyContent: 'center', alignItems: 'center' },
+  historyBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center' },
+  
+  searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    margin: 16,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    margin: 20,
+    paddingHorizontal: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    borderBottomColor: '#ddd'
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  searchInput: { flex: 1, paddingVertical: 10, paddingHorizontal: 8, fontSize: 16 },
-  list: { paddingHorizontal: 16, paddingBottom: 20 },
+  searchField: { flex: 1, paddingVertical: 12, marginLeft: 10, fontSize: 15, color: '#1e293b' },
+  
+  listContainer: { paddingHorizontal: 20, paddingBottom: 40 },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  providerIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center' },
-  name: { fontSize: 18, fontWeight: '700', color: '#333' },
-  category: { fontSize: 14, color: '#666' },
-  ratingContainer: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fff7ed', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  ratingText: { fontSize: 14, fontWeight: '700', color: '#9a3412' },
-  cardFooter: { flexDirection: 'row', gap: 12 },
-  contactButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#4f46e5' },
-  contactText: { color: '#4f46e5', fontWeight: '600' },
-  bookButton: { flex: 2, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 8 },
-  bookButtonText: { color: '#fff', fontWeight: '700' },
-  emptyState: { alignItems: 'center', marginTop: 100 },
-  emptyText: { marginTop: 16, fontSize: 16, color: '#999' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: '86%', backgroundColor: '#fff', borderRadius: 12, padding: 18 },
-  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12, color: '#1f2937' },
-  modalInput: {
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 10,
+    borderColor: '#f1f5f9',
   },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 8 },
-  cancelButton: { paddingHorizontal: 14, paddingVertical: 10 },
-  cancelButtonText: { color: '#6b7280', fontWeight: '700' },
-  submitButton: { backgroundColor: '#4f46e5', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
-  submitButtonText: { color: '#fff', fontWeight: '700' },
+  cardMain: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 18 },
+  providerIconBox: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center' },
+  name: { fontSize: 17, fontWeight: '700', color: '#1e293b' },
+  categoryBadge: { backgroundColor: '#f1f5f9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 4 },
+  categoryText: { fontSize: 11, fontWeight: '700', color: '#64748b' },
+  ratingBox: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fffbeb', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  ratingValue: { fontSize: 13, fontWeight: '700', color: '#b45309' },
+  
+  cardActions: { flexDirection: 'row', gap: 12 },
+  contactBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#e2e8f0' },
+  contactBtnText: { color: '#4f46e5', fontWeight: '700', fontSize: 14 },
+  bookBtn: { flex: 1.5, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 12 },
+  bookBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  
+  emptyState: { alignItems: 'center', marginTop: 80 },
+  emptyText: { marginTop: 16, fontSize: 16, color: '#94a3b8', fontWeight: '500' },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
+  modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '85%', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#1e293b' },
+  label: { fontSize: 14, fontWeight: '700', color: '#475569', marginBottom: 8, marginLeft: 4 },
+  modalInput: { backgroundColor: '#f8fafc', borderRadius: 14, padding: 16, fontSize: 16, color: '#1e293b', marginBottom: 20, borderWidth: 1, borderColor: '#e2e8f0' },
+  submitBtn: { backgroundColor: '#4f46e5', padding: 18, borderRadius: 16, alignItems: 'center', marginTop: 10, shadowColor: '#4f46e5', shadowOpacity: 0.2, shadowRadius: 10, elevation: 4 },
+  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

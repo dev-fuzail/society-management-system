@@ -8,13 +8,13 @@ import {
     Text,
     TextInput,
     View,
-    KeyboardAvoidingView, // 👈 Added
-    Platform, // 👈 Added
+    KeyboardAvoidingView,
+    Platform,
+    TouchableOpacity,
 } from "react-native";
 import { apiRegisterFromInvite, apiVerifyInvite } from "../services/AuthService";
 import { InviteData } from "../services/types";
 import { saveAuthData } from "@/hooks/helperHooks";
-import { PrimaryButton } from "@/components/PrimaryButton";
 
 export default function JoinScreen() {
     const router = useRouter();
@@ -40,7 +40,6 @@ export default function JoinScreen() {
             setLoading(false);
             return;
         }
-        console.log("Verifying invite with token:", token);
         const verifyInvite = async () => {
             try {
                 const response = await apiVerifyInvite(token);
@@ -48,12 +47,10 @@ export default function JoinScreen() {
                     setInvite(response.result.invite);
                 } else {
                     setError(response.message || "Invalid or expired invite token.");
-                    Alert.alert("Error", response.message || "Invalid or expired invite token.");
                 }
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred.";
                 setError(errorMessage);
-                Alert.alert("Error", errorMessage);
             } finally {
                 setLoading(false);
             }
@@ -85,7 +82,6 @@ export default function JoinScreen() {
 
             if (response.success) {
                 await saveAuthData(response.result.token, response.result.user);
-
                 Alert.alert("Success", "You have successfully joined the society!", [
                     { text: "OK", onPress: () => router.replace("/login") },
                 ]);
@@ -103,7 +99,7 @@ export default function JoinScreen() {
     if (loading) {
         return (
             <View style={styles.centered}>
-                <ActivityIndicator size="large" color="#FFD671" />
+                <ActivityIndicator size="large" color="#4f46e5" />
                 <Text style={styles.loadingText}>Verifying your invitation...</Text>
             </View>
         );
@@ -117,190 +113,234 @@ export default function JoinScreen() {
         );
     }
 
-    return (
-        // 👇 Yahan KeyboardAvoidingView wrap kiya hai
+  return (
+    <View style={styles.container}>
         <KeyboardAvoidingView 
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1, backgroundColor: "#0a0a0a" }}
+            style={{ flex: 1 }}
         >
-            <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-                <Text style={styles.title}>🤝 Join Society</Text>
-                <Text style={styles.subtitle}>You're invited to join. Complete your details below.</Text>
-
-                <View style={styles.section}>
-                    {invite.email ? (
-                        <>
-                            <Text style={styles.label}>Email Address (from invite)</Text>
-                            <TextInput
-                                style={[styles.input, styles.readonlyInput]}
-                                value={invite.email}
-                                editable={false}
-                            />
-                        </>
-                    ) : (
-                        <>
-                            <Text style={styles.label}>Email Address</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter your email address"
-                                placeholderTextColor="#777"
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                            />
-                        </>
-                    )}
-
-                    <Text style={styles.label}>Full Name</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Enter your full name"
-                        placeholderTextColor="#777"
-                        value={name}
-                        onChangeText={setName}
-                        autoCapitalize="words"
-                    />
-
-                    <Text style={styles.label}>Phone Number</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Enter your phone number"
-                        placeholderTextColor="#777"
-                        keyboardType="phone-pad"
-                        value={phone}
-                        onChangeText={setPhone}
-                    />
-
-                    <Text style={styles.label}>Password</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Create a strong password"
-                        placeholderTextColor="#777"
-                        secureTextEntry
-                        value={password}
-                        onChangeText={setPassword}
-                    />
+            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <View style={styles.header}>
+                    <Text style={styles.title}>Welcome Home</Text>
+                    <Text style={styles.subtitle}>Complete your registration to join the society.</Text>
                 </View>
-                <View style={styles.section}>
-                    <Text style={[styles.title, { fontSize: 18, marginTop: 10, marginBottom: 15, color: '#FFD671' }]}>
-                        🏠 Apartment Details
-                    </Text>
 
-                    <Text style={styles.label}>Apartment Number *</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="e.g., A-101"
-                        placeholderTextColor="#777"
-                        value={apartmentName}
-                        onChangeText={setApartmentName}
-                    />
+                <View style={styles.formCard}>
+                    <View style={styles.section}>
+                        <Text style={styles.sectionHeader}>Personal Details</Text>
+                        {invite.email ? (
+                            <View style={styles.readOnlyContainer}>
+                                <Text style={styles.label}>Email Address</Text>
+                                <Text style={styles.readOnlyText}>{invite.email}</Text>
+                            </View>
+                        ) : (
+                            <>
+                                <Text style={styles.label}>Email Address</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="resident@example.com"
+                                    placeholderTextColor="#94a3b8"
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                />
+                            </>
+                        )}
 
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.label}>Floor</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="e.g., 2"
-                                placeholderTextColor="#777"
-                                keyboardType="number-pad"
-                                value={floor}
-                                onChangeText={setFloor}
-                            />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.label}>Block</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="e.g., B"
-                                placeholderTextColor="#777"
-                                value={block}
-                                onChangeText={setBlock}
-                            />
+                        <Text style={styles.label}>Full Name</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Enter your name"
+                            placeholderTextColor="#94a3b8"
+                            value={name}
+                            onChangeText={setName}
+                            autoCapitalize="words"
+                        />
+
+                        <Text style={styles.label}>Phone Number</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="+1 234 567 890"
+                            placeholderTextColor="#94a3b8"
+                            keyboardType="phone-pad"
+                            value={phone}
+                            onChangeText={setPhone}
+                        />
+
+                        <Text style={styles.label}>Create Password</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="••••••••"
+                            placeholderTextColor="#94a3b8"
+                            secureTextEntry
+                            value={password}
+                            onChangeText={setPassword}
+                        />
+                    </View>
+
+                    <View style={styles.section}>
+                        <Text style={styles.sectionHeader}>Unit Details</Text>
+                        <Text style={styles.label}>Apartment Number</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="e.g. A-101"
+                            placeholderTextColor="#94a3b8"
+                            value={apartmentName}
+                            onChangeText={setApartmentName}
+                        />
+
+                        <View style={{ flexDirection: 'row', gap: 16 }}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.label}>Floor</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="0"
+                                    placeholderTextColor="#94a3b8"
+                                    keyboardType="number-pad"
+                                    value={floor}
+                                    onChangeText={setFloor}
+                                />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.label}>Block</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Block"
+                                    placeholderTextColor="#94a3b8"
+                                    value={block}
+                                    onChangeText={setBlock}
+                                />
+                            </View>
                         </View>
                     </View>
-                </View>
 
-                <PrimaryButton title={submitting ? "Submitting..." : "Submit"} onPress={handleJoin} disabled={submitting} />
+                    <TouchableOpacity 
+                        style={[styles.submitBtn, submitting && { opacity: 0.7 }]} 
+                        onPress={handleJoin} 
+                        disabled={submitting}
+                    >
+                        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Complete Registration</Text>}
+                    </TouchableOpacity>
+                </View>
             </ScrollView>
         </KeyboardAvoidingView>
-    );
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f8fafc',
+    },
     centered: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: "#0a0a0a",
+        backgroundColor: "#f8fafc",
     },
     loadingText: {
-        marginTop: 10,
+        marginTop: 16,
         fontSize: 16,
-        color: "#bdbdbd",
+        color: "#64748b",
+        fontWeight: '500',
     },
-    container: {
+    scrollContent: {
         flexGrow: 1,
         padding: 24,
-        backgroundColor: "#0a0a0a",
+        paddingBottom: 60,
+    },
+    header: {
+        marginBottom: 32,
     },
     title: {
-        fontSize: 24,
-        fontWeight: "700",
+        fontSize: 28,
+        fontWeight: "800",
+        color: "#1e293b",
         marginBottom: 8,
-        textAlign: "center",
-        color: "#FFD671",
     },
     subtitle: {
-        fontSize: 14,
-        textAlign: "center",
-        color: "#bdbdbd",
-        marginBottom: 24,
+        fontSize: 15,
+        color: "#64748b",
+        fontWeight: '500',
+        lineHeight: 22,
+    },
+    formCard: {
+        backgroundColor: '#fff',
+        borderRadius: 32,
+        padding: 24,
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+        elevation: 8,
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
     },
     section: {
+        marginBottom: 32,
+    },
+    sectionHeader: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#4f46e5',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
         marginBottom: 20,
-        backgroundColor: "#1a1a1a",
-        padding: 20,
-        borderRadius: 16,
+        marginLeft: 4,
     },
     label: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#fff",
-        marginBottom: 6,
+        fontSize: 13,
+        fontWeight: "700",
+        color: "#475569",
+        marginBottom: 8,
+        marginLeft: 4,
     },
     input: {
+        backgroundColor: '#f8fafc',
         borderWidth: 1,
-        borderColor: "#333",
-        borderRadius: 8,
-        padding: 12,
+        borderColor: "#e2e8f0",
+        borderRadius: 16,
+        padding: 16,
         marginBottom: 16,
-        backgroundColor: "#121212",
-        color: "#fff",
-        fontSize: 15,
+        color: "#1e293b",
+        fontSize: 16,
     },
-    readonlyInput: {
-        backgroundColor: "#222",
-        color: "#999",
+    readOnlyContainer: {
+        backgroundColor: '#f1f5f9',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderStyle: 'dashed',
     },
-    button: {
-        backgroundColor: "#FFD671",
-        paddingVertical: 14,
-        borderRadius: 10,
+    readOnlyText: {
+        fontSize: 16,
+        color: "#64748b",
+        fontWeight: '600',
+    },
+    submitBtn: {
+        backgroundColor: "#4f46e5",
+        paddingVertical: 18,
+        borderRadius: 16,
         alignItems: "center",
+        shadowColor: '#4f46e5',
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        elevation: 4,
+        marginTop: 10,
     },
-    buttonDisabled: {
-        opacity: 0.6,
-    },
-    buttonText: {
-        color: "#000",
+    submitBtnText: {
+        color: "#fff",
         fontWeight: "700",
         fontSize: 16,
     },
     errorText: {
         textAlign: "center",
-        color: "#ff6b6b",
+        color: "#ef4444",
         fontSize: 18,
-        fontWeight: "600",
+        fontWeight: "700",
+        padding: 40,
     },
 });

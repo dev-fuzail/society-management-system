@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from "@expo/vector-icons";
 import AmenityService, { AmenityBooking } from '@/services/AmenityService';
@@ -26,39 +26,53 @@ export default function AmenityBookingsScreen() {
     fetchBookings();
   }, []);
 
-  const renderBookingCard = ({ item }: { item: AmenityBooking }) => (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.amenityName}>{item.amenity_id.name}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: item.status === 'APPROVED' ? '#C8E6C9' : item.status === 'REJECTED' ? '#FFCDD2' : '#BBDEFB' }]}>
-          <Text style={styles.statusText}>{item.status}</Text>
+  const renderBookingCard = ({ item }: { item: AmenityBooking }) => {
+    const statusColor = item.status === 'APPROVED' ? '#059669' : item.status === 'REJECTED' ? '#dc2626' : '#d97706';
+    const statusBg = item.status === 'APPROVED' ? '#dcfce7' : item.status === 'REJECTED' ? '#fef2f2' : '#fef3c7';
+
+    return (
+        <View style={styles.card}>
+            <View style={styles.cardHeader}>
+                <View style={styles.headerInfo}>
+                    <Text style={styles.amenityName}>{item.amenity_id.name}</Text>
+                    <Text style={styles.bookingId}>ID: {item._id.slice(-6).toUpperCase()}</Text>
+                </View>
+                <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
+                    <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
+                </View>
+            </View>
+            
+            <View style={styles.detailsContainer}>
+                <View style={styles.detailRow}>
+                    <View style={styles.iconCircle}>
+                        <Ionicons name="calendar-outline" size={14} color="#4f46e5" />
+                    </View>
+                    <Text style={styles.detailText}>{new Date(item.start_time).toLocaleString()}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                    <View style={styles.iconCircle}>
+                        <Ionicons name="people-outline" size={14} color="#059669" />
+                    </View>
+                    <Text style={styles.detailText}>{item.guest_count} Guests</Text>
+                </View>
+                <View style={styles.detailRow}>
+                    <View style={styles.iconCircle}>
+                        <Ionicons name="card-outline" size={14} color="#f97316" />
+                    </View>
+                    <Text style={styles.detailText}>Amount: <Text style={styles.priceText}>${item.calculated_price}</Text></Text>
+                </View>
+            </View>
         </View>
-      </View>
-      
-      <View style={styles.details}>
-        <View style={styles.detailRow}>
-          <Ionicons name="calendar-outline" size={16} color="#666" />
-          <Text style={styles.detailText}>{new Date(item.start_time).toLocaleString()}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Ionicons name="people-outline" size={16} color="#666" />
-          <Text style={styles.detailText}>{item.guest_count} Guests</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Ionicons name="cash-outline" size={16} color="#666" />
-          <Text style={styles.detailText}>Total: ${item.calculated_price}</Text>
-        </View>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: '#f8fafc' }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#1e293b" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Amenity Bookings</Text>
+        <Text style={styles.headerTitle}>Amenity History</Text>
       </View>
 
       {loading ? (
@@ -68,11 +82,12 @@ export default function AmenityBookingsScreen() {
           data={bookings}
           renderItem={renderBookingCard}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyText}>No bookings found.</Text>
+              <Ionicons name="calendar-outline" size={60} color="#cbd5e1" />
+              <Text style={styles.emptyText}>No booking history found.</Text>
             </View>
           }
           onRefresh={fetchBookings}
@@ -84,19 +99,54 @@ export default function AmenityBookingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: '#fff' },
-  backButton: { marginRight: 16 },
-  headerTitle: { fontSize: 20, fontWeight: '700' },
-  list: { padding: 16 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, elevation: 2 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  amenityName: { fontSize: 18, fontWeight: '700', color: '#333' },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  statusText: { fontSize: 10, fontWeight: '700' },
-  details: { gap: 8 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  detailText: { fontSize: 14, color: '#666' },
-  emptyState: { alignItems: 'center', marginTop: 100 },
-  emptyText: { marginTop: 16, fontSize: 16, color: '#999' }
+  container: { flex: 1 },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 24, 
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9'
+  },
+  backButton: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 12, 
+    backgroundColor: '#f8fafc', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: '#1e293b' },
+  
+  listContainer: { padding: 20, paddingBottom: 40 },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  headerInfo: { flex: 1 },
+  amenityName: { fontSize: 18, fontWeight: '700', color: '#1e293b', marginBottom: 4 },
+  bookingId: { fontSize: 11, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 },
+  statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  statusText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  
+  detailsContainer: { gap: 12 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  iconCircle: { width: 30, height: 30, borderRadius: 8, backgroundColor: '#f8fafc', justifyContent: 'center', alignItems: 'center' },
+  detailText: { fontSize: 14, color: '#64748b', fontWeight: '500' },
+  priceText: { color: '#1e293b', fontWeight: '800' },
+  
+  emptyState: { alignItems: 'center', marginTop: 80 },
+  emptyText: { marginTop: 16, fontSize: 16, color: '#94a3b8', fontWeight: '500' }
 });

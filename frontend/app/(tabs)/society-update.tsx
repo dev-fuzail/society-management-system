@@ -1,17 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, Alert, StyleSheet, ActivityIndicator } from "react-native";
-import { Stack, router } from "expo-router";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
-import { PrimaryButton } from "@/components/PrimaryButton";
+import { View, Text, TextInput, Alert, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from "react-native";
+import { router } from "expo-router";
 import { apiUpdateSociety, apiGetUserSocieties } from "@/services/SocietyService";
 import { getAuthData } from "@/hooks/helperHooks";
-import { UserData } from "@/services/types";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function SocietyUpdateScreen() {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? "light"];
-
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -21,7 +15,6 @@ export default function SocietyUpdateScreen() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [user, setUser] = useState<UserData | null>(null);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -30,9 +23,7 @@ export default function SocietyUpdateScreen() {
         router.replace("/(tabs)");
         return;
       }
-      setUser(userData);
 
-      // Role-based access check
       if (userData.role !== 'admin') {
         Alert.alert("Access Denied", "You must be an admin to access this page.");
         router.back();
@@ -43,7 +34,6 @@ export default function SocietyUpdateScreen() {
         const res = await apiGetUserSocieties(userData.id);
         if (res.success && res.result.length > 0) {
           const currentSociety = res.result[0];
-          console.log('currentSociety: ', currentSociety);
           setForm({
             name: currentSociety.name || "",
             address: currentSociety.address || "",
@@ -52,9 +42,9 @@ export default function SocietyUpdateScreen() {
             total_apartments: String(currentSociety.total_apartments || ""),
           });
         } else {
-          Alert.alert("Error", res.message || "Could not find society information.");
+          Alert.alert("Error", "Could not find society information.");
         }
-      } catch (error) {
+      } catch {
         Alert.alert("Error", "Failed to load society data.");
       } finally {
         setIsLoading(false);
@@ -93,7 +83,6 @@ export default function SocietyUpdateScreen() {
 
       if (res.success && res.result) {
         const updatedSociety = res.result;
-        // Update state to reflect changes instantly
         setForm({
           name: updatedSociety.name,
           address: updatedSociety.address,
@@ -107,8 +96,8 @@ export default function SocietyUpdateScreen() {
       } else {
         Alert.alert("Error", res.message || "Failed to update society.");
       }
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Something went wrong.");
+    } catch {
+      Alert.alert("Error", "Something went wrong.");
     } finally {
       setIsSubmitting(false);
     }
@@ -116,80 +105,151 @@ export default function SocietyUpdateScreen() {
 
   if (isLoading) {
     return (
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-            <ActivityIndicator size="large" color={theme.tint} />
-            <Text style={{ marginTop: 10, color: theme.text }}>Loading Society Data...</Text>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }]}>
+            <ActivityIndicator size="large" color="#4f46e5" />
+            <Text style={{ marginTop: 12, color: '#64748b', fontWeight: '500' }}>Loading Society Data...</Text>
         </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={[styles.title, { color: theme.text }]}>Update Society Details</Text>
-        <TextInput
-          style={[styles.input, { borderColor: theme.icon, color: theme.text, backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}
-          placeholder="Society Name *"
-          placeholderTextColor="#999"
-          value={form.name}
-          onChangeText={(t) => handleChange("name", t)}
-        />
-        <TextInput
-          style={[styles.input, { borderColor: theme.icon, color: theme.text, backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}
-          placeholder="Address *"
-          placeholderTextColor="#999"
-          value={form.address}
-          onChangeText={(t) => handleChange("address", t)}
-        />
-        <TextInput
-          style={[styles.input, { borderColor: theme.icon, color: theme.text, backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}
-          placeholder="City *"
-          placeholderTextColor="#999"
-          value={form.city}
-          onChangeText={(t) => handleChange("city", t)}
-        />
-        <TextInput
-          style={[styles.input, { borderColor: theme.icon, color: theme.text, backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}
-          placeholder="Contact Email"
-          keyboardType="email-address"
-          placeholderTextColor="#999"
-          value={form.contact_email}
-          onChangeText={(t) => handleChange("contact_email", t)}
-        />
-        <TextInput
-          style={[styles.input, { borderColor: theme.icon, color: theme.text, backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}
-          placeholder="Total Apartments"
-          keyboardType="numeric"
-          placeholderTextColor="#999"
-          value={form.total_apartments}
-          onChangeText={(t) => handleChange("total_apartments", t)}
-        />
+    <View style={[styles.container, { backgroundColor: '#f8fafc' }]}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={20} color="#1e293b" />
+            <Text style={styles.backBtnText}>Back</Text>
+        </TouchableOpacity>
 
-        <PrimaryButton
-          title={isSubmitting ? "Updating..." : "Update Society"}
-          onPress={handleSubmit}
-          disabled={isSubmitting}
-        />
-      </View>
+        <Text style={styles.title}>Society Settings</Text>
+
+        <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Basic Information</Text>
+            
+            <Text style={styles.label}>Society Name</Text>
+            <TextInput
+            style={styles.input}
+            placeholder="e.g. Green Valley Residency"
+            placeholderTextColor="#94a3b8"
+            value={form.name}
+            onChangeText={(t) => handleChange("name", t)}
+            />
+
+            <Text style={styles.label}>Full Address</Text>
+            <TextInput
+            style={styles.input}
+            placeholder="Building, Road, Landmark"
+            placeholderTextColor="#94a3b8"
+            value={form.address}
+            onChangeText={(t) => handleChange("address", t)}
+            />
+
+            <Text style={styles.label}>City</Text>
+            <TextInput
+            style={styles.input}
+            placeholder="City"
+            placeholderTextColor="#94a3b8"
+            value={form.city}
+            onChangeText={(t) => handleChange("city", t)}
+            />
+        </View>
+
+        <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Contact & Scale</Text>
+
+            <Text style={styles.label}>Official Email</Text>
+            <TextInput
+            style={styles.input}
+            placeholder="contact@society.com"
+            keyboardType="email-address"
+            placeholderTextColor="#94a3b8"
+            value={form.contact_email}
+            onChangeText={(t) => handleChange("contact_email", t)}
+            />
+
+            <Text style={styles.label}>Total Apartment Units</Text>
+            <TextInput
+            style={styles.input}
+            placeholder="0"
+            keyboardType="numeric"
+            placeholderTextColor="#94a3b8"
+            value={form.total_apartments}
+            onChangeText={(t) => handleChange("total_apartments", t)}
+            />
+        </View>
+
+        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Save Society Details</Text>}
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    padding: 20,
     flex: 1,
   },
+  content: {
+    padding: 24,
+    paddingBottom: 40,
+  },
+  backBtn: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 6 },
+  backBtnText: { fontSize: 15, fontWeight: '600', color: '#1e293b' },
   title: {
-    fontSize: 22,
-    fontWeight: "700",
-    textAlign: "center",
+    fontSize: 26,
+    fontWeight: "800",
+    color: '#1e293b',
     marginBottom: 24,
   },
-  input: {
+  sectionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 14,
+    borderColor: '#f1f5f9'
+  },
+  sectionTitle: {
     fontSize: 16,
-    marginBottom: 12,
+    fontWeight: '800',
+    color: '#1e293b',
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  input: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    padding: 16,
+    fontSize: 16,
+    color: '#1e293b',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  submitBtn: {
+    backgroundColor: '#4f46e5',
+    padding: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#4f46e5',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
+    marginTop: 10,
+  },
+  submitBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

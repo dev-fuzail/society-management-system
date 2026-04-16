@@ -12,6 +12,7 @@ import {
     ScrollView,
     Platform,
     KeyboardAvoidingView,
+    Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -39,14 +40,13 @@ const getStatusStyles = (status: TicketStatus) => {
     }
 };
 
-// --- Custom Theme Constants (Hardcoded for stability) ---
 const CustomTheme = {
-    background: '#F5F5F5',
+    background: '#f8fafc',
     card: '#FFFFFF',
-    text: '#333333',
-    textMuted: '#757575',
-    tint: '#007AFF', // Blue tint for primary actions
-    border: '#DDDDDD',
+    text: '#1e293b',
+    textMuted: '#64748b',
+    tint: '#4f46e5',
+    border: '#f1f5f9',
 };
 
 
@@ -63,24 +63,18 @@ export default function TicketSystemScreen() {
     const [description, setDescription] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const theme = CustomTheme; // Using hardcoded theme for stability
+    const theme = CustomTheme;
     const isUserAdmin = user?.role === 'admin';
 
     // --- Fetch Data ---
     const fetchTickets = async (sId: string) => {
         try {
-            // NOTE: We rely on the calling function (init or useFocusEffect) to set setLoading(true)
-            // If we keep setLoading(true) here, it restarts the spinner mid-fetch. 
             const res = await apiGetTickets(sId);
-
             if (res.success && res.result) {
                 setTickets(res.result);
-            } else {
-                Alert.alert("Error", res.message || "Failed to fetch tickets.");
             }
         } catch (error: any) {
             console.error("Ticket fetch error:", error);
-            Alert.alert("Error", "Could not connect to ticket system.");
         }
     };
 
@@ -91,20 +85,15 @@ export default function TicketSystemScreen() {
             try {
                 const { userData } = await getAuthData();
                 if (!userData) return;
-
                 setUser(userData);
-
                 const societyRes = await apiGetUserSocieties(userData.id);
                 if (societyRes.result && societyRes.result[0]) {
                     const sId = societyRes.result[0]._id;
                     setSocietyId(sId);
-
                     await fetchTickets(sId);
                 }
-            } catch (e) {
-                console.error("Init failed:", e);
             } finally {
-                setLoading(false); // STOP LOADING HERE (Only once on initial mount/data setup)
+                setLoading(false);
             }
         };
         init();
@@ -113,132 +102,113 @@ export default function TicketSystemScreen() {
     // --- Refresh on Focus ---
     useFocusEffect(
         useCallback(() => {
-            // This hook handles subsequent refreshes when the screen becomes active
-            if (societyId) {
-                fetchTickets(societyId);
-            }
+            if (societyId) fetchTickets(societyId);
         }, [societyId])
     );
 
     // --- Handle New Ticket Submission ---
     const handleSubmit = async () => {
         if (!subject.trim() || !description.trim()) {
-            Alert.alert("Validation", "Please fill in both the subject and description.");
+            Alert.alert("Validation", "Please fill in all fields.");
             return;
         }
-        if (!societyId || !user?.id) {
-            Alert.alert("Error", "User or Society data missing. Cannot submit.");
-            return;
-        }
-
         setIsSubmitting(true);
         try {
             const ticketData: TicketData = {
                 subject: subject.trim(),
                 description: description.trim(),
                 createdBy: user.id,
-                societyId: societyId,
+                societyId: societyId!,
             };
-
             const res = await apiCreateTicket(ticketData);
-
-            if (res.success && res.result) {
-                Alert.alert("Success", "Your ticket has been submitted!");
+            if (res.success) {
+                Alert.alert("Success", "Complaint submitted!");
                 setIsModalVisible(false);
                 setSubject('');
                 setDescription('');
-                fetchTickets(societyId); // Refresh list
-            } else {
-                Alert.alert("Error", res.message || "Failed to submit ticket.");
+                fetchTickets(societyId!);
             }
-        } catch (error) {
-            Alert.alert("Error", "An unexpected error occurred during submission.");
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // --- Render Individual Ticket Item ---
     const renderTicket = ({ item }: { item: TicketResponse }) => {
         const statusStyle = getStatusStyles(item.status);
-        const isAssigned = !!item.assignedTo;
-        const ticketNumber = tickets.indexOf(item) + 1; // FCFS index
+        const ticketNumber = tickets.indexOf(item) + 1;
 
         return (
             <TouchableOpacity
-                style={[styles.card, { backgroundColor: theme.card, borderLeftColor: statusStyle.cardBorder }]}
-                // 🛠️ FIX: Use correct query parameter string for navigation
+                style={styles.card}
                 onPress={() => router.push(`/ticket-detail?id=${item._id}`)}
+                activeOpacity={0.7}
             >
                 <View style={styles.cardHeader}>
-                    <Text style={[styles.ticketNumber, { color: theme.text }]}>
-                        {`#${ticketNumber}`} {/* 💥 FIX: Corrected JSX Syntax */}
-                    </Text>
+                    <View style={styles.numberBadge}>
+                        <Text style={styles.ticketNumber}>#{ticketNumber}</Text>
+                    </View>
                     <View style={[styles.statusBadge, { backgroundColor: statusStyle.backgroundColor }]}>
-                        <Text style={[styles.statusText, { color: statusStyle.color }]}>
-                            {item.status}
-                        </Text>
+                        <Text style={[styles.statusText, { color: statusStyle.color }]}>{item.status}</Text>
                     </View>
                 </View>
 
-                <Text style={[styles.cardTitle, { color: theme.text }]}>
-                    {item.subject}
-                </Text>
-
-                <Text style={styles.cardDetailText}>
-                    Created by: {item.createdBy.name}
-                </Text>
+                <Text style={styles.cardTitle}>{item.subject}</Text>
+                
+                <View style={styles.cardMeta}>
+                    <View style={styles.metaItem}>
+                        <Ionicons name="person-outline" size={12} color={theme.textMuted} />
+                        <Text style={styles.metaText}>{item.createdBy.name}</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                        <Ionicons name="calendar-outline" size={12} color={theme.textMuted} />
+                        <Text style={styles.metaText}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+                    </View>
+                </View>
 
                 {isUserAdmin && (
-                    <Text style={styles.cardDetailText}>
-                        Assigned: {isAssigned ? item.assignedTo?.name : 'Unassigned'}
-                    </Text>
+                    <View style={styles.assignedBox}>
+                        <Text style={styles.assignedLabel}>Assigned to:</Text>
+                        <Text style={styles.assignedValue}>{item.assignedTo?.name || 'Unassigned'}</Text>
+                    </View>
                 )}
-
-                <Text style={[styles.cardFooterText, { color: theme.textMuted }]}>
-                    Created: {new Date(item.createdAt).toLocaleDateString()}
-                </Text>
             </TouchableOpacity>
         );
     };
 
     if (loading) {
         return (
-            <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
+            <View style={[styles.container, styles.center]}>
                 <ActivityIndicator size="large" color={theme.tint} />
-                <Text style={{ color: theme.textMuted, marginTop: 10 }}>Loading tickets...</Text>
             </View>
         );
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}>
-
-            {/* Header with Add Button */}
+        <View style={styles.container}>
             <View style={styles.listHeader}>
-                <Text style={[styles.title, { color: theme.text }]}>Complaint System</Text>
+                <Text style={styles.title}>Complaints</Text>
                 <TouchableOpacity
                     style={styles.addButton}
                     onPress={() => setIsModalVisible(true)}
                 >
-                    <Ionicons name="add-circle" size={34} color={theme.tint} />
+                    <Ionicons name="add-circle" size={40} color={theme.tint} />
                 </TouchableOpacity>
             </View>
 
-            {/* FCFS Ticket List */}
             <FlatList
                 data={tickets}
                 keyExtractor={(item) => item._id}
                 renderItem={renderTicket}
-                contentContainerStyle={{ paddingHorizontal: 20 }}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+                showsVerticalScrollIndicator={false}
                 ListEmptyComponent={
-                    <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-                        No active complaints found.
-                    </Text>
+                    <View style={styles.emptyState}>
+                        <Ionicons name="mail-unread-outline" size={60} color="#cbd5e1" />
+                        <Text style={styles.emptyText}>No active complaints.</Text>
+                    </View>
                 }
             />
 
-            {/* Create Ticket Modal */}
             <Modal
                 visible={isModalVisible}
                 transparent={true}
@@ -246,53 +216,51 @@ export default function TicketSystemScreen() {
                 onRequestClose={() => setIsModalVisible(false)}
             >
                 <KeyboardAvoidingView
-                    style={styles.modalOverlay}
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
                 >
-                    <View style={[styles.modalContainer, { backgroundColor: theme.card }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: theme.text }]}>Submit New Complaint</Text>
-                            <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                                <Ionicons name="close-circle-outline" size={30} color={theme.textMuted} />
-                            </TouchableOpacity>
+                    <Pressable style={styles.modalOverlay} onPress={() => setIsModalVisible(false)}>
+                        <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>New Complaint</Text>
+                                <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                                    <Ionicons name="close" size={24} color={theme.text} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView contentContainerStyle={styles.formContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                                <Text style={styles.label}>Subject</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Summary of the issue"
+                                    value={subject}
+                                    onChangeText={setSubject}
+                                />
+
+                                <Text style={styles.label}>Description</Text>
+                                <TextInput
+                                    style={[styles.input, styles.textArea]}
+                                    placeholder="Detailed description..."
+                                    value={description}
+                                    onChangeText={setDescription}
+                                    multiline
+                                    numberOfLines={5}
+                                />
+
+                                <TouchableOpacity
+                                    style={styles.submitButton}
+                                    onPress={handleSubmit}
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? (
+                                        <ActivityIndicator color="#fff" />
+                                    ) : (
+                                        <Text style={styles.submitButtonText}>Submit Complaint</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </ScrollView>
                         </View>
-
-                        <ScrollView contentContainerStyle={styles.formContent}>
-
-                            <Text style={[styles.label, { color: theme.text }]}>Subject</Text>
-                            <TextInput
-                                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                                placeholder="Short summary of the issue"
-                                placeholderTextColor={theme.textMuted}
-                                value={subject}
-                                onChangeText={setSubject}
-                                autoCapitalize="sentences"
-                            />
-
-                            <Text style={[styles.label, { color: theme.text }]}>Description</Text>
-                            <TextInput
-                                style={[styles.input, styles.textArea, { color: theme.text, borderColor: theme.border }]}
-                                placeholder="Detailed description of the problem"
-                                placeholderTextColor={theme.textMuted}
-                                value={description}
-                                onChangeText={setDescription}
-                                multiline
-                                numberOfLines={4}
-                            />
-
-                            <TouchableOpacity
-                                style={[styles.submitButton, { backgroundColor: theme.tint }]}
-                                onPress={handleSubmit}
-                                disabled={isSubmitting}
-                            >
-                                {isSubmitting ? (
-                                    <ActivityIndicator color="#fff" />
-                                ) : (
-                                    <Text style={styles.submitButtonText}>Submit Complaint</Text>
-                                )}
-                            </TouchableOpacity>
-                        </ScrollView>
-                    </View>
+                    </Pressable>
                 </KeyboardAvoidingView>
             </Modal>
         </View>
@@ -302,6 +270,7 @@ export default function TicketSystemScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: '#f8fafc',
     },
     center: {
         justifyContent: 'center',
@@ -311,118 +280,172 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 20,
-        paddingBottom: 10,
+        padding: 24,
     },
     title: {
         fontSize: 26,
-        fontWeight: 'bold',
+        fontWeight: '800',
+        color: '#1e293b',
     },
     addButton: {
-        padding: 5,
+        shadowColor: '#4f46e5',
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
     },
-    // --- Card Styles ---
     card: {
-        padding: 15,
-        borderRadius: 10,
-        marginVertical: 8,
-        marginHorizontal: 5,
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 20,
+        marginBottom: 16,
         shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 5,
-        elevation: 3,
-        borderLeftWidth: 5,
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 14,
+    },
+    numberBadge: {
+        backgroundColor: '#f1f5f9',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
     },
     ticketNumber: {
-        fontSize: 16,
+        fontSize: 12,
         fontWeight: '700',
+        color: '#64748b',
     },
     statusBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 15,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 20,
     },
     statusText: {
-        fontSize: 12,
-        fontWeight: 'bold',
+        fontSize: 11,
+        fontWeight: '800',
+        textTransform: 'uppercase',
     },
     cardTitle: {
         fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 5,
+        fontWeight: '700',
+        color: '#1e293b',
+        marginBottom: 12,
     },
-    cardDetailText: {
-        fontSize: 14,
-        color: '#555',
-        marginBottom: 2,
+    cardMeta: {
+        flexDirection: 'row',
+        gap: 16,
+        marginBottom: 12,
     },
-    cardFooterText: {
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    metaText: {
+        fontSize: 13,
+        color: '#64748b',
+        fontWeight: '500',
+    },
+    assignedBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#f1f5f9',
+        marginTop: 4,
+    },
+    assignedLabel: {
         fontSize: 12,
-        marginTop: 8,
-        textAlign: 'right',
+        color: '#94a3b8',
+        marginRight: 6,
+    },
+    assignedValue: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#475569',
+    },
+    emptyState: {
+        alignItems: 'center',
+        marginTop: 80,
     },
     emptyText: {
-        textAlign: 'center',
-        marginTop: 50,
+        marginTop: 16,
         fontSize: 16,
+        color: '#94a3b8',
+        fontWeight: '500',
     },
-    // --- Modal Styles ---
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(15, 23, 42, 0.4)',
         justifyContent: 'flex-end',
     },
     modalContainer: {
-        padding: 20,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        maxHeight: '80%',
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        padding: 24,
+        maxHeight: '90%',
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 24,
     },
     modalTitle: {
         fontSize: 22,
-        fontWeight: 'bold',
+        fontWeight: '800',
+        color: '#1e293b',
     },
     formContent: {
-        paddingBottom: 50,
+        paddingBottom: 40,
     },
     label: {
-        fontSize: 16,
-        fontWeight: '500',
-        marginTop: 10,
-        marginBottom: 5,
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#475569',
+        marginBottom: 8,
+        marginLeft: 4,
     },
     input: {
-        padding: 12,
-        borderRadius: 8,
-        borderWidth: 1,
+        backgroundColor: '#f8fafc',
+        borderRadius: 14,
+        padding: 16,
         fontSize: 16,
-        marginBottom: 10,
+        color: '#1e293b',
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
     },
     textArea: {
-        height: 100,
+        height: 120,
         textAlignVertical: 'top',
     },
     submitButton: {
-        padding: 15,
-        borderRadius: 8,
+        backgroundColor: '#4f46e5',
+        padding: 18,
+        borderRadius: 16,
         alignItems: 'center',
-        marginTop: 20,
+        marginTop: 10,
+        shadowColor: '#4f46e5',
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        elevation: 4,
     },
     submitButtonText: {
         color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
+        fontSize: 16,
+        fontWeight: '700',
     },
 });

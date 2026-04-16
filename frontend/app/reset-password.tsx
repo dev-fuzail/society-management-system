@@ -1,37 +1,25 @@
-// app/reset-password.tsx
 import React, { useState } from "react";
 import { 
-  View, 
   Text, 
   TextInput, 
   Alert, 
   StyleSheet, 
-  KeyboardAvoidingView, // ✅ Added
-  Platform,             // ✅ Added
-  ScrollView,           // ✅ Added
-  useColorScheme        // ✅ Added
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  View,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { apiResetPassword } from "@/services/AuthService";
-import { PrimaryButton } from "@/components/PrimaryButton";
-import { Image } from 'expo-image';
+import { Ionicons } from "@expo/vector-icons";
 
 export default function ResetPasswordScreen() {
   const { token, email } = useLocalSearchParams<{ token: string; email: string }>();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // 🎨 Theme Logic (Text Visibility Fix)
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  
-  // Colors define kar rahe hain
-  const textColor = isDark ? '#FFFFFF' : '#000000';
-  const bgColor = isDark ? '#000000' : '#FFFFFF';
-  const inputBg = isDark ? '#1C1C1E' : '#F5F5F5';
-  const borderColor = isDark ? '#333' : '#ccc';
-  const placeholderColor = isDark ? '#888' : '#666';
 
   const handleReset = async () => {
     if (!password || !confirm) {
@@ -45,7 +33,6 @@ export default function ResetPasswordScreen() {
       setLoading(true);
       const res = await apiResetPassword(email!, token!, password);
       
-      // ✅ Check both success and status just to be safe
       if (res.status || res.success) {
         Alert.alert("Success", "Password reset successfully.", [
           { text: "Login", onPress: () => router.replace("/login") },
@@ -53,93 +40,158 @@ export default function ResetPasswordScreen() {
       } else {
         Alert.alert("Error", res.message || "Unable to reset password.");
       }
-    } catch (err: any) {
-      console.log("Reset error:", err);
-      Alert.alert("Error", err.message || "Something went wrong.");
+    } catch {
+      Alert.alert("Error", "Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    // ✅ 1. Keyboard Handling Wrapper
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: bgColor }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-    >
-      {/* ✅ 2. ScrollView for Scrolling Content */}
-      <ScrollView
-        contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Image
-          source={require('@/assets/images/logo.png')}
-          style={{ width: 120, height: 40, alignSelf: 'center', marginBottom: 24 }}
-          resizeMode="contain"
-        />
-        <Text style={[styles.title, { color: textColor }]}>Reset Your Password</Text>
-        <Text style={styles.subtitle}>
-          For <Text style={[styles.email, { color: textColor }]}>{email}</Text>
-        </Text>
+    <View style={styles.container}>
+        <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+        >
+            <ScrollView
+                contentContainerStyle={styles.scrollContainer}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.contentCard}>
+                    <View style={styles.iconCircle}>
+                        <Ionicons name="refresh-circle-outline" size={40} color="#4f46e5" />
+                    </View>
 
-        <TextInput
-          style={[
-            styles.input, 
-            { color: textColor, backgroundColor: inputBg, borderColor: borderColor } // ✅ Dynamic Colors
-          ]}
-          placeholder="New Password"
-          placeholderTextColor={placeholderColor}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-        <TextInput
-          style={[
-            styles.input, 
-            { color: textColor, backgroundColor: inputBg, borderColor: borderColor } // ✅ Dynamic Colors
-          ]}
-          placeholder="Confirm Password"
-          placeholderTextColor={placeholderColor}
-          secureTextEntry
-          value={confirm}
-          onChangeText={setConfirm}
-        />
+                    <Text style={styles.title}>Reset Password</Text>
+                    <Text style={styles.subtitle}>
+                        Setting new password for:{"\n"}
+                        <Text style={styles.emailText}>{email}</Text>
+                    </Text>
 
-        <PrimaryButton title={loading ? "Resetting..." : "Reset Password"} onPress={handleReset} disabled={loading} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+                    <View style={styles.form}>
+                        <Text style={styles.label}>New Password</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="••••••••"
+                            placeholderTextColor="#94a3b8"
+                            secureTextEntry
+                            value={password}
+                            onChangeText={setPassword}
+                        />
+
+                        <Text style={styles.label}>Confirm Password</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="••••••••"
+                            placeholderTextColor="#94a3b8"
+                            secureTextEntry
+                            value={confirm}
+                            onChangeText={setConfirm}
+                        />
+                    </View>
+
+                    <TouchableOpacity 
+                        style={[styles.resetBtn, loading && { opacity: 0.7 }]} 
+                        onPress={handleReset} 
+                        disabled={loading}
+                    >
+                        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.resetBtnText}>Update Password</Text>}
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: "center",
-    paddingHorizontal: 25,
-    // backgroundColor: Removed hardcoded color here, handling in View above
+    padding: 24,
+  },
+  contentCard: {
+    backgroundColor: '#fff',
+    borderRadius: 32,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 28,
+    backgroundColor: '#eef2ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   title: {
     fontSize: 24,
-    fontWeight: "700",
-    textAlign: "center",
+    fontWeight: "800",
+    color: '#1e293b',
     marginBottom: 8,
+    textAlign: "center",
   },
   subtitle: {
     textAlign: "center",
-    color: "#666",
-    marginBottom: 20,
+    color: "#64748b",
+    marginBottom: 32,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '500',
   },
-  email: {
-    fontWeight: "600",
-    // Color handled inline
+  emailText: {
+    color: '#1e293b',
+    fontWeight: "700",
+  },
+  form: {
+    width: '100%',
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 8,
+    marginLeft: 4,
   },
   input: {
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    // Border color handled inline
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    borderColor: '#e2e8f0',
+    borderRadius: 16,
+    padding: 16,
+    fontSize: 16,
+    color: '#1e293b',
+    width: '100%',
+    marginBottom: 20,
   },
-  // Button styles are handled by PrimaryButton component
+  resetBtn: {
+    backgroundColor: '#4f46e5',
+    width: '100%',
+    paddingVertical: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#4f46e5',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
+    marginTop: 10,
+  },
+  resetBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
 });
