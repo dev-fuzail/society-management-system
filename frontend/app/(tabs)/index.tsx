@@ -102,55 +102,72 @@ export default function HomeScreen() {
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionHeader}>Financial Overview</Text>
-            <TouchableOpacity onPress={() => Alert.alert("Financials", "Detailed reports coming soon!")}>
-                <Text style={styles.viewMoreText}>View Report</Text>
+            <TouchableOpacity onPress={() => Alert.alert("Reports", "Detailed financial reports are coming soon!")}>
+                <Ionicons name="stats-chart" size={18} color="#4f46e5" />
             </TouchableOpacity>
         </View>
 
-        <View style={styles.unifiedFinanceCard}>
-            {showContent && Platform.OS !== 'web' && (
-                <View style={styles.chartWrapper}>
-                    <PieChart
-                        data={pieData}
-                        width={screenWidth - 80}
-                        height={160}
-                        accessor="population"
-                        backgroundColor="transparent"
-                        paddingLeft="0"
-                        center={[10, 0]}
-                        absolute
-                        chartConfig={{
-                            color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
-                            labelColor: (opacity = 1) => `#1e293b`,
-                        }}
-                    />
+        <View style={styles.financeDashboardCard}>
+            <View style={styles.balanceHeader}>
+                <View>
+                    <Text style={styles.balanceLabel}>Current Balance</Text>
+                    <Text style={styles.balanceAmount}>${(totalPayments - totalExpenses).toLocaleString()}</Text>
                 </View>
-            )}
-
-            <View style={styles.financeStatsRow}>
-                <View style={styles.financeStatItem}>
-                    <View style={[styles.statIndicator, { backgroundColor: '#10b981' }]} />
-                    <View>
-                        <Text style={styles.financeStatLabel}>Total Collection</Text>
-                        <Text style={styles.financeStatValue}>${totalPayments.toLocaleString()}</Text>
-                    </View>
-                </View>
-                <View style={styles.financeStatItem}>
-                    <View style={[styles.statIndicator, { backgroundColor: '#ef4444' }]} />
-                    <View>
-                        <Text style={styles.financeStatLabel}>Total Expenses</Text>
-                        <Text style={styles.financeStatValue}>${totalExpenses.toLocaleString()}</Text>
+                <View style={styles.badgeContainer}>
+                    <View style={styles.statusPill}>
+                        <Text style={styles.statusPillText}>Q2 2026</Text>
                     </View>
                 </View>
             </View>
 
-            <View style={styles.balanceBarContainer}>
-                <View style={styles.balanceBarBackground}>
-                    <View style={[styles.balanceBarFill, { width: `${(totalExpenses / totalPayments) * 100}%` }]} />
+            <View style={styles.divider} />
+
+            <View style={styles.mainFinanceContent}>
+                {showContent && Platform.OS !== 'web' && (
+                    <View style={styles.chartSide}>
+                        <PieChart
+                            data={pieData}
+                            width={screenWidth * 0.4}
+                            height={120}
+                            accessor="population"
+                            backgroundColor="transparent"
+                            paddingLeft="20"
+                            center={[0, 0]}
+                            absolute
+                            hasLegend={false}
+                            chartConfig={{
+                                color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
+                            }}
+                        />
+                    </View>
+                )}
+
+                <View style={styles.statsSide}>
+                    <View style={styles.financeStatBox}>
+                        <View style={[styles.statDot, { backgroundColor: '#10b981' }]} />
+                        <View>
+                            <Text style={styles.statMiniLabel}>Collection</Text>
+                            <Text style={[styles.statMiniValue, { color: '#10b981' }]}>+${totalPayments.toLocaleString()}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.financeStatBox}>
+                        <View style={[styles.statDot, { backgroundColor: '#ef4444' }]} />
+                        <View>
+                            <Text style={styles.statMiniLabel}>Expenses</Text>
+                            <Text style={[styles.statMiniValue, { color: '#ef4444' }]}>-${totalExpenses.toLocaleString()}</Text>
+                        </View>
+                    </View>
                 </View>
-                <Text style={styles.balanceText}>
-                    Usage: <Text style={{ fontWeight: '800', color: '#1e293b' }}>{Math.round((totalExpenses / totalPayments) * 100)}%</Text> of budget spent
-                </Text>
+            </View>
+
+            <View style={styles.progressContainer}>
+                <View style={styles.progressBarBg}>
+                    <View style={[styles.progressBarFill, { width: `${(totalExpenses / totalPayments) * 100}%` }]} />
+                </View>
+                <View style={styles.progressLabels}>
+                    <Text style={styles.progressText}>Budget Utilization</Text>
+                    <Text style={styles.progressPercentage}>{Math.round((totalExpenses / totalPayments) * 100)}%</Text>
+                </View>
             </View>
         </View>
       </View>
@@ -272,6 +289,119 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#4f46e5',
+  },
+  financeDashboardCard: {
+    backgroundColor: '#fff',
+    borderRadius: 28,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 15,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  balanceLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  balanceAmount: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1e293b',
+  },
+  badgeContainer: {
+    paddingTop: 4,
+  },
+  statusPill: {
+    backgroundColor: '#eef2ff',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#4f46e5',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginBottom: 20,
+  },
+  mainFinanceContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  chartSide: {
+    flex: 1,
+    marginLeft: -20,
+  },
+  statsSide: {
+    flex: 1,
+    gap: 16,
+  },
+  financeStatBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statMiniLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+  },
+  statMiniValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginTop: 1,
+  },
+  progressContainer: {
+    marginTop: 4,
+  },
+  progressBarBg: {
+    height: 6,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#4f46e5',
+    borderRadius: 3,
+  },
+  progressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  progressText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  progressPercentage: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1e293b',
   },
   unifiedFinanceCard: {
     backgroundColor: '#fff',

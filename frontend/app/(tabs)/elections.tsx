@@ -148,46 +148,51 @@ export default function ElectionsScreen() {
       )}
 
       <Modal visible={createModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Create Election</Text>
-                <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
-                    <Ionicons name="close" size={24} color="#1e293b" />
-                </TouchableOpacity>
-            </View>
-            
-            <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-                <Text style={styles.label}>Title</Text>
-                <TextInput
-                    style={styles.input}
-                    value={newTitle}
-                    onChangeText={setNewTitle}
-                    placeholder="e.g. Society President 2026"
-                />
-                <Text style={styles.label}>Start Date</Text>
-                <TextInput
-                    style={styles.input}
-                    value={newStartDate}
-                    onChangeText={setNewStartDate}
-                    placeholder="YYYY-MM-DD"
-                    autoCapitalize="none"
-                />
-                <Text style={styles.label}>End Date</Text>
-                <TextInput
-                    style={styles.input}
-                    value={newEndDate}
-                    onChangeText={setNewEndDate}
-                    placeholder="YYYY-MM-DD"
-                    autoCapitalize="none"
-                />
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+        >
+            <Pressable style={styles.modalOverlay} onPress={() => setCreateModalVisible(false)}>
+                <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Create Election</Text>
+                        <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
+                            <Ionicons name="close" size={24} color="#1e293b" />
+                        </TouchableOpacity>
+                    </View>
+                    
+                    <ScrollView contentContainerStyle={{ paddingBottom: 20 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                        <Text style={styles.label}>Title</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={newTitle}
+                            onChangeText={setNewTitle}
+                            placeholder="e.g. Society President 2026"
+                        />
+                        <Text style={styles.label}>Start Date</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={newStartDate}
+                            onChangeText={setNewStartDate}
+                            placeholder="YYYY-MM-DD"
+                            autoCapitalize="none"
+                        />
+                        <Text style={styles.label}>End Date</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={newEndDate}
+                            onChangeText={setNewEndDate}
+                            placeholder="YYYY-MM-DD"
+                            autoCapitalize="none"
+                        />
 
-                <TouchableOpacity style={styles.saveButton} onPress={createElection}>
-                    <Text style={styles.saveButtonText}>Launch Election</Text>
-                </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
+                        <TouchableOpacity style={styles.saveButton} onPress={createElection}>
+                            <Text style={styles.saveButtonText}>Launch Election</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+                </View>
+            </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
