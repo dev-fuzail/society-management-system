@@ -11,6 +11,7 @@ import {
     Pressable,
     KeyboardAvoidingView,
     Platform,
+    Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,7 @@ import { apiGetTicketById, apiUpdateTicketStatus } from '@/services/TicketServic
 import { TicketResponse, TicketStatus, UpdateStatusData, UserData } from '@/services/types'; 
 import { getAuthData } from '@/hooks/helperHooks';
 import { apiGetSocietyUsers } from '@/services/SocietyService';
+import { EXPO_PUBLIC_API_BASE } from '@/constants';
 
 const CustomTheme = {
     background: '#f8fafc', 
@@ -63,6 +65,7 @@ export default function TicketDetailScreen() {
     const [assignableUsers, setAssignableUsers] = useState<UserData[]>([]);
     const [selectedAssignee, setSelectedAssignee] = useState<string | undefined>(undefined);
     const [loadingMembers, setLoadingMembers] = useState(false);
+    const [isImageVisible, setIsImageVisible] = useState(true);
 
     const isUserStaff = user?.role === 'admin' || user?.role === 'staff';
 
@@ -81,43 +84,61 @@ export default function TicketDetailScreen() {
         }
     }, []);
 
-    // --- 1. Fetch Ticket Data ---
-    const fetchTicket = useCallback(async () => {
-        if (!ticketId) {
-            router.back();
-            return;
-        }
-        setLoading(true);
-        try {
-            const response = await apiGetTicketById(ticketId); 
-            if (response.success && response.result) {
-                setTicket(response.result);
-                setNewStatus(response.result.status);
-                
-                if (response.result.assignedTo) {
-                    setSelectedAssignee(response.result.assignedTo._id);
-                }
+    useEffect(() => {
+        let isMounted = true;
 
-                if (user?.role === 'admin' || user?.role === 'staff') {
-                    fetchSocietyMembers(response.result.societyId);
-                }
-
-            } else {
-                Alert.alert("Error", "Ticket not found.");
+        const initAndFetch = async () => {
+            if (!ticketId) {
                 router.back();
+                return;
             }
-        } finally {
-            setLoading(false);
-        }
-    }, [ticketId, user, fetchSocietyMembers, router]);
+
+            setLoading(true);
+            try {
+                const { userData } = await getAuthData();
+                if (!isMounted) return;
+                setUser(userData);
+
+                const response = await apiGetTicketById(ticketId);
+                if (!isMounted) return;
+
+                if (response.success && response.result) {
+                    setTicket(response.result);
+                    setNewStatus(response.result.status);
+
+                    if (response.result.assignedTo) {
+                        setSelectedAssignee(response.result.assignedTo._id);
+                    }
+
+                    if (userData?.role === 'admin' || userData?.role === 'staff') {
+                        await fetchSocietyMembers(response.result.societyId);
+                    }
+                } else {
+                    Alert.alert("Error", "Ticket not found.");
+                    router.back();
+                }
+            } catch {
+                if (isMounted) {
+                    Alert.alert("Error", "Failed to load ticket details.");
+                    router.back();
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        initAndFetch();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [ticketId, router, fetchSocietyMembers]);
 
     useEffect(() => {
-        const init = async () => {
-            const { userData } = await getAuthData();
-            setUser(userData);
-        };
-        init().then(() => fetchTicket());
-    }, [ticketId, fetchTicket]);
+        setIsImageVisible(true);
+    }, [ticket?._id, ticket?.imageUrl]);
 
 
     // --- 3. Handle Update Submission ---
@@ -149,6 +170,15 @@ export default function TicketDetailScreen() {
     if (!ticket) return null;
 
     const statusStyle = getStatusStyles(ticket.status);
+    const rawImage =
+        ticket.imageUrl ||
+        (ticket as any).image ||
+        (ticket as any).attachment ||
+        (ticket as any).image_url ||
+        null;
+    const imageUri = rawImage
+        ? (rawImage.startsWith('http') ? rawImage : `${EXPO_PUBLIC_API_BASE}${rawImage.startsWith('/') ? '' : '/'}${rawImage}`)
+        : null;
 
     return (
         <ScrollView style={[styles.container, { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false}>
@@ -173,6 +203,16 @@ export default function TicketDetailScreen() {
             <View style={styles.sectionCard}>
                 <Text style={styles.sectionTitle}>Issue Description</Text>
                 <Text style={styles.descriptionText}>{ticket.description}</Text>
+                {imageUri && isImageVisible ? (
+                    <View style={styles.attachmentWrap}>
+                        <Text style={styles.attachmentLabel}>Attachment</Text>
+                        <Image
+                            source={{ uri: imageUri }}
+                            style={styles.attachmentImage}
+                            onError={() => setIsImageVisible(false)}
+                        />
+                    </View>
+                ) : null}
             </View>
 
             {/* Details Grid */}
@@ -333,6 +373,9 @@ const styles = StyleSheet.create({
     },
     sectionTitle: { fontSize: 16, fontWeight: '800', color: theme.text, marginBottom: 16 },
     descriptionText: { fontSize: 15, lineHeight: 24, color: '#475569' },
+    attachmentWrap: { marginTop: 14 },
+    attachmentLabel: { fontSize: 12, color: theme.textMuted, fontWeight: '700', marginBottom: 8, textTransform: 'uppercase' },
+    attachmentImage: { width: '100%', height: 180, borderRadius: 14, borderWidth: 1, borderColor: '#e2e8f0' },
     
     detailItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9', gap: 14 },
     detailIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#f8fafc', justifyContent: 'center', alignItems: 'center' },

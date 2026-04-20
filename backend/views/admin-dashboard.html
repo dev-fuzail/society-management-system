@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+      :root {
+        --bg: #f4f7fb;
+        --surface: #ffffff;
+        --surface-2: #f8fbff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #dbe5f1;
+        --brand: #2563eb;
+        --brand-2: #0ea5e9;
+        --danger: #dc2626;
+        --success: #059669;
+      }
+      body {
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        background: radial-gradient(circle at top left, #eef5ff 0%, var(--bg) 45%, #f8fafc 100%);
+        margin: 0;
+        padding: 0;
+        color: var(--text);
+      }
+      header {
+        background: linear-gradient(120deg, #1e3a8a 0%, #2563eb 55%, #0ea5e9 100%);
+        color: white;
+        padding: 16px 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+      }
+      header a {
+        color: white;
+        text-decoration: none;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 8px 12px;
+        border-radius: 10px;
+      }
+      .container {
+        padding: 24px 20px;
+        max-width: 1200px;
+        margin: auto;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .stat-box {
+        background: var(--surface);
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        padding: 16px;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+      }
+      .stat-box h3 {
+        margin: 0 0 10px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .stat-box p {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 700;
+        color: #0b4bd4;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--surface);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+      }
+      th,
+      td {
+        border: 1px solid var(--border);
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background: #eef5ff;
+        color: #1e3a8a;
+        font-weight: 700;
+      }
+      tbody tr:nth-child(even) {
+        background: var(--surface-2);
+      }
+      .status-text.active {
+        color: var(--success);
+        font-weight: 700;
+      }
+      .status-text.disabled {
+        color: var(--danger);
+        font-weight: 700;
+      }
+      button {
+        border: none;
+        border-radius: 8px;
+        padding: 7px 12px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .toggle-btn {
+        background-color: var(--brand);
+        color: white;
+      }
+      .delete-btn {
+        background-color: var(--danger);
+        color: white;
+        margin-left: 8px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .error {
+        background: #ffe6e6;
+        color: #b00020;
+        border: 1px solid #f5b5b5;
+        border-radius: 8px;
+        padding: 10px;
+        margin: 10px 0;
+      }
+      .loading {
+        padding: 16px 0;
+      }
+      .chart-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px;
+        margin: 16px 0 26px;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+      }
+      .chart-title {
+        margin: 0 0 8px;
+        font-size: 16px;
+        color: #1e3a8a;
+      }
+      .chart-wrap {
+        display: flex;
+        justify-content: center;
+      }
+      #societyStatusChart {
+        max-width: 420px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>Admin Dashboard</h1>
+        <a href="/admin-logout">Logout</a>
+      </header>
+
+      <div class="container">
+        <div v-if="error" class="error">{{ error }}</div>
+        <div v-if="loading" class="loading muted">Loading dashboard...</div>
+
+        <template v-else>
+          <h3>System Overview</h3>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <h3>Total Societies</h3>
+              <p>{{ societyCount }}</p>
+            </div>
+            <div class="stat-box">
+              <h3>Total Platform Users</h3>
+              <p>{{ totalUsersCount }}</p>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <h3 class="chart-title">Society Status Distribution</h3>
+            <div class="chart-wrap">
+              <div id="societyStatusChart"></div>
+            </div>
+          </div>
+
+          <h3 style="margin-top: 20px">Societies List</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>City</th>
+                <th>Total Apartments</th>
+                <th>Total Users</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="society in societies" :key="society._id">
+                <td>{{ society.name }}</td>
+                <td>{{ society.city }}</td>
+                <td>{{ society.total_apartments }}</td>
+                <td>{{ society.membersCount }}</td>
+                <td>
+                  <span class="status-text" :class="society.status === 'active' ? 'active' : 'disabled'">
+                    {{ society.status }}
+                  </span>
+                </td>
+                <td>
+                  <button class="toggle-btn" @click="toggleStatus(society)">
+                    {{ society.status === 'active' ? 'Disable' : 'Activate' }}
+                  </button>
+                  <button class="delete-btn" @click="deleteSociety(society)">Delete</button>
+                </td>
+              </tr>
+              <tr v-if="societies.length === 0">
+                <td colspan="6" class="muted">No societies found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
+      </div>
+    </div>
+
+    <script>
+      const { createApp } = Vue;
+
+      createApp({
+        data() {
+          return {
+            loading: true,
+            error: "",
+            societyCount: 0,
+            totalUsersCount: 0,
+            societies: [],
+            donutChart: null,
+          };
+        },
+        methods: {
+          getStatusSeries() {
+            const active = this.societies.filter((s) => (s.status || "active") === "active").length;
+            const disabled = this.societies.filter((s) => (s.status || "active") !== "active").length;
+            return [active, disabled];
+          },
+
+          renderOrUpdateDonutChart() {
+            const series = this.getStatusSeries();
+            const chartOptions = {
+              chart: {
+                width: 380,
+                type: "donut",
+              },
+              labels: ["Active", "Disabled"],
+              colors: ["#1E88E5", "#00D39B"],
+              dataLabels: {
+                enabled: false,
+              },
+              responsive: [
+                {
+                  breakpoint: 480,
+                  options: {
+                    chart: {
+                      width: 200,
+                    },
+                    legend: {
+                      show: false,
+                    },
+                  },
+                },
+              ],
+              legend: {
+                position: "right",
+                offsetY: 0,
+                height: 230,
+              },
+              stroke: {
+                width: 2,
+                colors: ["#fff"],
+              },
+            };
+
+            if (this.donutChart) {
+              this.donutChart.updateSeries(series);
+              this.donutChart.updateOptions(chartOptions);
+              return;
+            }
+
+            const target = document.querySelector("#societyStatusChart");
+            if (!target) return;
+            this.donutChart = new ApexCharts(target, { ...chartOptions, series });
+            this.donutChart.render();
+          },
+
+          async fetchDashboard() {
+            this.loading = true;
+            this.error = "";
+            try {
+              const response = await fetch("/admin/api/dashboard", {
+                credentials: "same-origin",
+              });
+
+              if (!response.ok) {
+                throw new Error("Failed to load dashboard data.");
+              }
+
+              const payload = await response.json();
+              if (!payload.success) {
+                throw new Error(payload.message || "Failed to load dashboard data.");
+              }
+
+              this.societyCount = payload.result.societyCount;
+              this.totalUsersCount = payload.result.totalUsersCount;
+              this.societies = payload.result.societies || [];
+              this.$nextTick(() => this.renderOrUpdateDonutChart());
+            } catch (err) {
+              this.error = err.message || "An error occurred while loading dashboard data.";
+            } finally {
+              this.loading = false;
+            }
+          },
+
+          async toggleStatus(society) {
+            const newStatus = society.status === "active" ? "disabled" : "active";
+            const actionText = newStatus === "disabled" ? "Disable" : "Activate";
+
+            if (!confirm(`Are you sure you want to ${actionText} this society?`)) {
+              return;
+            }
+
+            try {
+              const response = await fetch(`/admin/society/${society._id}/status`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+                body: JSON.stringify({ newStatus }),
+              });
+
+              const result = await response.json();
+              if (!response.ok || !result.success) {
+                throw new Error(result.message || "Failed to update status.");
+              }
+
+              society.status = newStatus;
+              this.renderOrUpdateDonutChart();
+              alert(`Society updated to ${newStatus}.`);
+            } catch (err) {
+              alert(err.message || "Failed to update status.");
+            }
+          },
+
+          async deleteSociety(society) {
+            if (
+              !confirm(
+                `WARNING: This will permanently delete the society "${society.name}" and ALL associated users (${society.membersCount}). Are you absolutely sure?`
+              )
+            ) {
+              return;
+            }
+
+            try {
+              const response = await fetch(`/admin/society/${society._id}/delete`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+              });
+
+              const result = await response.json();
+              if (!response.ok || !result.success) {
+                throw new Error(result.message || "Failed to delete society.");
+              }
+
+              this.societies = this.societies.filter((s) => s._id !== society._id);
+              this.societyCount = this.societies.length;
+              this.totalUsersCount = Math.max(
+                0,
+                this.totalUsersCount - (result.deletedUsersCount || 0)
+              );
+              this.renderOrUpdateDonutChart();
+              alert(result.message || "Society deleted successfully.");
+            } catch (err) {
+              alert(err.message || "Failed to delete society.");
+            }
+          },
+        },
+        mounted() {
+          this.fetchDashboard();
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>

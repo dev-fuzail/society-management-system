@@ -23,6 +23,10 @@ password
 normal-user: tabishali2@gmail.com
 password
 
+Super Admin:
+http://localhost:8001/admin-dashboard
+
+
 2315 phone
 
 
@@ -50,3 +54,7 @@ ls -lah public_html/assets/img/upwork-white.png
 182.184.116.63
 14.192.157.25
 
+ufw allow from 182.184.116.63 to any port 22
+ufw allow from 14.192.157.25 to any port 22
+ufw allow 80
+ufw allow 443

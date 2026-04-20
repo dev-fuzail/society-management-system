@@ -1,6 +1,7 @@
 import express from "express";
 import {
   addServiceProvider,
+  updateServiceProvider,
   getServiceProviders,
   bookServiceProvider,
   updateBookingStatus,
@@ -15,6 +16,7 @@ const router = express.Router();
 // Service Providers
 router.post("/providers", authMiddleware, addServiceProvider);
 router.get("/providers", authMiddleware, getServiceProviders);
+router.patch("/providers/:id", authMiddleware, updateServiceProvider);
 router.get("/providers/:id/reviews", authMiddleware, getProviderReviews);
 router.post("/providers/:id/reviews", authMiddleware, addReview);
 

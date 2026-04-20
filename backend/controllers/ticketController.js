@@ -32,7 +32,7 @@ export const getTickets = async (req, res) => {
 // --- 2. POST Ticket ---
 export const createTicket = async (req, res) => {
     try {
-        const { subject, description, createdBy, societyId } = req.body; // createdBy and societyId should come from auth middleware
+        const { subject, description, createdBy, societyId, imageUrl } = req.body; // createdBy and societyId should come from auth middleware
         
         if (!subject || !description || !createdBy || !societyId) {
              return res.status(400).json({ success: false, message: "Missing required fields." });
@@ -41,6 +41,7 @@ export const createTicket = async (req, res) => {
         const newTicket = await Ticket.create({
             subject,
             description,
+            imageUrl: imageUrl || null,
             createdBy,
             societyId,
         });

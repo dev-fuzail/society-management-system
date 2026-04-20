@@ -38,7 +38,7 @@ export default function LoginScreen() {
   useEffect(() => {
     const verifyToken = async () => {
       try {
-        const token = await AsyncStorage.getItem('token');
+        const token = await AsyncStorage.getItem('authToken');
         if (token) router.replace('/(tabs)');
       } catch (err) {
         console.error('Token check error:', err);

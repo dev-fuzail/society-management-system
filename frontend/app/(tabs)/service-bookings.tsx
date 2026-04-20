@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, TextInput, Modal, KeyboardAvoidingView, Pressable, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from "@expo/vector-icons";
 import ServiceProviderService, { ServiceBooking } from '@/services/ServiceProviderService';
@@ -14,6 +14,22 @@ export default function ServiceBookingsScreen() {
   const [comment, setComment] = useState('');
   const [reviewedProviderIds, setReviewedProviderIds] = useState<Set<string>>(new Set());
   const router = useRouter();
+
+  const handleApiError = (error: any, fallbackMessage: string) => {
+    if (error?.isAuthError || error?.statusCode === 401) {
+      Alert.alert('Session Expired', 'Please log in again.', [
+        { text: 'OK', onPress: () => router.replace('/login') },
+      ]);
+      return;
+    }
+
+    if (error?.message?.toLowerCase?.().includes('access denied')) {
+      Alert.alert('Access Denied', error.message);
+      return;
+    }
+
+    Alert.alert('Error', error?.message || fallbackMessage);
+  };
 
   const fetchBookings = async () => {
     try {
@@ -47,8 +63,8 @@ export default function ServiceBookingsScreen() {
 
         setReviewedProviderIds(reviewed);
       }
-    } catch (error) {
-      console.error("Error fetching bookings:", error);
+    } catch (error: any) {
+      handleApiError(error, 'Failed to fetch service bookings.');
     } finally {
       setLoading(false);
     }
@@ -66,7 +82,7 @@ export default function ServiceBookingsScreen() {
         fetchBookings();
       }
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to update status.");
+      handleApiError(error, 'Failed to update status.');
     }
   };
 
@@ -90,7 +106,7 @@ export default function ServiceBookingsScreen() {
         fetchBookings();
       }
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to submit review.");
+      handleApiError(error, 'Failed to submit review.');
     }
   };
 
@@ -167,39 +183,47 @@ export default function ServiceBookingsScreen() {
       )}
 
       <Modal visible={reviewModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Rate Experience</Text>
-                <TouchableOpacity onPress={() => setReviewModalModalVisible(false)}>
-                    <Ionicons name="close" size={24} color="#1e293b" />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={24}
+          style={{ flex: 1 }}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setReviewModalModalVisible(false)}>
+            <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Rate Experience</Text>
+                  <TouchableOpacity onPress={() => setReviewModalModalVisible(false)}>
+                      <Ionicons name="close" size={24} color="#1e293b" />
+                  </TouchableOpacity>
+              </View>
+
+              <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <Text style={styles.modalSubtitle}>How was your experience with {selectedBooking?.provider_id.name}?</Text>
+
+                <View style={styles.ratingRow}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <TouchableOpacity key={s} onPress={() => setRating(s)} activeOpacity={0.7}>
+                      <Ionicons name={s <= rating ? "star" : "star-outline"} size={40} color="#fbbf24" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TextInput
+                  style={styles.reviewInput}
+                  placeholder="Tell us more about the service..."
+                  placeholderTextColor="#94a3b8"
+                  multiline
+                  value={comment}
+                  onChangeText={setComment}
+                />
+
+                <TouchableOpacity style={styles.submitBtn} onPress={submitReview}>
+                    <Text style={styles.submitBtnText}>Submit Feedback</Text>
                 </TouchableOpacity>
+              </ScrollView>
             </View>
-
-            <Text style={styles.modalSubtitle}>How was your experience with {selectedBooking?.provider_id.name}?</Text>
-            
-            <View style={styles.ratingRow}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <TouchableOpacity key={s} onPress={() => setRating(s)} activeOpacity={0.7}>
-                  <Ionicons name={s <= rating ? "star" : "star-outline"} size={40} color="#fbbf24" />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <TextInput
-              style={styles.reviewInput}
-              placeholder="Tell us more about the service..."
-              placeholderTextColor="#94a3b8"
-              multiline
-              value={comment}
-              onChangeText={setComment}
-            />
-
-            <TouchableOpacity style={styles.submitBtn} onPress={submitReview}>
-                <Text style={styles.submitBtnText}>Submit Feedback</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -263,6 +287,7 @@ const styles = StyleSheet.create({
   modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '80%', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle: { fontSize: 22, fontWeight: '800', color: '#1e293b' },
+  modalScrollContent: { paddingBottom: 24 },
   modalSubtitle: { fontSize: 15, color: '#64748b', marginBottom: 24, lineHeight: 22 },
   ratingRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 30 },
   reviewInput: { backgroundColor: '#f8fafc', borderRadius: 16, padding: 16, height: 120, textAlignVertical: 'top', borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 24, color: '#1e293b', fontSize: 15 },

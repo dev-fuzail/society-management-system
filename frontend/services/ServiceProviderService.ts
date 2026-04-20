@@ -44,6 +44,10 @@ class ServiceProviderService {
     return ApiService.request('post', '/providers', data);
   }
 
+  async updateProvider(id: string, data: Partial<ServiceProvider>): Promise<ResponseObject<ServiceProvider>> {
+    return ApiService.request('patch', `/providers/${id}`, data);
+  }
+
   async bookProvider(data: { provider_id: string; date: string; society_id: string }): Promise<ResponseObject<ServiceBooking>> {
     return ApiService.request('post', '/bookings', data);
   }

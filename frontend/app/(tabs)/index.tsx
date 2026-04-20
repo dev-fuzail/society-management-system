@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, Dimensions, Platform, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, Dimensions, Platform, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { Ionicons } from "@expo/vector-icons";
 import { getAuthData } from '@/hooks/helperHooks'; // Import your auth helper
 import { apiGetAnnouncements } from '@/services/AnnouncementService'; // Import the service
 import { Announcement } from '@/services/types';
 import { apiGetUserSocieties } from '@/services/SocietyService';
+import AmenityService, { Amenity } from '@/services/AmenityService';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -18,6 +19,8 @@ export default function HomeScreen() {
   const [tokenChecked, setTokenChecked] = useState(false);
   const [realNotices, setRealNotices] = useState<Announcement[]>([]); // State for real data
   const [loadingNotices, setLoadingNotices] = useState(true);
+  const [realAmenities, setRealAmenities] = useState<Amenity[]>([]);
+  const [loadingAmenities, setLoadingAmenities] = useState(true);
   
   const router = useRouter();
 
@@ -35,8 +38,10 @@ export default function HomeScreen() {
         // ✅ Fetch Real Announcements if user has a society
         if (userData && selectedSociety) {
           fetchAnnouncements(selectedSociety._id);
+          fetchAmenities(selectedSociety._id);
         } else {
           setLoadingNotices(false);
+          setLoadingAmenities(false);
         }
 
       } finally {
@@ -56,6 +61,19 @@ export default function HomeScreen() {
       console.log("Error fetching notices:", error);
     } finally {
       setLoadingNotices(false);
+    }
+  };
+
+  const fetchAmenities = async (societyId: string) => {
+    try {
+      const response = await AmenityService.getAmenities(societyId);
+      if (response.success) {
+        setRealAmenities(response.result);
+      }
+    } catch (error) {
+      console.log('Error fetching amenities:', error);
+    } finally {
+      setLoadingAmenities(false);
     }
   };
 
@@ -84,8 +102,8 @@ export default function HomeScreen() {
   // ];
 
   const pieData = [
-    { name: 'Total Payments', population: totalPayments, color: '#4CAF50', legendFontColor: '#333', legendFontSize: 14 },
-    { name: 'Total Expenses', population: totalExpenses, color: '#F44336', legendFontColor: '#333', legendFontSize: 14 },
+    { name: 'Total Payments', population: totalPayments, color: '#1E88E5', legendFontColor: '#333', legendFontSize: 14 },
+    { name: 'Total Expenses', population: totalExpenses, color: '#00D39B', legendFontColor: '#333', legendFontSize: 14 },
   ];
 
   const dashboardCards = [
@@ -103,7 +121,7 @@ export default function HomeScreen() {
         <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionHeader}>Financial Overview</Text>
             <TouchableOpacity onPress={() => Alert.alert("Reports", "Detailed financial reports are coming soon!")}>
-                <Ionicons name="stats-chart" size={18} color="#4f46e5" />
+              <Ionicons name="stats-chart" size={18} color="#4f46e5" />
             </TouchableOpacity>
         </View>
 
@@ -125,36 +143,36 @@ export default function HomeScreen() {
             <View style={styles.mainFinanceContent}>
                 {showContent && Platform.OS !== 'web' && (
                     <View style={styles.chartSide}>
-                        <PieChart
-                            data={pieData}
-                            width={screenWidth * 0.4}
-                            height={120}
-                            accessor="population"
-                            backgroundColor="transparent"
-                            paddingLeft="20"
-                            center={[0, 0]}
-                            absolute
-                            hasLegend={false}
-                            chartConfig={{
-                                color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
-                            }}
-                        />
+                      <PieChart
+                        data={pieData}
+                        width={screenWidth * 0.4}
+                        height={120}
+                        accessor="population"
+                        backgroundColor="transparent"
+                        paddingLeft="20"
+                        center={[0, 0]}
+                        absolute
+                        hasLegend={false}
+                        chartConfig={{
+                          color: (opacity = 1) => `rgba(30, 136, 229, ${opacity})`,
+                        }}
+                      />
                     </View>
                 )}
 
                 <View style={styles.statsSide}>
                     <View style={styles.financeStatBox}>
-                        <View style={[styles.statDot, { backgroundColor: '#10b981' }]} />
+                      <View style={[styles.statDot, { backgroundColor: '#1E88E5' }]} />
                         <View>
                             <Text style={styles.statMiniLabel}>Collection</Text>
-                            <Text style={[styles.statMiniValue, { color: '#10b981' }]}>+${totalPayments.toLocaleString()}</Text>
+                        <Text style={[styles.statMiniValue, { color: '#1E88E5' }]}>+${totalPayments.toLocaleString()}</Text>
                         </View>
                     </View>
                     <View style={styles.financeStatBox}>
-                        <View style={[styles.statDot, { backgroundColor: '#ef4444' }]} />
+                      <View style={[styles.statDot, { backgroundColor: '#00D39B' }]} />
                         <View>
                             <Text style={styles.statMiniLabel}>Expenses</Text>
-                            <Text style={[styles.statMiniValue, { color: '#ef4444' }]}>-${totalExpenses.toLocaleString()}</Text>
+                        <Text style={[styles.statMiniValue, { color: '#00D39B' }]}>-${totalExpenses.toLocaleString()}</Text>
                         </View>
                     </View>
                 </View>
@@ -225,6 +243,36 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      <View style={styles.sectionContainer}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionHeader}>Amenities Snapshot</Text>
+          <TouchableOpacity onPress={() => router.push('/amenities')}>
+            <Text style={styles.viewMoreText}>View All</Text>
+          </TouchableOpacity>
+        </View>
+
+        {loadingAmenities ? (
+          <ActivityIndicator size="small" color="#4f46e5" style={{ marginVertical: 12 }} />
+        ) : realAmenities.length > 0 ? (
+          realAmenities.slice(0, 3).map((amenity) => (
+            <View key={amenity._id} style={styles.amenityItem}>
+              <View style={styles.amenityIconWrap}>
+                <Ionicons name={amenity.type === 'PER_USER' ? 'sync-outline' : 'calendar-outline'} size={16} color="#4f46e5" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.amenityName}>{amenity.name}</Text>
+                <Text style={styles.amenityType}>{amenity.type === 'PER_USER' ? 'Recurring facility' : 'One-time event space'}</Text>
+              </View>
+              <Text style={styles.amenityPrice}>${amenity.base_price}</Text>
+            </View>
+          ))
+        ) : (
+          <View style={styles.emptyNotice}>
+            <Text style={styles.emptyNoticeText}>No amenities found for this society.</Text>
+          </View>
+        )}
+      </View>
+
       {/* Noticeboard Section */}
       <View style={[styles.sectionContainer, { marginBottom: 40 }]}>
         <View style={styles.noticeHeader}>
@@ -290,6 +338,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#4f46e5',
   },
+  amenityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#eef2ff',
+  },
+  amenityIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  amenityName: { fontSize: 14, fontWeight: '700', color: '#1e293b' },
+  amenityType: { fontSize: 11, color: '#64748b' },
+  amenityPrice: { fontSize: 14, fontWeight: '800', color: '#4f46e5' },
   financeDashboardCard: {
     backgroundColor: '#fff',
     borderRadius: 28,

@@ -119,6 +119,7 @@ export type TicketStatus = 'Pending' | 'In Progress' | 'Resolved' | 'Closed';
 export interface TicketData {
     subject: string;
     description: string;
+  imageUrl?: string;
     createdBy: string; // User ObjectId
     societyId: string; // Society ObjectId
 }
@@ -127,6 +128,7 @@ export interface TicketResponse {
     _id: string;
     subject: string;
     description: string;
+  imageUrl?: string | null;
     status: TicketStatus;
     createdBy: { _id: string; name: string; email: string; phone: string }; // Populated User
     societyId: string;

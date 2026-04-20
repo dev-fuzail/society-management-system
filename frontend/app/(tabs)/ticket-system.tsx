@@ -13,12 +13,15 @@ import {
     Platform,
     KeyboardAvoidingView,
     Pressable,
+    Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 
 // Import necessary services and types
 import { apiGetTickets, apiCreateTicket } from "@/services/TicketService";
+import { apiUploadFile } from "@/services/ChatService";
 import { apiGetUserSocieties } from "@/services/SocietyService";
 import { TicketResponse, TicketStatus, TicketData } from "@/services/types"; // Ensure these types are correctly defined
 import { getAuthData } from "@/hooks/helperHooks"; // Corrected import path
@@ -61,6 +64,7 @@ export default function TicketSystemScreen() {
     // Form State
     const [subject, setSubject] = useState('');
     const [description, setDescription] = useState('');
+    const [complaintImageUrl, setComplaintImageUrl] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const theme = CustomTheme;
@@ -117,6 +121,7 @@ export default function TicketSystemScreen() {
             const ticketData: TicketData = {
                 subject: subject.trim(),
                 description: description.trim(),
+                imageUrl: complaintImageUrl || undefined,
                 createdBy: user.id,
                 societyId: societyId!,
             };
@@ -126,10 +131,56 @@ export default function TicketSystemScreen() {
                 setIsModalVisible(false);
                 setSubject('');
                 setDescription('');
+                setComplaintImageUrl(null);
                 fetchTickets(societyId!);
             }
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const pickAndUploadImage = async (source: 'camera' | 'gallery') => {
+        try {
+            if (source === 'camera') {
+                const permission = await ImagePicker.requestCameraPermissionsAsync();
+                if (!permission.granted) {
+                    Alert.alert('Permission Required', 'Camera permission is needed to capture complaint image.');
+                    return;
+                }
+
+                const result = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    quality: 0.8,
+                });
+
+                if (result.canceled) return;
+                const asset = result.assets[0];
+                const uploaded = await apiUploadFile({
+                    uri: asset.uri,
+                    name: `complaint-${Date.now()}.${asset.uri.split('.').pop() || 'jpg'}`,
+                    mimeType: asset.mimeType || 'image/jpeg',
+                });
+                setComplaintImageUrl(uploaded);
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                quality: 0.8,
+            });
+
+            if (result.canceled) return;
+            const asset = result.assets[0];
+            const uploaded = await apiUploadFile({
+                uri: asset.uri,
+                name: `complaint-${Date.now()}.${asset.uri.split('.').pop() || 'jpg'}`,
+                mimeType: asset.mimeType || 'image/jpeg',
+            });
+            setComplaintImageUrl(uploaded);
+        } catch {
+            Alert.alert('Upload Failed', 'Could not upload image. Please try again.');
         }
     };
 
@@ -246,6 +297,28 @@ export default function TicketSystemScreen() {
                                     multiline
                                     numberOfLines={5}
                                 />
+
+                                <Text style={styles.label}>Attachment (Optional)</Text>
+                                <View style={styles.attachActionsRow}>
+                                    <TouchableOpacity style={styles.attachBtn} onPress={() => pickAndUploadImage('camera')}>
+                                        <Ionicons name="camera-outline" size={16} color="#4f46e5" />
+                                        <Text style={styles.attachBtnText}>Use Camera</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={styles.attachBtn} onPress={() => pickAndUploadImage('gallery')}>
+                                        <Ionicons name="images-outline" size={16} color="#4f46e5" />
+                                        <Text style={styles.attachBtnText}>Upload</Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                {complaintImageUrl ? (
+                                    <View style={styles.previewWrap}>
+                                        <Image source={{ uri: complaintImageUrl }} style={styles.previewImage} />
+                                        <TouchableOpacity style={styles.removeImageBtn} onPress={() => setComplaintImageUrl(null)}>
+                                            <Ionicons name="trash-outline" size={14} color="#dc2626" />
+                                            <Text style={styles.removeImageText}>Remove</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : null}
 
                                 <TouchableOpacity
                                     style={styles.submitButton}
@@ -431,6 +504,57 @@ const styles = StyleSheet.create({
     textArea: {
         height: 120,
         textAlignVertical: 'top',
+    },
+    attachActionsRow: {
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 14,
+    },
+    attachBtn: {
+        flex: 1,
+        backgroundColor: '#eef2ff',
+        borderWidth: 1,
+        borderColor: '#c7d2fe',
+        borderRadius: 12,
+        paddingVertical: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+        gap: 6,
+    },
+    attachBtnText: {
+        color: '#4338ca',
+        fontWeight: '700',
+        fontSize: 13,
+    },
+    previewWrap: {
+        backgroundColor: '#f8fafc',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        padding: 10,
+        marginBottom: 20,
+    },
+    previewImage: {
+        width: '100%',
+        height: 150,
+        borderRadius: 10,
+        marginBottom: 8,
+    },
+    removeImageBtn: {
+        alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 10,
+        backgroundColor: '#fff1f2',
+    },
+    removeImageText: {
+        color: '#dc2626',
+        fontWeight: '700',
+        fontSize: 12,
     },
     submitButton: {
         backgroundColor: '#4f46e5',

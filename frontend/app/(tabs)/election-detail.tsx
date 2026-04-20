@@ -1,22 +1,45 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ScrollView, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, KeyboardAvoidingView, Pressable, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from "@expo/vector-icons";
 import ElectionService, { ElectionDetails } from '@/services/ElectionService';
+import { getAuthData } from '@/hooks/helperHooks';
+import { apiGetSocietyUsers } from '@/services/SocietyService';
+import { UserData } from '@/services/types';
 
 export default function ElectionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [details, setDetails] = useState<ElectionDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(false);
+  const [userRole, setUserRole] = useState('resident');
+  const [societyUsers, setSocietyUsers] = useState<UserData[]>([]);
+  const [assignModalVisible, setAssignModalVisible] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [manifesto, setManifesto] = useState('');
+  const [assigning, setAssigning] = useState(false);
   const router = useRouter();
 
   const fetchDetails = useCallback(async () => {
     if (!id) return;
     try {
+      const { userData } = await getAuthData();
+      if (userData?.role) {
+        setUserRole(userData.role);
+      }
+
       const res = await ElectionService.getElectionDetails(id);
       if (res.success) {
         setDetails(res.result);
+
+        if (userData?.role === 'admin') {
+          const usersRes = await apiGetSocietyUsers(res.result.election.society_id);
+          if (usersRes.success) {
+            const combined = [...usersRes.result.members, ...usersRes.result.admins];
+            const deduped = Array.from(new Map(combined.map((u) => [u._id, u])).values());
+            setSocietyUsers(deduped.filter((u) => u.role !== 'admin'));
+          }
+        }
       }
     } catch (error) {
       console.error("Error fetching election details:", error);
@@ -24,6 +47,37 @@ export default function ElectionDetailScreen() {
       setLoading(false);
     }
   }, [id]);
+
+  const handleAssignCandidate = async () => {
+    if (!id) return;
+    if (!selectedUserId || !manifesto.trim()) {
+      Alert.alert('Validation', 'Please select a user and enter manifesto.');
+      return;
+    }
+
+    try {
+      setAssigning(true);
+      const res = await ElectionService.addCandidate({
+        election_id: id,
+        user_id: selectedUserId,
+        manifesto: manifesto.trim(),
+      });
+
+      if (res.success) {
+        Alert.alert('Success', 'Candidate assigned successfully.');
+        setAssignModalVisible(false);
+        setSelectedUserId('');
+        setManifesto('');
+        fetchDetails();
+      } else {
+        Alert.alert('Error', res.message || 'Failed to assign candidate.');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to assign candidate.');
+    } finally {
+      setAssigning(false);
+    }
+  };
 
   useEffect(() => {
     fetchDetails();
@@ -67,6 +121,8 @@ export default function ElectionDetailScreen() {
   if (!details) return <View style={styles.container}><Text>Election not found.</Text></View>;
 
   const { election, candidates } = details;
+  const existingCandidateIds = new Set(candidates.map((c) => c.user_id?._id));
+  const assignableUsers = societyUsers.filter((u) => !existingCandidateIds.has(u._id));
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: '#f8fafc' }]} showsVerticalScrollIndicator={false}>
@@ -88,6 +144,13 @@ export default function ElectionDetailScreen() {
           <Ionicons name="time-outline" size={16} color="#64748b" />
           <Text style={styles.dateText}>Ends on {new Date(election.end_date).toLocaleDateString()}</Text>
         </View>
+
+        {userRole === 'admin' && (
+          <TouchableOpacity style={styles.assignBtn} onPress={() => setAssignModalVisible(true)}>
+            <Ionicons name="person-add-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+            <Text style={styles.assignBtnText}>Assign Candidate</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <Text style={styles.sectionTitle}>Candidates</Text>
@@ -129,6 +192,65 @@ export default function ElectionDetailScreen() {
             </View>
         )}
       </View>
+
+      <Modal visible={assignModalVisible} transparent animationType="slide">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={24}
+          style={{ flex: 1 }}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setAssignModalVisible(false)}>
+            <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Assign Candidate</Text>
+                <TouchableOpacity onPress={() => setAssignModalVisible(false)}>
+                  <Ionicons name="close" size={24} color="#1e293b" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <Text style={styles.modalLabel}>Select User</Text>
+                <ScrollView style={styles.userList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                  {assignableUsers.length > 0 ? (
+                    assignableUsers.map((user) => (
+                      <TouchableOpacity
+                        key={user._id}
+                        style={[styles.userRow, selectedUserId === user._id && styles.userRowActive]}
+                        onPress={() => setSelectedUserId(user._id)}
+                      >
+                        <View style={styles.userAvatar}><Text style={styles.userAvatarText}>{user.name.charAt(0).toUpperCase()}</Text></View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.userRowText, selectedUserId === user._id && styles.userRowTextActive]}>{user.name}</Text>
+                          <Text style={styles.userRowSubText}>{user.email}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <Text style={styles.emptyAssignText}>All eligible users are already assigned as candidates.</Text>
+                  )}
+                </ScrollView>
+
+                <Text style={styles.modalLabel}>Manifesto</Text>
+                <TextInput
+                  style={styles.manifestoInput}
+                  multiline
+                  placeholder="Add candidate manifesto"
+                  value={manifesto}
+                  onChangeText={setManifesto}
+                />
+
+                <TouchableOpacity
+                  style={[styles.assignSubmitBtn, (assigning || assignableUsers.length === 0) && { opacity: 0.6 }]}
+                  onPress={handleAssignCandidate}
+                  disabled={assigning || assignableUsers.length === 0}
+                >
+                  <Text style={styles.assignSubmitText}>{assigning ? 'Assigning...' : 'Assign Candidate'}</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
     </ScrollView>
   );
 }
@@ -150,6 +272,16 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dateText: { color: '#64748b', fontSize: 14, fontWeight: '500' },
+  assignBtn: {
+    marginTop: 16,
+    backgroundColor: '#4f46e5',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row'
+  },
+  assignBtnText: { color: '#fff', fontWeight: '700' },
 
   sectionTitle: { fontSize: 18, fontWeight: '800', color: '#1e293b', marginBottom: 16, marginLeft: 4 },
   candidateList: { gap: 16, paddingBottom: 40 },
@@ -174,6 +306,25 @@ const styles = StyleSheet.create({
     shadowColor: '#4f46e5', shadowOpacity: 0.2, shadowRadius: 10, elevation: 4
   },
   voteButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
+  modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: '90%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#1e293b' },
+  modalScrollContent: { paddingBottom: 24 },
+  modalLabel: { fontSize: 13, fontWeight: '700', color: '#64748b', marginBottom: 8 },
+  userList: { maxHeight: 220, marginBottom: 14 },
+  userRow: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: '#f8fafc', marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  userRowActive: { backgroundColor: '#eef2ff', borderWidth: 1, borderColor: '#4f46e5' },
+  userRowText: { color: '#1e293b', fontWeight: '600' },
+  userRowSubText: { color: '#64748b', fontSize: 12, marginTop: 2 },
+  userRowTextActive: { color: '#4f46e5' },
+  userAvatar: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#4f46e5', justifyContent: 'center', alignItems: 'center' },
+  userAvatarText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  emptyAssignText: { color: '#94a3b8', fontSize: 13, marginBottom: 8 },
+  manifestoInput: { minHeight: 96, backgroundColor: '#f8fafc', borderRadius: 12, padding: 12, textAlignVertical: 'top', borderWidth: 1, borderColor: '#e2e8f0' },
+  assignSubmitBtn: { marginTop: 14, backgroundColor: '#4f46e5', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  assignSubmitText: { color: '#fff', fontWeight: '700' },
   
   emptyCandidates: { alignItems: 'center', marginTop: 40, backgroundColor: '#fff', padding: 40, borderRadius: 24, borderStyle: 'dashed', borderWidth: 1, borderColor: '#cbd5e1' },
   noCandidates: { textAlign: 'center', marginTop: 12, color: '#94a3b8', fontWeight: '500' }

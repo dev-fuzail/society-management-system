@@ -13,6 +13,13 @@ export const API_BASE = isWeb
 class ApiService {
   private axiosInstance: AxiosInstance;
 
+  private async getStoredToken(): Promise<string | null> {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem('authToken');
+    }
+    return AsyncStorage.getItem('authToken');
+  }
+
   private normalizeUrl(url: string): string {
     // Keep absolute URLs untouched.
     if (/^https?:\/\//i.test(url)) return url;
@@ -40,13 +47,7 @@ class ApiService {
     //   return config;
     // });
     this.axiosInstance.interceptors.request.use(async (config) => {
-      let token: string | null = null;
-
-      if (Platform.OS === "web") {
-        token = localStorage.getItem("authToken");
-      } else {
-        token = await AsyncStorage.getItem("authToken");
-      }
+      const token = await this.getStoredToken();
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -71,7 +72,12 @@ class ApiService {
 
 
   public async clearToken(): Promise<void> {
-    await AsyncStorage.removeItem('authToken');
+    if (Platform.OS === 'web') {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+    } else {
+      await AsyncStorage.multiRemove(['authToken', 'userData', 'token']);
+    }
     delete this.axiosInstance.defaults.headers.common['Authorization'];
   }
 
@@ -112,8 +118,26 @@ class ApiService {
       });
       return response.data;
     } catch (error: any) {
-      console.log('API ERROR:', error?.response?.data || error?.message || error);
-      throw error.response?.data || {
+      const statusCode = error?.response?.status;
+      const responseData = error?.response?.data;
+
+      if (statusCode === 401) {
+        await this.clearToken();
+        throw {
+          success: false,
+          statusCode,
+          isAuthError: true,
+          message: 'Your session has expired. Please log in again.',
+          result: null,
+        };
+      }
+
+      if (responseData) {
+        throw responseData;
+      }
+
+      console.log('API ERROR:', error?.message || error);
+      throw {
         status: false,
         message: 'An unknown error occurred',
         result: null,

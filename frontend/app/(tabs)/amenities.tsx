@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { getAuthData } from '@/hooks/helperHooks';
 import AmenityService, { Amenity } from '@/services/AmenityService';
 import { apiGetUserSocieties } from '@/services/SocietyService';
+import CalendarModal from '@/components/CalendarModal';
 
 export default function AmenitiesScreen() {
   const [amenities, setAmenities] = useState<Amenity[]>([]);
@@ -15,7 +16,16 @@ export default function AmenitiesScreen() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [selectedAmenity, setSelectedAmenity] = useState<Amenity | null>(null);
   const [guestCount, setGuestCount] = useState('1');
-  const [bookingHours, setBookingHours] = useState('1');
+  const [bookingStartDate, setBookingStartDate] = useState<Date>(new Date());
+  const [bookingEndDate, setBookingEndDate] = useState<Date>(() => {
+    const nextHour = new Date();
+    nextHour.setHours(nextHour.getHours() + 1);
+    return nextHour;
+  });
+  const [showStartCalendar, setShowStartCalendar] = useState(false);
+  const [showEndCalendar, setShowEndCalendar] = useState(false);
+  const [startTimeText, setStartTimeText] = useState('09:00');
+  const [endTimeText, setEndTimeText] = useState('10:00');
   const [totalPrice, setTotalPrice] = useState(0);
   const [newAmenityName, setNewAmenityName] = useState('');
   const [newAmenityType, setNewAmenityType] = useState<'PER_USER' | 'FLAT_EVENT'>('PER_USER');
@@ -23,9 +33,49 @@ export default function AmenitiesScreen() {
   const [newCapacity, setNewCapacity] = useState('');
   const router = useRouter();
 
+  const formatDateTime = (date: Date) => {
+    const y = date.getFullYear();
+    const m = `${date.getMonth() + 1}`.padStart(2, '0');
+    const d = `${date.getDate()}`.padStart(2, '0');
+    const h = `${date.getHours()}`.padStart(2, '0');
+    const mm = `${date.getMinutes()}`.padStart(2, '0');
+    return `${y}-${m}-${d} ${h}:${mm}`;
+  };
+
+  const formatTime = (date: Date) => `${`${date.getHours()}`.padStart(2, '0')}:${`${date.getMinutes()}`.padStart(2, '0')}`;
+
+  const applyTimeToDate = (baseDate: Date, timeText: string) => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(timeText.trim());
+    if (!m) return null;
+    const hh = Number(m[1]);
+    const mm = Number(m[2]);
+    if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+    const updated = new Date(baseDate);
+    updated.setHours(hh, mm, 0, 0);
+    return updated;
+  };
+
+  const handleApiError = (error: any, fallbackMessage: string) => {
+    if (error?.isAuthError || error?.statusCode === 401) {
+      Alert.alert('Session Expired', 'Please log in again.', [
+        { text: 'OK', onPress: () => router.replace('/login') },
+      ]);
+      return;
+    }
+
+    Alert.alert('Error', error?.message || fallbackMessage);
+  };
+
   const fetchAmenities = async () => {
     try {
       const { userData } = await getAuthData();
+      if (!userData?.id) {
+        Alert.alert('Session Expired', 'Please log in again.', [
+          { text: 'OK', onPress: () => router.replace('/login') },
+        ]);
+        return;
+      }
+
       setUserRole(userData?.role || 'resident');
       const res = await apiGetUserSocieties(userData.id);
       if (res.success && res.result.length > 0) {
@@ -36,8 +86,8 @@ export default function AmenitiesScreen() {
           setAmenities(amenityRes.result);
         }
       }
-    } catch (error) {
-      console.error("Error fetching amenities:", error);
+    } catch (error: any) {
+      handleApiError(error, 'Failed to load amenities.');
     } finally {
       setLoading(false);
     }
@@ -71,7 +121,7 @@ export default function AmenitiesScreen() {
         fetchAmenities();
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to create amenity.');
+      handleApiError(error, 'Failed to create amenity.');
     }
   };
 
@@ -80,32 +130,47 @@ export default function AmenitiesScreen() {
       if (selectedAmenity.type === 'PER_USER') {
         setTotalPrice(selectedAmenity.base_price * (parseInt(guestCount) || 1));
       } else {
-        setTotalPrice(selectedAmenity.base_price * (parseInt(bookingHours) || 1));
+        setTotalPrice(selectedAmenity.base_price);
       }
     }
-  }, [guestCount, bookingHours, selectedAmenity]);
+  }, [guestCount, selectedAmenity]);
 
   const handleBookPress = (amenity: Amenity) => {
     setSelectedAmenity(amenity);
+    const start = new Date();
+    const end = new Date();
+    end.setHours(end.getHours() + 1);
+    setBookingStartDate(start);
+    setBookingEndDate(end);
+    setStartTimeText(formatTime(start));
+    setEndTimeText(formatTime(end));
+    setShowStartCalendar(false);
+    setShowEndCalendar(false);
     setBookingModalVisible(true);
   };
 
   const submitBooking = async () => {
     if (!selectedAmenity) return;
-    try {
-      const startTime = new Date();
-      const endTime = new Date();
-      if (selectedAmenity.type === 'FLAT_EVENT') {
-        endTime.setHours(startTime.getHours() + (parseInt(bookingHours) || 1));
-      } else {
-        endTime.setHours(startTime.getHours() + 1); // Default 1 hour for per-user
-      }
 
+    const startAt = applyTimeToDate(bookingStartDate, startTimeText);
+    const endAt = applyTimeToDate(bookingEndDate, endTimeText);
+
+    if (!startAt || !endAt) {
+      Alert.alert('Validation', 'Please enter time in HH:mm format.');
+      return;
+    }
+
+    if (endAt <= startAt) {
+      Alert.alert('Validation', 'End date/time must be after start date/time.');
+      return;
+    }
+
+    try {
       const res = await AmenityService.bookAmenity({
         amenity_id: selectedAmenity._id,
         society_id: societyId,
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
+        start_time: startAt.toISOString(),
+        end_time: endAt.toISOString(),
         guest_count: parseInt(guestCount) || 1
       });
 
@@ -115,7 +180,7 @@ export default function AmenitiesScreen() {
         router.push('/amenity-bookings');
       }
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to book.");
+      handleApiError(error, 'Failed to submit booking.');
     }
   };
 
@@ -128,7 +193,7 @@ export default function AmenitiesScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{item.name}</Text>
           <View style={styles.typeBadge}>
-            <Text style={styles.typeText}>{item.type === 'PER_USER' ? 'Per Person' : 'Flat Event Rate'}</Text>
+            <Text style={styles.typeText}>{item.type === 'PER_USER' ? 'Recurring Facility (Gym/Pool)' : 'One-Time Event (Hall)'}</Text>
           </View>
         </View>
         <View style={styles.priceBox}>
@@ -182,6 +247,7 @@ export default function AmenitiesScreen() {
       <Modal visible={bookingModalVisible} transparent animationType="slide">
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={24}
             style={{ flex: 1 }}
         >
             <Pressable style={styles.modalOverlay} onPress={() => setBookingModalVisible(false)}>
@@ -192,41 +258,81 @@ export default function AmenitiesScreen() {
                             <Ionicons name="close" size={24} color="#1e293b" />
                         </TouchableOpacity>
                     </View>
-                    
-                    {selectedAmenity?.type === 'PER_USER' ? (
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Number of Guests</Text>
-                        <TextInput
-                        style={styles.modalInput}
-                        keyboardType="numeric"
-                        value={guestCount}
-                        onChangeText={setGuestCount}
-                        />
-                    </View>
-                    ) : (
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Booking Duration (Hours)</Text>
-                        <TextInput
-                        style={styles.modalInput}
-                        keyboardType="numeric"
-                        value={bookingHours}
-                        onChangeText={setBookingHours}
-                        />
-                    </View>
-                    )}
 
-                    <View style={styles.priceBreakdown}>
-                    <Text style={styles.priceBreakdownLabel}>Total Estimated Price</Text>
-                    <Text style={styles.priceBreakdownValue}>${totalPrice}</Text>
-                    </View>
+                    <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                      {selectedAmenity?.type === 'PER_USER' && (
+                        <View style={styles.inputGroup}>
+                          <Text style={styles.label}>Number of Guests</Text>
+                          <TextInput
+                            style={styles.modalInput}
+                            keyboardType="numeric"
+                            value={guestCount}
+                            onChangeText={setGuestCount}
+                          />
+                        </View>
+                      )}
 
-                    <TouchableOpacity style={styles.submitBtn} onPress={submitBooking}>
+                      <Text style={styles.label}>Start Date & Time</Text>
+                      <View style={styles.dateTimeRow}>
+                        <TouchableOpacity style={[styles.modalInput, styles.dateTimeInput]} activeOpacity={0.8} onPress={() => setShowStartCalendar(true)}>
+                          <Text style={styles.dateValue}>{bookingStartDate.toLocaleDateString()}</Text>
+                        </TouchableOpacity>
+                        <TextInput
+                          style={[styles.modalInput, styles.dateTimeInput]}
+                          value={startTimeText}
+                          onChangeText={setStartTimeText}
+                          placeholder="HH:mm"
+                        />
+                      </View>
+
+                      <Text style={styles.label}>End Date & Time</Text>
+                      <View style={styles.dateTimeRow}>
+                        <TouchableOpacity style={[styles.modalInput, styles.dateTimeInput]} activeOpacity={0.8} onPress={() => setShowEndCalendar(true)}>
+                          <Text style={styles.dateValue}>{bookingEndDate.toLocaleDateString()}</Text>
+                        </TouchableOpacity>
+                        <TextInput
+                          style={[styles.modalInput, styles.dateTimeInput]}
+                          value={endTimeText}
+                          onChangeText={setEndTimeText}
+                          placeholder="HH:mm"
+                        />
+                      </View>
+
+                      <View style={styles.priceBreakdown}>
+                        <Text style={styles.priceBreakdownLabel}>Total Estimated Price</Text>
+                        <Text style={styles.priceBreakdownValue}>${totalPrice}</Text>
+                        <Text style={styles.bookingHint}>
+                          {selectedAmenity?.type === 'PER_USER'
+                            ? 'Recurring facilities can be booked in repeated slots.'
+                            : 'Event halls are treated as one-time (non-recurring) bookings.'}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity style={styles.submitBtn} onPress={submitBooking}>
                         <Text style={styles.submitBtnText}>Confirm Booking</Text>
-                    </TouchableOpacity>
+                      </TouchableOpacity>
+                    </ScrollView>
                 </View>
             </Pressable>
         </KeyboardAvoidingView>
       </Modal>
+
+      <CalendarModal
+        visible={showStartCalendar}
+        title="Select Start Date"
+        initialDate={bookingStartDate}
+        onClose={() => setShowStartCalendar(false)}
+        onSelect={(date) => setBookingStartDate(date)}
+      />
+
+      <CalendarModal
+        visible={showEndCalendar}
+        title="Select End Date"
+        initialDate={bookingEndDate}
+        minDate={bookingStartDate}
+        onClose={() => setShowEndCalendar(false)}
+        onSelect={(date) => setBookingEndDate(date)}
+      />
 
       {/* Create Amenity Modal */}
       <Modal visible={createModalVisible} transparent animationType="slide">
@@ -346,14 +452,19 @@ const styles = StyleSheet.create({
   modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '85%', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { fontSize: 20, fontWeight: '800', color: '#1e293b' },
+  modalScrollContent: { paddingBottom: 24 },
   
   inputGroup: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: '700', color: '#475569', marginBottom: 8, marginLeft: 4 },
   modalInput: { backgroundColor: '#f8fafc', borderRadius: 14, padding: 16, fontSize: 16, color: '#1e293b', marginBottom: 20, borderWidth: 1, borderColor: '#e2e8f0' },
+  dateValue: { color: '#1e293b', fontSize: 16 },
+  dateTimeRow: { flexDirection: 'row', gap: 12, marginBottom: 6 },
+  dateTimeInput: { flex: 1 },
   
   priceBreakdown: { backgroundColor: '#f8fafc', padding: 20, borderRadius: 16, marginBottom: 24, borderWidth: 1, borderColor: '#e2e8f0', borderStyle: 'dashed' },
   priceBreakdownLabel: { fontSize: 12, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: 4 },
   priceBreakdownValue: { fontSize: 24, fontWeight: '800', color: '#1e293b' },
+  bookingHint: { marginTop: 8, fontSize: 12, color: '#64748b' },
   
   submitBtn: { backgroundColor: '#4f46e5', padding: 18, borderRadius: 16, alignItems: 'center', marginTop: 10, shadowColor: '#4f46e5', shadowOpacity: 0.2, shadowRadius: 10, elevation: 4 },
   submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },

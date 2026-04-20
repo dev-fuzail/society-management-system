@@ -12,6 +12,7 @@ import authMiddleware from '../middleware/authMiddleware.js';
 import { updateUserRole } from '../controllers/electionController.js';
 import {
 	addServiceProvider,
+	updateServiceProvider,
 	getServiceProviders,
 	bookServiceProvider,
 	updateBookingStatus,
@@ -35,6 +36,7 @@ router.patch('/users/roles', authMiddleware, updateUserRole);
 // Contract aliases from tasks.md
 router.post('/providers', authMiddleware, addServiceProvider);
 router.get('/providers', authMiddleware, getServiceProviders);
+router.patch('/providers/:id', authMiddleware, updateServiceProvider);
 router.get('/providers/:id/reviews', authMiddleware, getProviderReviews);
 router.post('/providers/:id/reviews', authMiddleware, addReview);
 router.post('/bookings', authMiddleware, bookServiceProvider);

@@ -6,6 +6,7 @@ const ticketSchema = new mongoose.Schema({
     // Ticket identification and content
     subject: { type: String, required: true, trim: true },
     description: { type: String, required: true },
+    imageUrl: { type: String, default: null },
     
     // Status (used for FCFS queue management)
     status: {

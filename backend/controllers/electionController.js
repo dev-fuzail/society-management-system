@@ -43,10 +43,28 @@ export const addCandidate = async (req, res) => {
   try {
     if (!requireRole(req, res, ["admin"])) return;
     const { election_id, user_id, manifesto } = req.body;
+
+    const election = await Election.findById(election_id);
+    if (!election) {
+      return res.status(404).json({ success: false, message: "Election not found" });
+    }
+
+    const user = await User.findById(user_id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    if (!user.society_id || user.society_id.toString() !== election.society_id.toString()) {
+      return res.status(400).json({ success: false, message: "Candidate must belong to the same society as the election." });
+    }
+
     const candidate = new Candidate({ election_id, user_id, manifesto });
     await candidate.save();
     res.status(201).json({ success: true, message: "Candidate added successfully", result: candidate });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: "This user is already assigned as a candidate for this election." });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };

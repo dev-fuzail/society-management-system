@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from 'expo-router';
 import { UpdateUser } from '@/services/types';
 import { apiToggle2FA, apiUpdateProfile } from '@/services/AuthService';
+import { clearAuthData } from '@/hooks/helperHooks';
 
 export default function ProfileScreen() {
+    const router = useRouter();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
@@ -92,14 +95,8 @@ export default function ProfileScreen() {
                 text: 'Logout',
                 style: 'destructive',
                 onPress: async () => {
-                    if (Platform.OS === 'web') {
-                        localStorage.removeItem('authToken');
-                        localStorage.removeItem('userData');
-                    } else {
-                        await AsyncStorage.removeItem('authToken');
-                        await AsyncStorage.removeItem('userData');
-                    }
-                    // router.replace('/login'); // Note: Navigation will be handled by RootLayout state
+                    await clearAuthData();
+                    router.replace('/login');
                 },
             },
         ]);

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, Modal, TextInput } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, Modal, TextInput, KeyboardAvoidingView, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from "@expo/vector-icons";
 import { getAuthData } from '@/hooks/helperHooks';
 import ElectionService, { Election } from '@/services/ElectionService';
 import { apiGetUserSocieties } from '@/services/SocietyService';
+import CalendarModal from '@/components/CalendarModal';
 
 export default function ElectionsScreen() {
   const [elections, setElections] = useState<Election[]>([]);
@@ -13,9 +14,19 @@ export default function ElectionsScreen() {
   const [societyId, setSocietyId] = useState('');
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newStartDate, setNewStartDate] = useState('');
-  const [newEndDate, setNewEndDate] = useState('');
+  const [newStartDate, setNewStartDate] = useState<Date | null>(null);
+  const [newEndDate, setNewEndDate] = useState<Date | null>(null);
+  const [showStartCalendar, setShowStartCalendar] = useState(false);
+  const [showEndCalendar, setShowEndCalendar] = useState(false);
   const router = useRouter();
+
+  const formatDate = (date: Date | null) => {
+    if (!date) return 'YYYY-MM-DD';
+    const y = date.getFullYear();
+    const m = `${date.getMonth() + 1}`.padStart(2, '0');
+    const d = `${date.getDate()}`.padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
 
   const fetchElections = async () => {
     try {
@@ -43,32 +54,35 @@ export default function ElectionsScreen() {
   }, []);
 
   const createElection = async () => {
-    if (!newTitle.trim() || !newStartDate.trim() || !newEndDate.trim()) {
+    if (!newTitle.trim() || !newStartDate || !newEndDate) {
       Alert.alert('Validation', 'Title, start date, and end date are required.');
       return;
     }
 
     try {
-      const startIso = new Date(`${newStartDate}T00:00:00`).toISOString();
-      const endIso = new Date(`${newEndDate}T23:59:59`).toISOString();
+      const startAt = new Date(newStartDate);
+      startAt.setHours(0, 0, 0, 0);
 
-      if (new Date(endIso) <= new Date(startIso)) {
+      const endAt = new Date(newEndDate);
+      endAt.setHours(23, 59, 59, 999);
+
+      if (endAt <= startAt) {
         Alert.alert('Validation', 'End date must be after start date.');
         return;
       }
 
       const res = await ElectionService.createElection({
         title: newTitle.trim(),
-        start_date: startIso,
-        end_date: endIso,
+        start_date: startAt.toISOString(),
+        end_date: endAt.toISOString(),
         society_id: societyId,
       });
 
       if (res.success) {
         setCreateModalVisible(false);
         setNewTitle('');
-        setNewStartDate('');
-        setNewEndDate('');
+        setNewStartDate(null);
+        setNewEndDate(null);
         fetchElections();
       }
     } catch (error: any) {
@@ -150,7 +164,8 @@ export default function ElectionsScreen() {
       <Modal visible={createModalVisible} transparent animationType="slide">
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1 }}
+          keyboardVerticalOffset={24}
+          style={{ flex: 1 }}
         >
             <Pressable style={styles.modalOverlay} onPress={() => setCreateModalVisible(false)}>
                 <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
@@ -161,7 +176,7 @@ export default function ElectionsScreen() {
                         </TouchableOpacity>
                     </View>
                     
-                    <ScrollView contentContainerStyle={{ paddingBottom: 20 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                    <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                         <Text style={styles.label}>Title</Text>
                         <TextInput
                             style={styles.input}
@@ -170,21 +185,13 @@ export default function ElectionsScreen() {
                             placeholder="e.g. Society President 2026"
                         />
                         <Text style={styles.label}>Start Date</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={newStartDate}
-                            onChangeText={setNewStartDate}
-                            placeholder="YYYY-MM-DD"
-                            autoCapitalize="none"
-                        />
+                        <TouchableOpacity style={styles.input} activeOpacity={0.8} onPress={() => setShowStartCalendar(true)}>
+                          <Text style={[styles.dateValue, !newStartDate && styles.datePlaceholder]}>{formatDate(newStartDate)}</Text>
+                        </TouchableOpacity>
                         <Text style={styles.label}>End Date</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={newEndDate}
-                            onChangeText={setNewEndDate}
-                            placeholder="YYYY-MM-DD"
-                            autoCapitalize="none"
-                        />
+                        <TouchableOpacity style={styles.input} activeOpacity={0.8} onPress={() => setShowEndCalendar(true)}>
+                          <Text style={[styles.dateValue, !newEndDate && styles.datePlaceholder]}>{formatDate(newEndDate)}</Text>
+                        </TouchableOpacity>
 
                         <TouchableOpacity style={styles.saveButton} onPress={createElection}>
                             <Text style={styles.saveButtonText}>Launch Election</Text>
@@ -194,6 +201,23 @@ export default function ElectionsScreen() {
             </Pressable>
         </KeyboardAvoidingView>
       </Modal>
+
+      <CalendarModal
+        visible={showStartCalendar}
+        title="Select Start Date"
+        initialDate={newStartDate || new Date()}
+        onClose={() => setShowStartCalendar(false)}
+        onSelect={(date) => setNewStartDate(date)}
+      />
+
+      <CalendarModal
+        visible={showEndCalendar}
+        title="Select End Date"
+        initialDate={newEndDate || new Date()}
+        minDate={newStartDate || undefined}
+        onClose={() => setShowEndCalendar(false)}
+        onSelect={(date) => setNewEndDate(date)}
+      />
     </View>
   );
 }
@@ -268,6 +292,7 @@ const styles = StyleSheet.create({
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { fontSize: 20, fontWeight: '800', color: '#1e293b' },
+  modalScrollContent: { paddingBottom: 28 },
   label: { fontSize: 14, fontWeight: '700', color: '#475569', marginBottom: 8, marginLeft: 4 },
   input: {
     backgroundColor: '#f8fafc',
@@ -279,6 +304,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
+  dateValue: { color: '#1e293b', fontSize: 16 },
+  datePlaceholder: { color: '#94a3b8' },
   saveButton: { 
     backgroundColor: '#4f46e5', 
     padding: 18, 

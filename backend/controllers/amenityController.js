@@ -37,9 +37,13 @@ export const getAmenities = async (req, res) => {
 // Book an amenity (Resident)
 export const bookAmenity = async (req, res) => {
   try {
-    if (!requireRole(req, res, ["resident"])) return;
+    if (!requireRole(req, res, ["resident", "admin"])) return;
     const { amenity_id, society_id, start_time, end_time, guest_count } = req.body;
     const user_id = req.user.id;
+
+    if (!start_time || !end_time || new Date(end_time) <= new Date(start_time)) {
+      return res.status(400).json({ success: false, message: "End time must be after start time." });
+    }
 
     // 1. Fetch Amenity Details
     const amenity = await Amenity.findById(amenity_id);
@@ -63,8 +67,8 @@ export const bookAmenity = async (req, res) => {
     if (amenity.type === 'PER_USER') {
       calculated_price = amenity.base_price * (guest_count || 1);
     } else if (amenity.type === 'FLAT_EVENT') {
-      const durationHours = (new Date(end_time).getTime() - new Date(start_time).getTime()) / (1000 * 60 * 60);
-      calculated_price = amenity.base_price * Math.ceil(durationHours);
+      // Event halls are treated as one-time bookings (non-recurring flat fee).
+      calculated_price = amenity.base_price;
     }
 
     const booking = new AmenityBooking({

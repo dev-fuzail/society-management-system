@@ -24,6 +24,34 @@ export const addServiceProvider = async (req, res) => {
   }
 };
 
+// Update service provider (Admin only)
+export const updateServiceProvider = async (req, res) => {
+  try {
+    if (!requireRole(req, res, ["admin"])) return;
+
+    const { id } = req.params;
+    const { name, category, contact } = req.body;
+
+    const provider = await ServiceProvider.findById(id);
+    if (!provider) {
+      return res.status(404).json({ success: false, message: "Service provider not found" });
+    }
+
+    if (name !== undefined) provider.name = name;
+    if (category !== undefined) provider.category = category;
+    if (contact !== undefined) provider.contact = contact;
+
+    await provider.save();
+    return res.status(200).json({
+      success: true,
+      message: "Service provider updated successfully",
+      result: provider,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // Get all service providers for a society
 export const getServiceProviders = async (req, res) => {
   try {
@@ -38,7 +66,7 @@ export const getServiceProviders = async (req, res) => {
 // Book a service provider (Resident)
 export const bookServiceProvider = async (req, res) => {
   try {
-    if (!requireRole(req, res, ["resident"])) return;
+    if (!requireRole(req, res, ["resident", "admin"])) return;
     const { provider_id, date, society_id } = req.body;
     const user_id = req.user.id;
 
@@ -54,12 +82,20 @@ export const bookServiceProvider = async (req, res) => {
 // Update booking status (Admin/Provider)
 export const updateBookingStatus = async (req, res) => {
   try {
-    if (!requireRole(req, res, ["admin", "service_provider"])) return;
+    if (!requireRole(req, res, ["admin", "service_provider", "resident"])) return;
     const { id } = req.params;
     const { status } = req.body; // PENDING, COMPLETED, CANCELLED
 
-    const booking = await ServiceBooking.findByIdAndUpdate(id, { status }, { new: true });
+    const booking = await ServiceBooking.findById(id);
     if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+
+    // Residents can only update their own bookings.
+    if (req.user.role === "resident" && booking.user_id.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ success: false, message: "Access denied" });
+    }
+
+    booking.status = status;
+    await booking.save();
 
     res.status(200).json({ success: true, message: `Booking marked as ${status}`, result: booking });
   } catch (error) {
@@ -83,7 +119,7 @@ export const getUserBookings = async (req, res) => {
 // Add review (Resident)
 export const addReview = async (req, res) => {
   try {
-    if (!requireRole(req, res, ["resident"])) return;
+    if (!requireRole(req, res, ["resident", "admin"])) return;
     const { id: provider_id } = req.params;
     const { rating, comment } = req.body;
     const user_id = req.user.id;

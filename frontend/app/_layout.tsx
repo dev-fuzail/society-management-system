@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,21 +7,25 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import CustomSplash from "../components/SplashScreen";
 import * as SplashScreen from "expo-splash-screen";
+import { Platform } from 'react-native';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const pathname = usePathname();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [isSplashVisible, setSplashVisible] = useState(true);
 
   useEffect(() => {
     const checkToken = async () => {
-      const token = await AsyncStorage.getItem('token');
+      const token = Platform.OS === 'web'
+        ? localStorage.getItem('authToken')
+        : await AsyncStorage.getItem('authToken');
       setIsLoggedIn(!!token);
     };
     checkToken();
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     const timer = setTimeout(async () => {

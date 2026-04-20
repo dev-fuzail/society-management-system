@@ -147,6 +147,40 @@ export default function TabLayout() {
                 Manage Announcements
               </Text>
             </TouchableOpacity>
+
+            <View style={[styles.separator, { backgroundColor: theme.icon }]} />
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuNavigate("/amenity-approvals")}
+            >
+              <Ionicons
+                name="checkmark-done-outline"
+                size={20}
+                color={theme.text}
+                style={styles.menuIcon}
+              />
+              <Text style={[styles.menuText, { color: theme.text }]}> 
+                Amenity Approvals
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.separator, { backgroundColor: theme.icon }]} />
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuNavigate("/ticket-system")}
+            >
+              <Ionicons
+                name="clipboard-outline"
+                size={20}
+                color={theme.text}
+                style={styles.menuIcon}
+              />
+              <Text style={[styles.menuText, { color: theme.text }]}> 
+                Complaint Status
+              </Text>
+            </TouchableOpacity>
           </View>
         </Pressable>
       </Modal>
@@ -340,6 +374,13 @@ export default function TabLayout() {
           name="amenity-bookings"
           options={{
             title: "Amenity Bookings",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="amenity-approvals"
+          options={{
+            title: "Amenity Approvals",
             href: null,
           }}
         />
