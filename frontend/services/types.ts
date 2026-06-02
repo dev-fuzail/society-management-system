@@ -80,6 +80,32 @@ export interface Society {
   total_apartments: number,
   members: UserData[],
   admins: UserData[],
+  maintenance_config?: MaintenanceConfig,
+}
+
+export interface MaintenanceConfig {
+  amount: number;
+  currency: string;
+  due_day: number;
+  grace_period_days: number;
+  late_payment_charge: number;
+  effective_date?: string;
+}
+
+export interface MaintenanceConfigAudit {
+  _id: string;
+  society_id: string;
+  admin_id: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  previous_amount: number;
+  updated_amount: number;
+  previous_config?: MaintenanceConfig;
+  updated_config: MaintenanceConfig;
+  changed_at: string;
+  created_at: string;
 }
 
 export interface MessageResponse {

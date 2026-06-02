@@ -1,5 +1,76 @@
 import Society from "../models/Society.js";
 import User from "../models/User.js";
+import MaintenanceConfigAudit from "../models/MaintenanceConfigAudit.js";
+
+const normalizeMaintenanceConfig = (config = {}) => {
+  const amount = Number(config.amount);
+  const dueDay = Number(config.due_day);
+  const gracePeriodDays = Number(config.grace_period_days || 0);
+  const latePaymentCharge = Number(config.late_payment_charge || 0);
+  const currency = String(config.currency || "PKR").trim().toUpperCase();
+  const effectiveDate = config.effective_date ? new Date(config.effective_date) : new Date();
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error("Maintenance amount must be a valid non-negative number.");
+  }
+
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    throw new Error("Currency must be a valid 3-letter code.");
+  }
+
+  if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
+    throw new Error("Due day must be a number between 1 and 31.");
+  }
+
+  if (!Number.isInteger(gracePeriodDays) || gracePeriodDays < 0) {
+    throw new Error("Grace period must be a non-negative whole number.");
+  }
+
+  if (!Number.isFinite(latePaymentCharge) || latePaymentCharge < 0) {
+    throw new Error("Late payment charge must be a valid non-negative number.");
+  }
+
+  if (Number.isNaN(effectiveDate.getTime())) {
+    throw new Error("Effective date must be a valid date.");
+  }
+
+  return {
+    amount,
+    currency,
+    due_day: dueDay,
+    grace_period_days: gracePeriodDays,
+    late_payment_charge: latePaymentCharge,
+    effective_date: effectiveDate,
+  };
+};
+
+const getAuthorizedSocietyAdmin = async ({ societyId, userId }) => {
+  if (!societyId || !userId) {
+    return { error: { status: 400, message: "Society ID and user ID are required." } };
+  }
+
+  const [society, user] = await Promise.all([
+    Society.findById(societyId),
+    User.findById(userId),
+  ]);
+
+  if (!society) {
+    return { error: { status: 404, message: "Society not found." } };
+  }
+
+  if (!user) {
+    return { error: { status: 404, message: "User not found." } };
+  }
+
+  const isSocietyAdmin = society.admins.some((adminId) => adminId.toString() === user._id.toString());
+  const belongsToSociety = user.society_id?.toString() === society._id.toString();
+
+  if (user.role !== "admin" || !belongsToSociety || !isSocietyAdmin) {
+    return { error: { status: 403, message: "Only society administrators can update maintenance settings." } };
+  }
+
+  return { society, user };
+};
 
 export const createSociety = async (req, res) => {
   try {
@@ -224,5 +295,82 @@ export const updateSociety = async (req, res) => {
       .json({ success: true, message: "Society updated successfully", result: updatedSociety });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getMaintenanceSettings = async (req, res) => {
+  try {
+    const { societyId } = req.params;
+    const society = await Society.findById(societyId).select("maintenance_config");
+
+    if (!society) {
+      return res.status(404).json({ success: false, message: "Society not found." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Maintenance settings fetched successfully.",
+      result: society.maintenance_config,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateMaintenanceSettings = async (req, res) => {
+  try {
+    const { societyId } = req.params;
+    const { userId, maintenance_config } = req.body;
+    const { society, user, error } = await getAuthorizedSocietyAdmin({ societyId, userId });
+
+    if (error) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+
+    const previousConfig = society.maintenance_config?.toObject
+      ? society.maintenance_config.toObject()
+      : society.maintenance_config || {};
+    const updatedConfig = normalizeMaintenanceConfig(maintenance_config);
+
+    society.maintenance_config = updatedConfig;
+    await society.save();
+
+    const audit = await MaintenanceConfigAudit.create({
+      society_id: society._id,
+      admin_id: user._id,
+      previous_amount: Number(previousConfig.amount || 0),
+      updated_amount: updatedConfig.amount,
+      previous_config: previousConfig,
+      updated_config: updatedConfig,
+      changed_at: new Date(),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Maintenance settings updated successfully.",
+      result: {
+        maintenance_config: society.maintenance_config,
+        audit,
+      },
+    });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const getMaintenanceAuditHistory = async (req, res) => {
+  try {
+    const { societyId } = req.params;
+    const history = await MaintenanceConfigAudit.find({ society_id: societyId })
+      .populate("admin_id", "name email")
+      .sort({ changed_at: -1 });
+
+    return res.status(200).json({
+      success: true,
+      message: "Maintenance audit history fetched successfully.",
+      result: history,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

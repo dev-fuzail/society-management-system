@@ -1,9 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, Alert, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from "react-native";
 import { router } from "expo-router";
-import { apiUpdateSociety, apiGetUserSocieties } from "@/services/SocietyService";
+import {
+  apiUpdateSociety,
+  apiGetUserSocieties,
+  apiUpdateMaintenanceSettings,
+  apiGetMaintenanceAuditHistory,
+} from "@/services/SocietyService";
 import { getAuthData } from "@/hooks/helperHooks";
 import { Ionicons } from "@expo/vector-icons";
+import { MaintenanceConfigAudit } from "@/services/types";
+
+const formatDateInput = (value?: string) => {
+  if (!value) return new Date().toISOString().slice(0, 10);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 10);
+  return date.toISOString().slice(0, 10);
+};
 
 export default function SocietyUpdateScreen() {
   const [form, setForm] = useState({
@@ -13,8 +26,19 @@ export default function SocietyUpdateScreen() {
     contact_email: "",
     total_apartments: "",
   });
+  const [maintenanceForm, setMaintenanceForm] = useState({
+    amount: "",
+    currency: "PKR",
+    due_day: "1",
+    grace_period_days: "0",
+    late_payment_charge: "0",
+    effective_date: formatDateInput(),
+  });
+  const [societyId, setSocietyId] = useState("");
+  const [maintenanceHistory, setMaintenanceHistory] = useState<MaintenanceConfigAudit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingMaintenance, setIsSavingMaintenance] = useState(false);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -34,6 +58,7 @@ export default function SocietyUpdateScreen() {
         const res = await apiGetUserSocieties(userData.id);
         if (res.success && res.result.length > 0) {
           const currentSociety = res.result[0];
+          setSocietyId(currentSociety._id);
           setForm({
             name: currentSociety.name || "",
             address: currentSociety.address || "",
@@ -41,6 +66,23 @@ export default function SocietyUpdateScreen() {
             contact_email: currentSociety.contact_email || "",
             total_apartments: String(currentSociety.total_apartments || ""),
           });
+
+          const config = currentSociety.maintenance_config;
+          if (config) {
+            setMaintenanceForm({
+              amount: String(config.amount ?? ""),
+              currency: config.currency || "PKR",
+              due_day: String(config.due_day || 1),
+              grace_period_days: String(config.grace_period_days || 0),
+              late_payment_charge: String(config.late_payment_charge || 0),
+              effective_date: formatDateInput(config.effective_date),
+            });
+          }
+
+          const historyRes = await apiGetMaintenanceAuditHistory(currentSociety._id);
+          if (historyRes.success) {
+            setMaintenanceHistory(historyRes.result);
+          }
         } else {
           Alert.alert("Error", "Could not find society information.");
         }
@@ -55,6 +97,10 @@ export default function SocietyUpdateScreen() {
 
   const handleChange = (key: string, value: string) => {
     setForm({ ...form, [key]: value });
+  };
+
+  const handleMaintenanceChange = (key: string, value: string) => {
+    setMaintenanceForm({ ...maintenanceForm, [key]: value });
   };
 
   const handleSubmit = async () => {
@@ -100,6 +146,78 @@ export default function SocietyUpdateScreen() {
       Alert.alert("Error", "Something went wrong.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleMaintenanceSubmit = async () => {
+    const amount = Number(maintenanceForm.amount);
+    const dueDay = Number(maintenanceForm.due_day);
+    const gracePeriodDays = Number(maintenanceForm.grace_period_days);
+    const latePaymentCharge = Number(maintenanceForm.late_payment_charge || 0);
+
+    if (!societyId) {
+      return Alert.alert("Error", "Society not found.");
+    }
+
+    if (!Number.isFinite(amount) || amount < 0) {
+      return Alert.alert("Invalid Amount", "Enter a valid maintenance amount.");
+    }
+
+    if (!/^[A-Za-z]{3}$/.test(maintenanceForm.currency.trim())) {
+      return Alert.alert("Invalid Currency", "Use a 3-letter currency code such as PKR or USD.");
+    }
+
+    if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
+      return Alert.alert("Invalid Due Day", "Due day must be between 1 and 31.");
+    }
+
+    if (!Number.isInteger(gracePeriodDays) || gracePeriodDays < 0) {
+      return Alert.alert("Invalid Grace Period", "Grace period must be a whole number.");
+    }
+
+    if (!Number.isFinite(latePaymentCharge) || latePaymentCharge < 0) {
+      return Alert.alert("Invalid Late Charge", "Late payment charge must be valid.");
+    }
+
+    try {
+      setIsSavingMaintenance(true);
+      const { userData } = await getAuthData();
+
+      if (!userData?.id) {
+        return Alert.alert("Error", "User not found. Please log in again.");
+      }
+
+      const res = await apiUpdateMaintenanceSettings(societyId, {
+        userId: userData.id,
+        maintenance_config: {
+          amount,
+          currency: maintenanceForm.currency.trim().toUpperCase(),
+          due_day: dueDay,
+          grace_period_days: gracePeriodDays,
+          late_payment_charge: latePaymentCharge,
+          effective_date: maintenanceForm.effective_date,
+        },
+      });
+
+      if (res.success && res.result) {
+        const config = res.result.maintenance_config;
+        setMaintenanceForm({
+          amount: String(config.amount ?? ""),
+          currency: config.currency || "PKR",
+          due_day: String(config.due_day || 1),
+          grace_period_days: String(config.grace_period_days || 0),
+          late_payment_charge: String(config.late_payment_charge || 0),
+          effective_date: formatDateInput(config.effective_date),
+        });
+        setMaintenanceHistory(prev => [res.result.audit, ...prev]);
+        Alert.alert("Success", "Maintenance settings updated successfully.");
+      } else {
+        Alert.alert("Error", res.message || "Failed to update maintenance settings.");
+      }
+    } catch {
+      Alert.alert("Error", "Something went wrong.");
+    } finally {
+      setIsSavingMaintenance(false);
     }
   };
 
@@ -180,6 +298,109 @@ export default function SocietyUpdateScreen() {
         <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Save Society Details</Text>}
         </TouchableOpacity>
+
+        <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Maintenance Billing</Text>
+
+            <Text style={styles.label}>Monthly Fee Amount</Text>
+            <TextInput
+            style={styles.input}
+            placeholder="0"
+            keyboardType="numeric"
+            placeholderTextColor="#94a3b8"
+            value={maintenanceForm.amount}
+            onChangeText={(t) => handleMaintenanceChange("amount", t)}
+            />
+
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldHalf}>
+                <Text style={styles.label}>Currency</Text>
+                <TextInput
+                style={styles.input}
+                placeholder="PKR"
+                autoCapitalize="characters"
+                maxLength={3}
+                placeholderTextColor="#94a3b8"
+                value={maintenanceForm.currency}
+                onChangeText={(t) => handleMaintenanceChange("currency", t.toUpperCase())}
+                />
+              </View>
+
+              <View style={styles.fieldHalf}>
+                <Text style={styles.label}>Due Day</Text>
+                <TextInput
+                style={styles.input}
+                placeholder="1"
+                keyboardType="numeric"
+                placeholderTextColor="#94a3b8"
+                value={maintenanceForm.due_day}
+                onChangeText={(t) => handleMaintenanceChange("due_day", t)}
+                />
+              </View>
+            </View>
+
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldHalf}>
+                <Text style={styles.label}>Grace Days</Text>
+                <TextInput
+                style={styles.input}
+                placeholder="0"
+                keyboardType="numeric"
+                placeholderTextColor="#94a3b8"
+                value={maintenanceForm.grace_period_days}
+                onChangeText={(t) => handleMaintenanceChange("grace_period_days", t)}
+                />
+              </View>
+
+              <View style={styles.fieldHalf}>
+                <Text style={styles.label}>Late Charge</Text>
+                <TextInput
+                style={styles.input}
+                placeholder="0"
+                keyboardType="numeric"
+                placeholderTextColor="#94a3b8"
+                value={maintenanceForm.late_payment_charge}
+                onChangeText={(t) => handleMaintenanceChange("late_payment_charge", t)}
+                />
+              </View>
+            </View>
+
+            <Text style={styles.label}>Effective Date</Text>
+            <TextInput
+            style={styles.input}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor="#94a3b8"
+            value={maintenanceForm.effective_date}
+            onChangeText={(t) => handleMaintenanceChange("effective_date", t)}
+            />
+
+            <TouchableOpacity style={styles.secondarySubmitBtn} onPress={handleMaintenanceSubmit} disabled={isSavingMaintenance}>
+              {isSavingMaintenance ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Save Maintenance Settings</Text>}
+            </TouchableOpacity>
+        </View>
+
+        <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Maintenance Audit History</Text>
+            {maintenanceHistory.length === 0 ? (
+              <Text style={styles.emptyHistoryText}>No maintenance fee changes yet.</Text>
+            ) : (
+              maintenanceHistory.slice(0, 5).map((item) => (
+                <View key={item._id} style={styles.historyRow}>
+                  <View style={styles.historyIcon}>
+                    <Ionicons name="receipt-outline" size={16} color="#0f766e" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.historyTitle}>
+                      {item.previous_amount} to {item.updated_amount} {item.updated_config?.currency || maintenanceForm.currency}
+                    </Text>
+                    <Text style={styles.historyMeta}>
+                      {item.admin_id?.name || "Admin"} on {new Date(item.changed_at).toLocaleDateString()}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -247,9 +468,59 @@ const styles = StyleSheet.create({
     elevation: 4,
     marginTop: 10,
   },
+  secondarySubmitBtn: {
+    backgroundColor: '#0f766e',
+    padding: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#0f766e',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 4,
+    marginTop: 4,
+  },
   submitBtnText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  fieldHalf: {
+    flex: 1,
+  },
+  emptyHistoryText: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  historyIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#ccfbf1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  historyTitle: {
+    color: '#1e293b',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  historyMeta: {
+    color: '#64748b',
+    fontWeight: '500',
+    fontSize: 12,
+    marginTop: 2,
   },
 });
