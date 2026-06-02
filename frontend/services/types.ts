@@ -159,6 +159,8 @@ export interface Announcement {
   user_id: string;
   title: string;
   message: string;
+  category?: 'general' | 'important' | 'emergency';
+  is_important?: boolean;
   created_at: string;
   updatedAt: string;
 }

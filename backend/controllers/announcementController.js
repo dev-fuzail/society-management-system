@@ -1,4 +1,8 @@
 import Announcement from "../models/Announcement.js";
+import {
+  normalizeAnnouncementFlags,
+  notifyAnnouncementPublished,
+} from "../services/announcementNotificationService.js";
 
 // Helper for consistent response format
 const sendResponse = (res, status, message, result, success = true) => {
@@ -13,7 +17,7 @@ const sendResponse = (res, status, message, result, success = true) => {
 // 🟢 Create Announcement
 export const createAnnouncement = async (req, res) => {
   try {
-    const { society_id, title, message, user_id } = req.body;
+    const { society_id, title, message, user_id, category, is_important } = req.body;
 
     if (!society_id || !title || !message || !user_id) {
       return sendResponse(
@@ -25,14 +29,21 @@ export const createAnnouncement = async (req, res) => {
       );
     }
 
+    const flags = normalizeAnnouncementFlags({ category, is_important });
     const newAnnouncement = new Announcement({
       society_id,
       user_id,
       title,
       message,
+      ...flags,
     });
 
     await newAnnouncement.save();
+    await notifyAnnouncementPublished({
+      io: req.io,
+      announcement: newAnnouncement,
+      reason: newAnnouncement.category === "emergency" ? "emergency" : "created",
+    });
 
     return sendResponse(
       res,
@@ -108,16 +119,44 @@ export const getAnnouncementById = async (req, res) => {
 export const updateAnnouncement = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, message } = req.body;
+    const { title, message, category, is_important } = req.body;
+
+    const existingAnnouncement = await Announcement.findById(id);
+
+    if (!existingAnnouncement) {
+      return sendResponse(res, 404, "Announcement not found.", null, false);
+    }
+
+    const updates = {};
+
+    if (title !== undefined) updates.title = title;
+    if (message !== undefined) updates.message = message;
+
+    if (category !== undefined || is_important !== undefined) {
+      Object.assign(
+        updates,
+        normalizeAnnouncementFlags({
+          category: category !== undefined ? category : existingAnnouncement.category,
+          is_important: is_important !== undefined ? is_important : existingAnnouncement.is_important,
+        }),
+      );
+    }
 
     const updatedAnnouncement = await Announcement.findByIdAndUpdate(
       id,
-      { title, message },
+      updates,
       { new: true }, // Return the updated document
     );
 
-    if (!updatedAnnouncement) {
-      return sendResponse(res, 404, "Announcement not found.", null, false);
+    const becameImportant = !existingAnnouncement.is_important && updatedAnnouncement.is_important;
+    const becameEmergency = existingAnnouncement.category !== "emergency" && updatedAnnouncement.category === "emergency";
+
+    if (becameEmergency || becameImportant) {
+      await notifyAnnouncementPublished({
+        io: req.io,
+        announcement: updatedAnnouncement,
+        reason: becameEmergency ? "emergency" : "marked_important",
+      });
     }
 
     return sendResponse(

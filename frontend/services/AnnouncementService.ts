@@ -7,6 +7,8 @@ export const apiCreateAnnouncement = async (data: {
   user_id: string;
   title: string;
   message: string;
+  category?: 'general' | 'important' | 'emergency';
+  is_important?: boolean;
 }): Promise<ResponseObject<Announcement>> => {
   return await ApiService.request<Announcement>('post', '/api/announcements', data);
 };
@@ -21,7 +23,12 @@ export const apiGetAnnouncementById = async (id: string): Promise<ResponseObject
 
 export const apiUpdateAnnouncement = async (
   id: string, 
-  data: { title?: string; message?: string }
+  data: {
+    title?: string;
+    message?: string;
+    category?: 'general' | 'important' | 'emergency';
+    is_important?: boolean;
+  }
 ): Promise<ResponseObject<Announcement>> => {
   return await ApiService.request<Announcement>('put', `/api/announcements/${id}`, data);
 };
