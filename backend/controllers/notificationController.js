@@ -1,6 +1,7 @@
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
 import { createAndSendNotification } from "../services/notificationService.js";
+import { sendFcmToTokens } from "../services/pushService.js";
 
 const sendResponse = (res, status, message, result, success = true) => {
   return res.status(status).json({
@@ -150,5 +151,45 @@ export const sendNotification = async (req, res) => {
     return sendResponse(res, 201, "Notification sent.", result);
   } catch (error) {
     return sendResponse(res, 500, "Failed to send notification.", null, false);
+  }
+};
+
+export const getMyDeviceTokens = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("fcm_tokens");
+    return sendResponse(res, 200, "Device tokens fetched.", {
+      tokens: user?.fcm_tokens || [],
+    });
+  } catch (error) {
+    return sendResponse(res, 500, "Failed to fetch device tokens.", null, false);
+  }
+};
+
+export const sendTestPush = async (req, res) => {
+  try {
+    const { title, message, data } = req.body;
+
+    if (!title || !message) {
+      return sendResponse(res, 400, "Title and message are required.", null, false);
+    }
+
+    const user = await User.findById(req.user._id).select("fcm_tokens");
+    const tokens = (user?.fcm_tokens || []).map((entry) => entry.token).filter(Boolean);
+
+    if (!tokens.length) {
+      return sendResponse(res, 404, "No device tokens found for user.", null, false);
+    }
+
+    const fcmResult = await sendFcmToTokens(tokens, {
+      notification: {
+        title,
+        body: message,
+      },
+      data: data || {},
+    });
+
+    return sendResponse(res, 200, "Test push sent.", { fcm: fcmResult });
+  } catch (error) {
+    return sendResponse(res, 500, "Failed to send test push.", null, false);
   }
 };
