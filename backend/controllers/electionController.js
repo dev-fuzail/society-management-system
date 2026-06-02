@@ -3,6 +3,7 @@ import Election from "../models/Election.js";
 import Candidate from "../models/Candidate.js";
 import Vote from "../models/Vote.js";
 import User from "../models/User.js";
+import { calculateElectionResults, publishElectionResults } from "../services/electionResultService.js";
 
 const requireRole = (req, res, roles) => {
   if (!req.user || !roles.includes(req.user.role)) {
@@ -31,7 +32,26 @@ export const toggleElectionStatus = async (req, res) => {
     if (!requireRole(req, res, ["admin"])) return;
     const { id } = req.params;
     const { status } = req.body; // "ongoing" or "completed"
+
+    if (!["ongoing", "completed"].includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid election status" });
+    }
+
     const election = await Election.findByIdAndUpdate(id, { status }, { new: true });
+
+    if (!election) {
+      return res.status(404).json({ success: false, message: "Election not found" });
+    }
+
+    if (status === "completed" && !election.result_published) {
+      const publication = await publishElectionResults(election, req.io);
+      return res.status(200).json({
+        success: true,
+        message: "Election completed and results published",
+        result: publication?.election || election,
+      });
+    }
+
     res.status(200).json({ success: true, message: `Election marked as ${status}`, result: election });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -132,22 +152,33 @@ export const castVote = async (req, res) => {
 export const getElectionResults = async (req, res) => {
   try {
     const { id } = req.params;
-    const results = await Vote.aggregate([
-      { $match: { election_id: new mongoose.Types.ObjectId(id) } },
-      { $group: { _id: "$candidate_id", count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid election id" });
+    }
 
-    // Populate candidate names
-    const populatedResults = await Promise.all(results.map(async (r) => {
-      const candidate = await Candidate.findById(r._id).populate("user_id", "name");
-      return {
-        candidate_name: candidate.user_id.name,
-        votes: r.count
-      };
-    }));
+    const election = await Election.findById(id);
+    if (!election) {
+      return res.status(404).json({ success: false, message: "Election not found" });
+    }
 
-    res.status(200).json({ success: true, result: populatedResults });
+    if (election.result_published) {
+      return res.status(200).json({
+        success: true,
+        result: election.results,
+        winners: election.winners,
+        is_tie: election.is_tie,
+        published_at: election.result_published_at,
+      });
+    }
+
+    const calculated = await calculateElectionResults(new mongoose.Types.ObjectId(id));
+
+    res.status(200).json({
+      success: true,
+      result: calculated.results,
+      winners: calculated.winners,
+      is_tie: calculated.is_tie,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
