@@ -11,6 +11,7 @@ import session from "express-session";
 import adminRouter from "./adminRoutes.js";
 import path from 'path';
 import { startElectionResultScheduler } from "./services/electionResultService.js";
+import { startMaintenanceBillingScheduler } from "./services/maintenanceBillingService.js";
 
 // const APP_SCHEME = "livingsync://";
 // const APP_SCHEME = "mynewproject://";
@@ -149,6 +150,7 @@ const startServer = async () => {
   try {
     await connectDB();
     startElectionResultScheduler(io);
+    startMaintenanceBillingScheduler(io);
 
     httpServer.listen(PORT, "0.0.0.0", () => {
       console.log(`✅ Socket.IO running on port ${PORT}`);
