@@ -27,6 +27,9 @@ Super Admin:
 http://localhost:8001/admin-dashboard
 
 
+ADMIN_EMAIL='superaadmin@livingsync.com'
+ADMIN_PASSWORD='livingsync@123456'
+
 2315 phone
 
 
