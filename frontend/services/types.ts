@@ -162,3 +162,23 @@ export interface Announcement {
   created_at: string;
   updatedAt: string;
 }
+
+export interface NotificationItem {
+  _id: string;
+  user_id: string;
+  society_id?: string;
+  type: string;
+  title: string;
+  message: string;
+  data?: Record<string, any> | null;
+  is_read: boolean;
+  read_at?: string | null;
+  created_at: string;
+}
+
+export interface NotificationPage {
+  items: NotificationItem[];
+  page: number;
+  limit: number;
+  total: number;
+}

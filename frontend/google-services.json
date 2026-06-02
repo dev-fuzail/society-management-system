@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "541899459845",
+    "project_id": "society-management-syste-86057",
+    "storage_bucket": "society-management-syste-86057.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:541899459845:android:f6454c1db5ffed877f7b6c",
+        "android_client_info": {
+          "package_name": "com.livingsync.societyapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBhRy9OU4RU_ETgl0R4JiMMOIY2KDeEzco"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

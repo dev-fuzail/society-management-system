@@ -22,6 +22,17 @@ const userSchema = new mongoose.Schema({
   twoFactorCode: { type: String },
   twoFactorCodeExpires: { type: Date },
 
+  fcm_tokens: {
+    type: [
+      {
+        token: { type: String, required: true },
+        platform: { type: String },
+        created_at: { type: Date, default: Date.now },
+      },
+    ],
+    default: [],
+  },
+
   avatar: { type: String },
 }, { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } });
 

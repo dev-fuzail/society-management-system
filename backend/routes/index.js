@@ -8,6 +8,7 @@ import announcementRoutes from './announcementRoutes.js';
 import electionRoutes from './electionRoutes.js';
 import serviceRoutes from './serviceRoutes.js';
 import amenityRoutes from './amenityRoutes.js';
+import notificationRoutes from './notificationRoutes.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import { updateUserRole } from '../controllers/electionController.js';
 import {
@@ -31,6 +32,7 @@ router.use("/chat", chatRoutes);
 router.use('/tickets', ticketRoutes);
 router.use('/announcements', announcementRoutes);
 router.use('/elections', electionRoutes);
+router.use('/notifications', notificationRoutes);
 router.patch('/users/roles', authMiddleware, updateUserRole);
 
 // Contract aliases from tasks.md

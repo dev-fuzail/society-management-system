@@ -125,6 +125,15 @@ app.get("/", (req, res) => {
 io.on("connection", (socket) => {
   console.log(`[SOCKET]: User connected: ${socket.id}`);
 
+  socket.on("registerUser", ({ userId, societyId }) => {
+    if (userId) {
+      socket.join(`user_${userId}`);
+    }
+    if (societyId) {
+      socket.join(`society_${societyId}`);
+    }
+  });
+
   socket.on("joinRoom", (roomId) => {
     socket.join(`room_${roomId}`);
     console.log(`[SOCKET]: ${socket.id} joined room: room_${roomId}`);

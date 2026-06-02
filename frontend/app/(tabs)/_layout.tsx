@@ -18,6 +18,8 @@ import { HapticTab } from "@/components/haptic-tab";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UserData } from "@/services/types";
+import * as Notifications from "expo-notifications";
+import { apiRegisterDeviceToken } from "@/services/NotificationService";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -26,6 +28,7 @@ export default function TabLayout() {
   const [isProfileMenuVisible, setIsProfileMenuVisible] = useState(false);
   const [isAdminMenuVisible, setIsAdminMenuVisible] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
+  const [tokenRegistered, setTokenRegistered] = useState(false);
 
   const handleMenuNavigate = (path: any) => {
     setIsProfileMenuVisible(false);
@@ -56,6 +59,34 @@ export default function TabLayout() {
     loadUserData();
   }, []);
 
+  useEffect(() => {
+    const registerPushToken = async () => {
+      if (!user || tokenRegistered || Platform.OS === "web") return;
+
+      const permission = await Notifications.getPermissionsAsync();
+      let finalStatus = permission.status;
+
+      if (finalStatus !== "granted") {
+        const request = await Notifications.requestPermissionsAsync();
+        finalStatus = request.status;
+      }
+
+      if (finalStatus !== "granted") {
+        return;
+      }
+
+      const tokenResponse = await Notifications.getDevicePushTokenAsync();
+      const token = tokenResponse.data;
+
+      if (token) {
+        await apiRegisterDeviceToken(token, Platform.OS);
+        setTokenRegistered(true);
+      }
+    };
+
+    registerPushToken();
+  }, [user, tokenRegistered]);
+
   const isAdmin = user?.role === "admin";
 
   return (
@@ -77,6 +108,21 @@ export default function TabLayout() {
               { backgroundColor: theme.background, borderColor: theme.icon, top: 60 + insets.top },
             ]}
           >
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuNavigate("/notifications")}
+            >
+              <Ionicons
+                name="notifications-outline"
+                size={20}
+                color={theme.text}
+                style={styles.menuIcon}
+              />
+              <Text style={[styles.menuText, { color: theme.text }]}>
+                Notifications
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => handleMenuNavigate("/profile")}
@@ -381,6 +427,13 @@ export default function TabLayout() {
           name="amenity-approvals"
           options={{
             title: "Amenity Approvals",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="notifications"
+          options={{
+            title: "Notifications",
             href: null,
           }}
         />
