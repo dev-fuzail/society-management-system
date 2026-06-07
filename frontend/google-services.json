@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:541899459845:android:492f64c71adee5527f7b6c",
+        "android_client_info": {
+          "package_name": "com.anonymous.livingsync"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBhRy9OU4RU_ETgl0R4JiMMOIY2KDeEzco"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:541899459845:android:f6454c1db5ffed877f7b6c",
         "android_client_info": {
           "package_name": "com.livingsync.societyapp"

@@ -9,6 +9,9 @@ import {
   sendNotification,
   getMyDeviceTokens,
   sendTestPush,
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  getNotificationAnalytics,
 } from "../controllers/notificationController.js";
 
 const router = express.Router();
@@ -18,6 +21,9 @@ router.delete("/device-token", authMiddleware, removeDeviceToken);
 router.get("/", authMiddleware, getNotifications);
 router.get("/debug/tokens", authMiddleware, getMyDeviceTokens);
 router.post("/debug/test-push", authMiddleware, sendTestPush);
+router.get("/preferences", authMiddleware, getNotificationPreferences);
+router.put("/preferences", authMiddleware, updateNotificationPreferences);
+router.get("/analytics", authMiddleware, getNotificationAnalytics);
 router.patch("/read-all", authMiddleware, markAllRead);
 router.patch("/:id/read", authMiddleware, markNotificationRead);
 router.post("/", authMiddleware, sendNotification);

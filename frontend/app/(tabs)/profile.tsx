@@ -142,6 +142,11 @@ export default function ProfileScreen() {
                 </View>
             </View>
 
+            <TouchableOpacity style={styles.actionLink} onPress={() => router.push('/invoices')}>
+                <Ionicons name="receipt-outline" size={18} color="#2563eb" />
+                <Text style={styles.actionLinkText}>View Invoices</Text>
+            </TouchableOpacity>
+
             <View style={styles.sectionCard}>
                 <Text style={styles.sectionTitle}>Personal Information</Text>
                 <View style={styles.form}>
@@ -199,4 +204,6 @@ const styles = StyleSheet.create({
     settingDescription: { fontSize: 12, color: '#64748b', fontWeight: '500' },
     logoutButton: { flexDirection: 'row', padding: 18, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#fee2e2', backgroundColor: '#fff', marginTop: 10 },
     logoutText: { color: '#ef4444', fontSize: 16, fontWeight: '700' },
+    actionLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 18 },
+    actionLinkText: { color: '#2563eb', fontSize: 15, fontWeight: '700' },
 });

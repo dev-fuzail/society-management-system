@@ -33,6 +33,15 @@ const userSchema = new mongoose.Schema({
     default: [],
   },
 
+  notification_preferences: {
+    announcements: { type: Boolean, default: true },
+    elections: { type: Boolean, default: true },
+    maintenance_reminders: { type: Boolean, default: true },
+    visitor_notifications: { type: Boolean, default: true },
+    payment_notifications: { type: Boolean, default: true },
+    general_society_updates: { type: Boolean, default: true },
+  },
+
   avatar: { type: String },
 }, { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } });
 

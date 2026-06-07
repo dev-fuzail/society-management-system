@@ -165,6 +165,86 @@ export const getMyDeviceTokens = async (req, res) => {
   }
 };
 
+export const getNotificationPreferences = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("notification_preferences");
+    return sendResponse(res, 200, "Notification preferences fetched.", {
+      preferences: user?.notification_preferences || {},
+    });
+  } catch (error) {
+    return sendResponse(res, 500, "Failed to fetch notification preferences.", null, false);
+  }
+};
+
+export const updateNotificationPreferences = async (req, res) => {
+  try {
+    const { preferences } = req.body;
+
+    const allowedKeys = [
+      "announcements",
+      "elections",
+      "maintenance_reminders",
+      "visitor_notifications",
+      "payment_notifications",
+      "general_society_updates",
+    ];
+
+    const updates = {};
+    for (const key of allowedKeys) {
+      if (preferences && Object.prototype.hasOwnProperty.call(preferences, key)) {
+        updates[`notification_preferences.${key}`] = Boolean(preferences[key]);
+      }
+    }
+
+    await User.updateOne({ _id: req.user._id }, { $set: updates });
+
+    const updatedUser = await User.findById(req.user._id).select("notification_preferences");
+    return sendResponse(res, 200, "Notification preferences updated.", {
+      preferences: updatedUser?.notification_preferences || {},
+    });
+  } catch (error) {
+    return sendResponse(res, 500, "Failed to update notification preferences.", null, false);
+  }
+};
+
+export const getNotificationAnalytics = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return sendResponse(res, 403, "Only admins can view notification analytics.", null, false);
+    }
+
+    const societyId = req.user.society_id;
+    const [summary] = await Notification.aggregate([
+      { $match: { society_id: societyId } },
+      {
+        $group: {
+          _id: null,
+          total_notifications: { $sum: 1 },
+          read_notifications: { $sum: { $cond: [{ $eq: ["$is_read", true] }, 1, 0] } },
+          failed_notifications: { $sum: { $cond: [{ $eq: ["$delivery_status", "failed"] }, 1, 0] } },
+        },
+      },
+    ]);
+
+    const typeBreakdown = await Notification.aggregate([
+      { $match: { society_id: societyId } },
+      { $group: { _id: "$type", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
+
+    return sendResponse(res, 200, "Notification analytics fetched.", {
+      total_notifications: summary?.total_notifications || 0,
+      delivered_notifications: Math.max((summary?.total_notifications || 0) - (summary?.failed_notifications || 0), 0),
+      failed_notifications: summary?.failed_notifications || 0,
+      read_notifications: summary?.read_notifications || 0,
+      unread_notifications: Math.max((summary?.total_notifications || 0) - (summary?.read_notifications || 0), 0),
+      type_breakdown: typeBreakdown,
+    });
+  } catch (error) {
+    return sendResponse(res, 500, "Failed to fetch notification analytics.", null, false);
+  }
+};
+
 export const sendTestPush = async (req, res) => {
   try {
     const { title, message, data } = req.body;

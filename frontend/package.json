@@ -38,6 +38,7 @@
     "expo-web-browser": "~15.0.9",
     "firebase": "^12.5.0",
     "moti": "^0.28.0",
+    "@stripe/stripe-react-native": "^0.50.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",

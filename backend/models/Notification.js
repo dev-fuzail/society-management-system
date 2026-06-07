@@ -9,6 +9,8 @@ const notificationSchema = new mongoose.Schema({
   data: { type: mongoose.Schema.Types.Mixed },
   is_read: { type: Boolean, default: false },
   read_at: { type: Date },
+  delivery_status: { type: String, enum: ["sent", "failed"], default: "sent" },
+  delivered_at: { type: Date, default: Date.now },
 }, { timestamps: { createdAt: "created_at" } });
 
 export default mongoose.model("Notification", notificationSchema);

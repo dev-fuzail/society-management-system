@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.livingsync",
+      "merchantIdentifier": "merchant.com.anonymous.livingsync",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -34,6 +35,12 @@
     "googleServicesFile": "./google-services.json",
     "plugins": [
       "expo-router",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.anonymous.livingsync"
+        }
+      ],
       [
         "expo-splash-screen",
         {

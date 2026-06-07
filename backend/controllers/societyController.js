@@ -1,6 +1,7 @@
 import Society from "../models/Society.js";
 import User from "../models/User.js";
 import MaintenanceConfigAudit from "../models/MaintenanceConfigAudit.js";
+import { normalizeStripeConfig, maskStripeConfig } from "../services/stripeService.js";
 
 const normalizeMaintenanceConfig = (config = {}) => {
   const amount = Number(config.amount);
@@ -301,16 +302,20 @@ export const updateSociety = async (req, res) => {
 export const getMaintenanceSettings = async (req, res) => {
   try {
     const { societyId } = req.params;
-    const society = await Society.findById(societyId).select("maintenance_config");
+    const society = await Society.findById(societyId).select("maintenance_config pricing_modules");
 
     if (!society) {
       return res.status(404).json({ success: false, message: "Society not found." });
     }
 
+    const pricingModule = society.pricing_modules?.maintenance || {};
+    const maintenanceConfig = society.maintenance_config || {};
+    const result = Object.keys(pricingModule).length > 0 ? pricingModule : maintenanceConfig;
+
     return res.status(200).json({
       success: true,
       message: "Maintenance settings fetched successfully.",
-      result: society.maintenance_config,
+      result,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -333,6 +338,11 @@ export const updateMaintenanceSettings = async (req, res) => {
     const updatedConfig = normalizeMaintenanceConfig(maintenance_config);
 
     society.maintenance_config = updatedConfig;
+    society.pricing_modules = society.pricing_modules || {};
+    society.pricing_modules.maintenance = {
+      enabled: true,
+      ...updatedConfig,
+    };
     await society.save();
 
     const audit = await MaintenanceConfigAudit.create({
@@ -372,5 +382,55 @@ export const getMaintenanceAuditHistory = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getStripeSettings = async (req, res) => {
+  try {
+    const { societyId } = req.params;
+    const society = await Society.findById(societyId).select("stripe_config");
+
+    if (!society) {
+      return res.status(404).json({ success: false, message: "Society not found." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Stripe settings fetched successfully.",
+      result: maskStripeConfig(society.stripe_config || {}),
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateStripeSettings = async (req, res) => {
+  try {
+    const { societyId } = req.params;
+    const { userId, stripe_config } = req.body;
+    const { society, user, error } = await getAuthorizedSocietyAdmin({ societyId, userId });
+
+    if (error) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+
+    const normalizedConfig = normalizeStripeConfig({
+      ...(society.stripe_config || {}),
+      ...(stripe_config || {}),
+    });
+
+    society.stripe_config = normalizedConfig;
+    await society.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Stripe settings updated successfully.",
+      result: {
+        stripe_config: maskStripeConfig(society.stripe_config || {}),
+        admin_id: user._id,
+      },
+    });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
   }
 };

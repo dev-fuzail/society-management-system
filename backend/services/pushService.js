@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import admin from "firebase-admin";
 
 let messaging = null;
@@ -18,13 +19,39 @@ const loadServiceAccount = () => {
   const pathEnv = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
   if (pathEnv) {
     try {
-      const resolvedPath = path.isAbsolute(pathEnv)
-        ? pathEnv
-        : path.resolve(process.cwd(), pathEnv);
-      const raw = fs.readFileSync(resolvedPath, "utf-8");
+      const triedPaths = [];
+
+      // Try absolute or relative to current working directory first
+      if (path.isAbsolute(pathEnv)) {
+        triedPaths.push(pathEnv);
+      } else {
+        triedPaths.push(path.resolve(process.cwd(), pathEnv));
+      }
+
+      // Also try resolving relative to this module file (safer when launched from repo root)
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      triedPaths.push(path.resolve(__dirname, pathEnv));
+
+      let raw = null;
+      for (const p of triedPaths) {
+        try {
+          raw = fs.readFileSync(p, "utf-8");
+          // if read succeeds, stop trying
+          break;
+        } catch (err) {
+          // ignore and try next
+        }
+      }
+
+      if (!raw) {
+        console.warn("[FCM] Unable to read FIREBASE_SERVICE_ACCOUNT_PATH. Tried:", triedPaths);
+        return null;
+      }
+
       return JSON.parse(raw);
     } catch (error) {
-      console.warn("[FCM] Unable to read FIREBASE_SERVICE_ACCOUNT_PATH.");
+      console.warn("[FCM] Error parsing service account JSON from FIREBASE_SERVICE_ACCOUNT_PATH.", error.message);
       return null;
     }
   }

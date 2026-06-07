@@ -1,5 +1,5 @@
 import apiService from './ApiService';
-import { MaintenanceConfig, MaintenanceConfigAudit, ResponseObject, Society } from './types';
+import { MaintenanceConfig, MaintenanceConfigAudit, ResponseObject, Society, StripeConfig, StripeConfigForm } from './types';
 
 interface SocietyData {
   userId: string,
@@ -37,4 +37,15 @@ export const apiGetMaintenanceAuditHistory = async (
   societyId: string
 ): Promise<ResponseObject<MaintenanceConfigAudit[]>> => {
   return await apiService.request<MaintenanceConfigAudit[]>("get", `/api/societies/${societyId}/maintenance-settings/history`);
+};
+
+export const apiGetStripeSettings = async (societyId: string): Promise<ResponseObject<StripeConfig>> => {
+  return await apiService.request<StripeConfig>("get", `/api/societies/${societyId}/stripe-settings`);
+};
+
+export const apiUpdateStripeSettings = async (
+  societyId: string,
+  data: { userId: string; stripe_config: StripeConfigForm }
+): Promise<ResponseObject<{ stripe_config: StripeConfig }>> => {
+  return await apiService.request("put", `/api/societies/${societyId}/stripe-settings`, data);
 };

@@ -81,6 +81,7 @@ export interface Society {
   members: UserData[],
   admins: UserData[],
   maintenance_config?: MaintenanceConfig,
+  stripe_config?: StripeConfig,
 }
 
 export interface MaintenanceConfig {
@@ -90,6 +91,63 @@ export interface MaintenanceConfig {
   grace_period_days: number;
   late_payment_charge: number;
   effective_date?: string;
+}
+
+export interface StripeConfig {
+  publishable_key: string;
+  secret_key: string;
+  webhook_secret: string;
+  connected_account_id?: string;
+}
+
+export interface StripeConfigForm {
+  publishable_key: string;
+  secret_key: string;
+  webhook_secret: string;
+  connected_account_id: string;
+}
+
+export interface NotificationPreferences {
+  announcements: boolean;
+  elections: boolean;
+  maintenance_reminders: boolean;
+  visitor_notifications: boolean;
+  payment_notifications: boolean;
+  general_society_updates: boolean;
+}
+
+export interface NotificationAnalytics {
+  total_notifications: number;
+  delivered_notifications: number;
+  failed_notifications: number;
+  read_notifications: number;
+  unread_notifications: number;
+  type_breakdown: { _id: string; count: number }[];
+}
+
+export interface InvoiceItem {
+  _id: string;
+  society_id: string;
+  apartment_id: string;
+  user_id: string;
+  amount: number;
+  currency: string;
+  type: 'maintenance' | 'general';
+  period_key?: string;
+  month?: string;
+  due_date?: string;
+  payment_link?: string;
+  reminder_sent_at?: string;
+  status: 'pending' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled' | 'unpaid';
+  generated_at?: string;
+  created_at: string;
+}
+
+export interface InvoicePage {
+  items: InvoiceItem[];
+  page: number;
+  limit: number;
+  total: number;
 }
 
 export interface MaintenanceConfigAudit {

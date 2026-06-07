@@ -3,6 +3,7 @@ import Invoice from "../models/Invoice.js";
 import Payment from "../models/Payment.js";
 import Society from "../models/Society.js";
 import { createAndSendNotification } from "./notificationService.js";
+import { hasStripeConfig } from "./stripeService.js";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -48,15 +49,43 @@ const isConfigEffective = (config, billingDate) => {
 
 const isDuplicateKeyError = (error) => error?.code === 11000;
 
-const createPaymentRecord = async ({ invoice, societyId, currency }) => {
+export const resolveMaintenancePricing = (society, billingDate) => {
+  const pricingModule = society?.pricing_modules?.maintenance || {};
+  const maintenanceConfig = society?.maintenance_config || {};
+  const effectiveConfig = pricingModule.enabled === false ? maintenanceConfig : pricingModule;
+
+  if (!isConfigEffective(effectiveConfig, billingDate)) {
+    return null;
+  }
+
+  const amount = Number(effectiveConfig.amount ?? maintenanceConfig.amount ?? 0);
+  const currency = String(effectiveConfig.currency || maintenanceConfig.currency || "PKR").toUpperCase();
+  const dueDay = Number(effectiveConfig.due_day ?? maintenanceConfig.due_day ?? 1);
+
+  if (!amount || amount <= 0) {
+    return null;
+  }
+
+  return {
+    amount,
+    currency,
+    dueDay,
+    gracePeriodDays: Number(effectiveConfig.grace_period_days ?? maintenanceConfig.grace_period_days ?? 0),
+    latePaymentCharge: Number(effectiveConfig.late_payment_charge ?? maintenanceConfig.late_payment_charge ?? 0),
+  };
+};
+
+const createPaymentRecord = async ({ invoice, society, societyId, currency }) => {
   try {
+    const stripeEnabled = hasStripeConfig(society?.stripe_config || {});
     return await Payment.create({
       invoice_id: invoice._id,
       user_id: invoice.user_id,
       society_id: societyId,
       amount: invoice.amount,
       currency,
-      method: "System",
+      method: stripeEnabled ? "Stripe" : "System",
+      provider: stripeEnabled ? "Stripe" : "System",
       status: "pending",
     });
   } catch (error) {
@@ -76,7 +105,8 @@ const createMaintenanceInvoice = async ({
   dueDate,
   billingDate,
 }) => {
-  const config = society.maintenance_config || {};
+  const pricing = resolveMaintenancePricing(society, billingDate);
+  const config = pricing || society.maintenance_config || {};
   const currency = config.currency || "PKR";
   const paymentLink = `maintenance-payment?invoiceId=`;
 
@@ -85,7 +115,7 @@ const createMaintenanceInvoice = async ({
       society_id: society._id,
       apartment_id: apartment._id,
       user_id: apartment.owned_by,
-      amount: config.amount,
+      amount: Number(config.amount || 0),
       currency,
       type: "maintenance",
       period_key: periodKey,
@@ -98,7 +128,7 @@ const createMaintenanceInvoice = async ({
     invoice.payment_link = `${paymentLink}${invoice._id.toString()}`;
     await invoice.save();
 
-    const payment = await createPaymentRecord({ invoice, societyId: society._id, currency });
+    const payment = await createPaymentRecord({ invoice, society, societyId: society._id, currency });
     return { invoice, payment, created: true };
   } catch (error) {
     if (isDuplicateKeyError(error)) {
@@ -182,15 +212,13 @@ export const generateMonthlyMaintenanceBilling = async ({
   };
 
   for (const society of societies) {
-    const config = society.maintenance_config || {};
-    const amount = Number(config.amount || 0);
+    const config = resolveMaintenancePricing(society, billingDate);
 
-    if (!amount || amount <= 0 || !isConfigEffective(config, billingDate)) {
+    if (!config) {
       continue;
     }
 
-    const dueDay = Number(config.due_day || 1);
-    const dueDate = buildDueDate(billingDate, dueDay);
+    const dueDate = buildDueDate(billingDate, config.dueDay);
     const apartments = await Apartment.find({
       society_id: society._id,
       owned_by: { $exists: true, $ne: null },

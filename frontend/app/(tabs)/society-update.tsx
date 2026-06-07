@@ -6,10 +6,11 @@ import {
   apiGetUserSocieties,
   apiUpdateMaintenanceSettings,
   apiGetMaintenanceAuditHistory,
+  apiUpdateStripeSettings,
 } from "@/services/SocietyService";
 import { getAuthData } from "@/hooks/helperHooks";
 import { Ionicons } from "@expo/vector-icons";
-import { MaintenanceConfigAudit } from "@/services/types";
+import { MaintenanceConfigAudit, StripeConfigForm } from "@/services/types";
 
 const formatDateInput = (value?: string) => {
   if (!value) return new Date().toISOString().slice(0, 10);
@@ -34,11 +35,18 @@ export default function SocietyUpdateScreen() {
     late_payment_charge: "0",
     effective_date: formatDateInput(),
   });
+  const [stripeForm, setStripeForm] = useState<StripeConfigForm>({
+    publishable_key: "",
+    secret_key: "",
+    webhook_secret: "",
+    connected_account_id: "",
+  });
   const [societyId, setSocietyId] = useState("");
   const [maintenanceHistory, setMaintenanceHistory] = useState<MaintenanceConfigAudit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingMaintenance, setIsSavingMaintenance] = useState(false);
+  const [isSavingStripe, setIsSavingStripe] = useState(false);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -79,6 +87,16 @@ export default function SocietyUpdateScreen() {
             });
           }
 
+          const stripeConfig = currentSociety.stripe_config;
+          if (stripeConfig) {
+            setStripeForm({
+              publishable_key: stripeConfig.publishable_key || "",
+              secret_key: stripeConfig.secret_key || "",
+              webhook_secret: stripeConfig.webhook_secret || "",
+              connected_account_id: stripeConfig.connected_account_id || "",
+            });
+          }
+
           const historyRes = await apiGetMaintenanceAuditHistory(currentSociety._id);
           if (historyRes.success) {
             setMaintenanceHistory(historyRes.result);
@@ -101,6 +119,10 @@ export default function SocietyUpdateScreen() {
 
   const handleMaintenanceChange = (key: string, value: string) => {
     setMaintenanceForm({ ...maintenanceForm, [key]: value });
+  };
+
+  const handleStripeChange = (key: keyof StripeConfigForm, value: string) => {
+    setStripeForm({ ...stripeForm, [key]: value });
   };
 
   const handleSubmit = async () => {
@@ -218,6 +240,78 @@ export default function SocietyUpdateScreen() {
       Alert.alert("Error", "Something went wrong.");
     } finally {
       setIsSavingMaintenance(false);
+    }
+  };
+
+  const handleStripeSubmit = async () => {
+    const publishableKey = stripeForm.publishable_key.trim();
+    const secretKey = stripeForm.secret_key.trim();
+    const webhookSecret = stripeForm.webhook_secret.trim();
+    const connectedAccountId = stripeForm.connected_account_id.trim();
+
+    if (!societyId) {
+      return Alert.alert("Error", "Society not found.");
+    }
+
+    const hasAnyStripeValue = Boolean(publishableKey || secretKey || webhookSecret || connectedAccountId);
+    const hasCoreKeys = Boolean(publishableKey && secretKey && webhookSecret);
+
+    if (hasAnyStripeValue && !hasCoreKeys) {
+      return Alert.alert(
+        "Incomplete Stripe Settings",
+        "Provide publishable key, secret key, and webhook secret together or clear the form to disable Stripe."
+      );
+    }
+
+    if (publishableKey && !publishableKey.startsWith("pk_")) {
+      return Alert.alert("Invalid Publishable Key", "Stripe publishable keys usually start with pk_.");
+    }
+
+    if (secretKey && !secretKey.startsWith("sk_")) {
+      return Alert.alert("Invalid Secret Key", "Stripe secret keys usually start with sk_.");
+    }
+
+    if (webhookSecret && !webhookSecret.startsWith("whsec_")) {
+      return Alert.alert("Invalid Webhook Secret", "Stripe webhook secrets usually start with whsec_.");
+    }
+
+    if (connectedAccountId && !connectedAccountId.startsWith("acct_")) {
+      return Alert.alert("Invalid Account ID", "Connected account IDs usually start with acct_.");
+    }
+
+    try {
+      setIsSavingStripe(true);
+      const { userData } = await getAuthData();
+
+      if (!userData?.id) {
+        return Alert.alert("Error", "User not found. Please log in again.");
+      }
+
+      const res = await apiUpdateStripeSettings(societyId, {
+        userId: userData.id,
+        stripe_config: {
+          publishable_key: publishableKey,
+          secret_key: secretKey,
+          webhook_secret: webhookSecret,
+          connected_account_id: connectedAccountId,
+        },
+      });
+
+      if (res.success && res.result) {
+        setStripeForm({
+          publishable_key: res.result.stripe_config.publishable_key || publishableKey,
+          secret_key: secretKey,
+          webhook_secret: webhookSecret,
+          connected_account_id: res.result.stripe_config.connected_account_id || connectedAccountId,
+        });
+        Alert.alert("Success", "Stripe settings updated successfully.");
+      } else {
+        Alert.alert("Error", res.message || "Failed to update Stripe settings.");
+      }
+    } catch {
+      Alert.alert("Error", "Something went wrong.");
+    } finally {
+      setIsSavingStripe(false);
     }
   };
 
@@ -380,6 +474,59 @@ export default function SocietyUpdateScreen() {
         </View>
 
         <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Stripe Billing Configuration</Text>
+            <Text style={styles.helperText}>
+              Configure society-specific Stripe keys for maintenance payments and future billable services.
+            </Text>
+
+            <Text style={styles.label}>Publishable Key</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="pk_live_..."
+              autoCapitalize="none"
+              placeholderTextColor="#94a3b8"
+              value={stripeForm.publishable_key}
+              onChangeText={(t) => handleStripeChange("publishable_key", t)}
+            />
+
+            <Text style={styles.label}>Secret Key</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="sk_live_..."
+              secureTextEntry
+              autoCapitalize="none"
+              placeholderTextColor="#94a3b8"
+              value={stripeForm.secret_key}
+              onChangeText={(t) => handleStripeChange("secret_key", t)}
+            />
+
+            <Text style={styles.label}>Webhook Secret</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="whsec_..."
+              secureTextEntry
+              autoCapitalize="none"
+              placeholderTextColor="#94a3b8"
+              value={stripeForm.webhook_secret}
+              onChangeText={(t) => handleStripeChange("webhook_secret", t)}
+            />
+
+            <Text style={styles.label}>Connected Account ID</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="acct_..."
+              autoCapitalize="none"
+              placeholderTextColor="#94a3b8"
+              value={stripeForm.connected_account_id}
+              onChangeText={(t) => handleStripeChange("connected_account_id", t)}
+            />
+
+            <TouchableOpacity style={styles.secondarySubmitBtn} onPress={handleStripeSubmit} disabled={isSavingStripe}>
+              {isSavingStripe ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Save Stripe Settings</Text>}
+            </TouchableOpacity>
+        </View>
+
+        <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Maintenance Audit History</Text>
             {maintenanceHistory.length === 0 ? (
               <Text style={styles.emptyHistoryText}>No maintenance fee changes yet.</Text>
@@ -495,6 +642,13 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 14,
     fontWeight: '600',
+  },
+  helperText: {
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 16,
+    lineHeight: 18,
   },
   historyRow: {
     flexDirection: 'row',

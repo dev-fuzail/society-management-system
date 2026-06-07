@@ -1,5 +1,5 @@
 import apiService from "./ApiService";
-import { NotificationPage, ResponseObject } from "./types";
+import { NotificationAnalytics, NotificationPage, NotificationPreferences, ResponseObject } from "./types";
 
 export const apiRegisterDeviceToken = async (token: string, platform?: string) => {
   return apiService.request<{ token: string; platform?: string }>(
@@ -43,4 +43,20 @@ export const apiMarkNotificationRead = async (id: string) => {
 
 export const apiMarkAllNotificationsRead = async () => {
   return apiService.request<any>("patch", "/api/notifications/read-all");
+};
+
+export const apiGetNotificationPreferences = async (): Promise<ResponseObject<{ preferences: NotificationPreferences }>> => {
+  return apiService.request<{ preferences: NotificationPreferences }>("get", "/api/notifications/preferences");
+};
+
+export const apiUpdateNotificationPreferences = async (
+  preferences: Partial<NotificationPreferences>
+): Promise<ResponseObject<{ preferences: NotificationPreferences }>> => {
+  return apiService.request<{ preferences: NotificationPreferences }>("put", "/api/notifications/preferences", {
+    preferences,
+  });
+};
+
+export const apiGetNotificationAnalytics = async (): Promise<ResponseObject<NotificationAnalytics>> => {
+  return apiService.request<NotificationAnalytics>("get", "/api/notifications/analytics");
 };
