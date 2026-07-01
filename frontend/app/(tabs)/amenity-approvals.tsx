@@ -94,6 +94,15 @@ export default function AmenityApprovalsScreen() {
         <Text style={styles.detailText}>{item.guest_count} guests</Text>
       </View>
 
+      {item.calculated_price > 0 && (
+        <View style={styles.detailRow}>
+          <Ionicons name="card-outline" size={14} color="#059669" />
+          <Text style={[styles.detailText, { fontWeight: '700', color: '#059669' }]}>
+            PKR {item.calculated_price.toLocaleString('en-PK')}
+          </Text>
+        </View>
+      )}
+
       <View style={styles.actionsRow}>
         <TouchableOpacity style={styles.rejectBtn} onPress={() => updateStatus(item._id, 'REJECTED')}>
           <Text style={styles.rejectBtnText}>Reject</Text>

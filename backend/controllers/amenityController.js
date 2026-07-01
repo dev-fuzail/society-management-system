@@ -1,5 +1,7 @@
 import Amenity from "../models/Amenity.js";
 import AmenityBooking from "../models/AmenityBooking.js";
+import Wallet from "../models/Wallet.js";
+import Transaction from "../models/Transaction.js";
 import mongoose from "mongoose";
 
 const requireRole = (req, res, roles) => {
@@ -49,17 +51,30 @@ export const bookAmenity = async (req, res) => {
     const amenity = await Amenity.findById(amenity_id);
     if (!amenity) return res.status(404).json({ success: false, message: "Amenity not found" });
 
-    // 2. Conflict Validation (Overlap Check)
-    const overlappingBooking = await AmenityBooking.findOne({
-      amenity_id,
-      status: { $in: ["PENDING", "APPROVED"] },
-      $or: [
-        { start_time: { $lt: new Date(end_time) }, end_time: { $gt: new Date(start_time) } }
-      ]
-    });
+    // 2. Conflict Validation — PER_USER amenities (e.g. Gym) allow concurrent bookings up to capacity.
+    //    FLAT_EVENT amenities (e.g. Event Hall) are exclusive — one booking per time slot.
+    if (amenity.type === "FLAT_EVENT") {
+      const conflict = await AmenityBooking.findOne({
+        amenity_id,
+        status: { $in: ["PENDING", "APPROVED"] },
+        start_time: { $lt: new Date(end_time) },
+        end_time: { $gt: new Date(start_time) },
+      });
+      if (conflict) {
+        return res.status(400).json({ success: false, message: "This venue is already booked or pending for the selected time slot." });
+      }
+    }
 
-    if (overlappingBooking) {
-      return res.status(400).json({ success: false, message: "This time slot is already booked or pending approval." });
+    if (amenity.type === "PER_USER" && amenity.max_capacity) {
+      const concurrent = await AmenityBooking.countDocuments({
+        amenity_id,
+        status: { $in: ["PENDING", "APPROVED"] },
+        start_time: { $lt: new Date(end_time) },
+        end_time: { $gt: new Date(start_time) },
+      });
+      if (concurrent >= amenity.max_capacity) {
+        return res.status(400).json({ success: false, message: `This amenity is at full capacity (${amenity.max_capacity}) for the selected time slot.` });
+      }
     }
 
     // 3. Pricing Logic
@@ -112,15 +127,37 @@ export const getBookings = async (req, res) => {
   }
 };
 
-// Update booking status (Admin only)
+// Update booking status (Admin only) — credits wallet on APPROVED
 export const updateBookingStatus = async (req, res) => {
   try {
     if (!requireRole(req, res, ["admin"])) return;
     const { id } = req.params;
     const { status } = req.body; // APPROVED, REJECTED, CANCELLED
 
-    const booking = await AmenityBooking.findByIdAndUpdate(id, { status }, { new: true });
+    const booking = await AmenityBooking.findById(id);
     if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+
+    const wasApproved = booking.status !== "APPROVED" && status === "APPROVED";
+    booking.status = status;
+    await booking.save();
+
+    if (wasApproved && booking.calculated_price > 0) {
+      const wallet = await Wallet.findOneAndUpdate(
+        { society_id: booking.society_id },
+        { $setOnInsert: { balance: 0, currency: "PKR" } },
+        { upsert: true, new: true }
+      );
+      await Wallet.updateOne({ _id: wallet._id }, { $inc: { balance: booking.calculated_price } });
+      await Transaction.create({
+        wallet_id: wallet._id,
+        type: "credit",
+        amount: booking.calculated_price,
+        title: "Amenity booking payment",
+        reference_type: "manual",
+        status: "completed",
+        created_by: req.user._id,
+      });
+    }
 
     res.status(200).json({ success: true, message: `Booking ${status.toLowerCase()} successfully`, result: booking });
   } catch (error) {

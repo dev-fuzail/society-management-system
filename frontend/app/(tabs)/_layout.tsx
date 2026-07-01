@@ -20,6 +20,20 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UserData } from "@/services/types";
 import * as Notifications from "expo-notifications";
 import { apiRegisterDeviceToken } from "@/services/NotificationService";
+// React Native Firebase is native-only — guard every call with Platform check
+if (Platform.OS !== "web") {
+  const messaging = require("@react-native-firebase/messaging").default;
+  messaging().setBackgroundMessageHandler(async () => {});
+}
+
+// Controls how notifications behave when the app is in the foreground.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -63,24 +77,28 @@ export default function TabLayout() {
     const registerPushToken = async () => {
       if (!user || tokenRegistered || Platform.OS === "web") return;
 
-      const permission = await Notifications.getPermissionsAsync();
-      let finalStatus = permission.status;
+      try {
+        const permission = await Notifications.getPermissionsAsync();
+        let finalStatus = permission.status;
 
-      if (finalStatus !== "granted") {
-        const request = await Notifications.requestPermissionsAsync();
-        finalStatus = request.status;
-      }
+        if (finalStatus !== "granted") {
+          const request = await Notifications.requestPermissionsAsync();
+          finalStatus = request.status;
+        }
 
-      if (finalStatus !== "granted") {
-        return;
-      }
+        if (finalStatus !== "granted") {
+          return;
+        }
 
-      const tokenResponse = await Notifications.getDevicePushTokenAsync();
-      const token = tokenResponse.data;
+        const messaging = require("@react-native-firebase/messaging").default;
+        const token = await messaging().getToken();
 
-      if (token) {
-        await apiRegisterDeviceToken(token, Platform.OS);
-        setTokenRegistered(true);
+        if (token) {
+          await apiRegisterDeviceToken(token, Platform.OS);
+          setTokenRegistered(true);
+        }
+      } catch (error) {
+        console.warn("[Push] Could not register push token:", error);
       }
     };
 
@@ -223,8 +241,25 @@ export default function TabLayout() {
                 color={theme.text}
                 style={styles.menuIcon}
               />
-              <Text style={[styles.menuText, { color: theme.text }]}> 
+              <Text style={[styles.menuText, { color: theme.text }]}>
                 Complaint Status
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.separator, { backgroundColor: theme.icon }]} />
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuNavigate("/society-payments")}
+            >
+              <Ionicons
+                name="cash-outline"
+                size={20}
+                color={theme.text}
+                style={styles.menuIcon}
+              />
+              <Text style={[styles.menuText, { color: theme.text }]}>
+                Maintenance Payments
               </Text>
             </TouchableOpacity>
           </View>
@@ -436,6 +471,29 @@ export default function TabLayout() {
             title: "Notifications",
             href: null,
           }}
+        />
+        <Tabs.Screen
+          name="society-payments"
+          options={{
+            title: "Maintenance Payments",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="finance-report"
+          options={{ title: "Finance Report", href: null }}
+        />
+        <Tabs.Screen
+          name="invoices"
+          options={{ title: "Invoices", href: null }}
+        />
+        <Tabs.Screen
+          name="maintenance-payment"
+          options={{ title: "Pay Maintenance", href: null }}
+        />
+        <Tabs.Screen
+          name="sos"
+          options={{ title: "Emergency SOS", href: null }}
         />
       </Tabs>
     </>

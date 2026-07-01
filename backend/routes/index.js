@@ -6,11 +6,11 @@ import chatRoutes from './chatRoutes.js';
 import ticketRoutes from './ticketRoutes.js';
 import announcementRoutes from './announcementRoutes.js';
 import electionRoutes from './electionRoutes.js';
-import serviceRoutes from './serviceRoutes.js';
 import amenityRoutes from './amenityRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
 import invoiceRoutes from './invoiceRoutes.js';
 import paymentRoutes from './paymentRoutes.js';
+import emergencyRoutes from './emergencyRoutes.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import { updateUserRole } from '../controllers/electionController.js';
 import {
@@ -49,6 +49,6 @@ router.post('/bookings', authMiddleware, bookServiceProvider);
 router.get('/bookings', authMiddleware, getUserBookings);
 router.patch('/bookings/:id/status', authMiddleware, updateBookingStatus);
 
-router.use('/services', serviceRoutes);
 router.use('/amenities', amenityRoutes);
+router.use('/emergency', emergencyRoutes);
 export default router;

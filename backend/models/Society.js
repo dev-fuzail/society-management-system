@@ -17,6 +17,12 @@ const societySchema = new mongoose.Schema({
     late_payment_charge: { type: Number, min: 0, default: 0 },
     effective_date: { type: Date },
   },
+  bank_account: {
+    bank_name: { type: String },
+    account_title: { type: String },
+    account_number: { type: String },
+    iban: { type: String },
+  },
   pricing_modules: {
     maintenance: {
       enabled: { type: Boolean, default: true },
@@ -28,12 +34,6 @@ const societySchema = new mongoose.Schema({
       effective_date: { type: Date },
     },
     custom: { type: mongoose.Schema.Types.Mixed, default: {} },
-  },
-  stripe_config: {
-    publishable_key: { type: String, default: "" },
-    secret_key: { type: String, default: "" },
-    webhook_secret: { type: String, default: "" },
-    connected_account_id: { type: String, default: "" },
   },
 }, { timestamps: true });
 

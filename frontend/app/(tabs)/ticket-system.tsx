@@ -268,72 +268,76 @@ export default function TicketSystemScreen() {
             >
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={{ flex: 1 }}
+                    style={styles.modalOverlay}
                 >
-                    <Pressable style={styles.modalOverlay} onPress={() => setIsModalVisible(false)}>
-                        <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
-                            <View style={styles.modalHeader}>
-                                <Text style={styles.modalTitle}>New Complaint</Text>
-                                <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                                    <Ionicons name="close" size={24} color={theme.text} />
+                    <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setIsModalVisible(false)} />
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>New Complaint</Text>
+                            <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                                <Ionicons name="close" size={24} color={theme.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView
+                            contentContainerStyle={styles.formContent}
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                            bounces={true}
+                        >
+                            <Text style={styles.label}>Subject</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Summary of the issue"
+                                value={subject}
+                                onChangeText={setSubject}
+                            />
+
+                            <Text style={styles.label}>Description</Text>
+                            <TextInput
+                                style={[styles.input, styles.textArea]}
+                                placeholder="Detailed description..."
+                                value={description}
+                                onChangeText={setDescription}
+                                multiline
+                                numberOfLines={5}
+                            />
+
+                            <Text style={styles.label}>Attachment (Optional)</Text>
+                            <View style={styles.attachActionsRow}>
+                                <TouchableOpacity style={styles.attachBtn} onPress={() => pickAndUploadImage('camera')}>
+                                    <Ionicons name="camera-outline" size={16} color="#4f46e5" />
+                                    <Text style={styles.attachBtnText}>Use Camera</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.attachBtn} onPress={() => pickAndUploadImage('gallery')}>
+                                    <Ionicons name="images-outline" size={16} color="#4f46e5" />
+                                    <Text style={styles.attachBtnText}>Upload</Text>
                                 </TouchableOpacity>
                             </View>
 
-                            <ScrollView contentContainerStyle={styles.formContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                                <Text style={styles.label}>Subject</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Summary of the issue"
-                                    value={subject}
-                                    onChangeText={setSubject}
-                                />
-
-                                <Text style={styles.label}>Description</Text>
-                                <TextInput
-                                    style={[styles.input, styles.textArea]}
-                                    placeholder="Detailed description..."
-                                    value={description}
-                                    onChangeText={setDescription}
-                                    multiline
-                                    numberOfLines={5}
-                                />
-
-                                <Text style={styles.label}>Attachment (Optional)</Text>
-                                <View style={styles.attachActionsRow}>
-                                    <TouchableOpacity style={styles.attachBtn} onPress={() => pickAndUploadImage('camera')}>
-                                        <Ionicons name="camera-outline" size={16} color="#4f46e5" />
-                                        <Text style={styles.attachBtnText}>Use Camera</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={styles.attachBtn} onPress={() => pickAndUploadImage('gallery')}>
-                                        <Ionicons name="images-outline" size={16} color="#4f46e5" />
-                                        <Text style={styles.attachBtnText}>Upload</Text>
+                            {complaintImageUrl ? (
+                                <View style={styles.previewWrap}>
+                                    <Image source={{ uri: complaintImageUrl }} style={styles.previewImage} />
+                                    <TouchableOpacity style={styles.removeImageBtn} onPress={() => setComplaintImageUrl(null)}>
+                                        <Ionicons name="trash-outline" size={14} color="#dc2626" />
+                                        <Text style={styles.removeImageText}>Remove</Text>
                                     </TouchableOpacity>
                                 </View>
+                            ) : null}
 
-                                {complaintImageUrl ? (
-                                    <View style={styles.previewWrap}>
-                                        <Image source={{ uri: complaintImageUrl }} style={styles.previewImage} />
-                                        <TouchableOpacity style={styles.removeImageBtn} onPress={() => setComplaintImageUrl(null)}>
-                                            <Ionicons name="trash-outline" size={14} color="#dc2626" />
-                                            <Text style={styles.removeImageText}>Remove</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                ) : null}
-
-                                <TouchableOpacity
-                                    style={styles.submitButton}
-                                    onPress={handleSubmit}
-                                    disabled={isSubmitting}
-                                >
-                                    {isSubmitting ? (
-                                        <ActivityIndicator color="#fff" />
-                                    ) : (
-                                        <Text style={styles.submitButtonText}>Submit Complaint</Text>
-                                    )}
-                                </TouchableOpacity>
-                            </ScrollView>
-                        </View>
-                    </Pressable>
+                            <TouchableOpacity
+                                style={styles.submitButton}
+                                onPress={handleSubmit}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <Text style={styles.submitButtonText}>Submit Complaint</Text>
+                                )}
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </View>
                 </KeyboardAvoidingView>
             </Modal>
         </View>
@@ -464,7 +468,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 32,
         borderTopRightRadius: 32,
         padding: 24,
-        maxHeight: '90%',
+        maxHeight: '88%',
         shadowColor: '#000',
         shadowOpacity: 0.1,
         shadowRadius: 20,

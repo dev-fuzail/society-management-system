@@ -6,12 +6,11 @@ const paymentSchema = new mongoose.Schema({
   society_id: { type: mongoose.Schema.Types.ObjectId, ref: "Society" },
   amount: { type: Number, required: true },
   currency: { type: String, default: "PKR" },
-  method: { type: String, enum: ["Stripe", "PayFast", "Cash", "Bank", "System"], default: "System" },
-  provider: { type: String, enum: ["Stripe", "PayFast", "Cash", "Bank", "System"], default: "System" },
+  method: { type: String, enum: ["PayFast", "Cash", "Bank", "System"], default: "System" },
+  provider: { type: String, enum: ["PayFast", "Cash", "Bank", "System"], default: "System" },
   status: { type: String, enum: ["pending", "completed", "failed"], default: "pending" },
   transaction_ref: { type: String },
-  stripe_payment_intent_id: { type: String },
-  stripe_charge_id: { type: String },
+  payfast_payment_id: { type: String },
   payment_date: { type: Date },
 }, { timestamps: { createdAt: "created_at" } });
 

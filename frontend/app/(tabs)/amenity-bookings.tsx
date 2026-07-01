@@ -59,7 +59,7 @@ export default function AmenityBookingsScreen() {
                     <View style={styles.iconCircle}>
                         <Ionicons name="card-outline" size={14} color="#f97316" />
                     </View>
-                    <Text style={styles.detailText}>Amount: <Text style={styles.priceText}>${item.calculated_price}</Text></Text>
+                    <Text style={styles.detailText}>Amount: <Text style={styles.priceText}>PKR {item.calculated_price.toLocaleString('en-PK')}</Text></Text>
                 </View>
             </View>
         </View>

@@ -9,6 +9,7 @@ import {
   sendNotification,
   getMyDeviceTokens,
   sendTestPush,
+  injectDeviceToken,
   getNotificationPreferences,
   updateNotificationPreferences,
   getNotificationAnalytics,
@@ -21,6 +22,7 @@ router.delete("/device-token", authMiddleware, removeDeviceToken);
 router.get("/", authMiddleware, getNotifications);
 router.get("/debug/tokens", authMiddleware, getMyDeviceTokens);
 router.post("/debug/test-push", authMiddleware, sendTestPush);
+router.post("/debug/inject-token", authMiddleware, injectDeviceToken);
 router.get("/preferences", authMiddleware, getNotificationPreferences);
 router.put("/preferences", authMiddleware, updateNotificationPreferences);
 router.get("/analytics", authMiddleware, getNotificationAnalytics);

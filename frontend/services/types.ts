@@ -81,7 +81,6 @@ export interface Society {
   members: UserData[],
   admins: UserData[],
   maintenance_config?: MaintenanceConfig,
-  stripe_config?: StripeConfig,
 }
 
 export interface MaintenanceConfig {
@@ -91,20 +90,6 @@ export interface MaintenanceConfig {
   grace_period_days: number;
   late_payment_charge: number;
   effective_date?: string;
-}
-
-export interface StripeConfig {
-  publishable_key: string;
-  secret_key: string;
-  webhook_secret: string;
-  connected_account_id?: string;
-}
-
-export interface StripeConfigForm {
-  publishable_key: string;
-  secret_key: string;
-  webhook_secret: string;
-  connected_account_id: string;
 }
 
 export interface NotificationPreferences {

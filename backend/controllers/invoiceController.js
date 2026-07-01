@@ -52,7 +52,12 @@ export const getInvoices = async (req, res) => {
     const skip = (parsedPage - 1) * parsedLimit;
 
     const [items, total] = await Promise.all([
-      Invoice.find(query).sort({ created_at: -1 }).skip(skip).limit(parsedLimit),
+      Invoice.find(query)
+        .populate("user_id", "name email phone")
+        .populate("apartment_id", "apartment_name floor")
+        .sort({ created_at: -1 })
+        .skip(skip)
+        .limit(parsedLimit),
       Invoice.countDocuments(query),
     ]);
 
@@ -64,6 +69,43 @@ export const getInvoices = async (req, res) => {
     });
   } catch (error) {
     return sendResponse(res, 500, "Failed to fetch invoices.", null, false);
+  }
+};
+
+export const getSocietyPaymentSummary = async (req, res) => {
+  try {
+    const { societyId } = req.params;
+    const { periodKey } = req.query;
+
+    if (req.user.role !== "admin" || getDocumentId(req.user.society_id) !== societyId) {
+      return sendResponse(res, 403, "Only the society's admin can view this summary.", null, false);
+    }
+
+    const query = { society_id: societyId, type: "maintenance" };
+    if (periodKey) query.period_key = periodKey;
+
+    const invoices = await Invoice.find(query)
+      .populate("user_id", "name email phone")
+      .populate("apartment_id", "apartment_name floor")
+      .sort({ due_date: 1 });
+
+    const summary = invoices.reduce(
+      (acc, invoice) => {
+        if (invoice.status === "paid") {
+          acc.paidCount += 1;
+          acc.totalCollected += invoice.amount;
+        } else {
+          acc.unpaidCount += 1;
+          acc.totalDue += invoice.amount;
+        }
+        return acc;
+      },
+      { paidCount: 0, unpaidCount: 0, totalCollected: 0, totalDue: 0 }
+    );
+
+    return sendResponse(res, 200, "Society payment summary fetched successfully.", { ...summary, invoices });
+  } catch (error) {
+    return sendResponse(res, 500, "Failed to fetch society payment summary.", null, false);
   }
 };
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, TextInput, Modal, ScrollView, KeyboardAvoidingView, Pressable, Platform, Share } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, TextInput, Modal, ScrollView, KeyboardAvoidingView, Pressable, Platform, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from "@expo/vector-icons";
 import { getAuthData } from '@/hooks/helperHooks';
@@ -164,36 +164,12 @@ export default function ServiceProvidersScreen() {
     setContactModalVisible(true);
   };
 
-  const handleCopyNumber = async () => {
-    if (!selectedProvider?.contact) return;
-
-    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(selectedProvider.contact);
-        Alert.alert('Copied', 'Phone number copied to clipboard.');
-        return;
-      } catch {
-        // Fall back to native/manual flow below.
-      }
-    }
-
-    Alert.alert(
-      'Copy Number',
-      `Use Share or long-press to copy:\n${selectedProvider.contact}`,
-      [
-        {
-          text: 'Share',
-          onPress: async () => {
-            try {
-              await Share.share({ message: selectedProvider.contact });
-            } catch {
-              Alert.alert('Error', 'Could not open share options.');
-            }
-          },
-        },
-        { text: 'OK' },
-      ]
-    );
+  const callNumber = (number: string) => {
+    const url = `tel:${number}`;
+    Linking.canOpenURL(url).then(can => {
+      if (can) Linking.openURL(url);
+      else Alert.alert('Cannot Call', 'Phone calls are not available on this device.');
+    });
   };
 
   const renderProviderCard = ({ item }: { item: ServiceProvider }) => (
@@ -223,9 +199,9 @@ export default function ServiceProvidersScreen() {
       </View>
       
       <View style={styles.cardActions}>
-        <TouchableOpacity style={styles.contactBtn} onPress={() => openContactModal(item)}>
-          <Ionicons name="call-outline" size={18} color="#4f46e5" />
-          <Text style={styles.contactBtnText}>Contact</Text>
+        <TouchableOpacity style={styles.contactBtn} onPress={() => callNumber(item.contact)}>
+          <Ionicons name="call" size={18} color="#4f46e5" />
+          <Text style={styles.contactBtnText}>Call</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.bookBtn} onPress={() => handleBook(item)}>
           <Text style={styles.bookBtnText}>Book Service</Text>
@@ -343,12 +319,12 @@ export default function ServiceProvidersScreen() {
             <Text selectable style={styles.contactNumber}>{selectedProvider?.contact}</Text>
 
             <View style={styles.contactActionsRow}>
-              <TouchableOpacity style={styles.copyBtn} onPress={handleCopyNumber}>
-                <Ionicons name="copy-outline" size={16} color="#4f46e5" />
-                <Text style={styles.copyBtnText}>Copy Number</Text>
+              <TouchableOpacity style={styles.callNowBtn} onPress={() => { setContactModalVisible(false); callNumber(selectedProvider!.contact); }}>
+                <Ionicons name="call" size={16} color="#fff" />
+                <Text style={styles.callNowBtnText}>Call Now</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.doneBtn} onPress={() => setContactModalVisible(false)}>
-                <Text style={styles.doneBtnText}>Done</Text>
+                <Text style={styles.doneBtnText}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -481,8 +457,8 @@ const styles = StyleSheet.create({
   contactSubtitle: { color: '#475569', fontSize: 14, marginBottom: 10 },
   contactNumber: { color: '#0f172a', fontSize: 22, fontWeight: '800', letterSpacing: 0.5, marginBottom: 14 },
   contactActionsRow: { flexDirection: 'row', gap: 10 },
-  copyBtn: { flex: 1.3, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: '#c7d2fe', backgroundColor: '#eef2ff', borderRadius: 12, paddingVertical: 12 },
-  copyBtnText: { color: '#4f46e5', fontWeight: '700' },
+  callNowBtn: { flex: 1.3, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#16a34a', borderRadius: 12, paddingVertical: 12 },
+  callNowBtnText: { color: '#fff', fontWeight: '700' },
   doneBtn: { flex: 1, backgroundColor: '#4f46e5', borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
   doneBtnText: { color: '#fff', fontWeight: '700' },
   label: { fontSize: 14, fontWeight: '700', color: '#475569', marginBottom: 8, marginLeft: 4 },

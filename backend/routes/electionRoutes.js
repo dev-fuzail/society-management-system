@@ -7,7 +7,7 @@ import {
   getElectionDetails,
   castVote,
   getElectionResults,
-  updateUserRole
+  forceCompleteElection,
 } from "../controllers/electionController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
@@ -24,7 +24,7 @@ router.get("/:id/results", authMiddleware, getElectionResults);
 // Voting
 router.post("/vote", authMiddleware, castVote);
 
-// User roles (related to committee assignment)
-router.patch("/roles", authMiddleware, updateUserRole);
+// Super-admin: instantly complete election for testing
+router.post("/:id/force-complete", authMiddleware, forceCompleteElection);
 
 export default router;

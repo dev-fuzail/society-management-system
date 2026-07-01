@@ -1,7 +1,6 @@
 import Society from "../models/Society.js";
 import User from "../models/User.js";
 import MaintenanceConfigAudit from "../models/MaintenanceConfigAudit.js";
-import { normalizeStripeConfig, maskStripeConfig } from "../services/stripeService.js";
 
 const normalizeMaintenanceConfig = (config = {}) => {
   const amount = Number(config.amount);
@@ -71,34 +70,6 @@ const getAuthorizedSocietyAdmin = async ({ societyId, userId }) => {
   }
 
   return { society, user };
-};
-
-export const createSociety = async (req, res) => {
-  try {
-    const { name, address } = req.body;
-    const exists = await Society.findOne({ name });
-    if (exists)
-      return res.status(400).json({ success: false, message: "Society already exists" });
-
-    const society = new Society({ name, address });
-    await society.save();
-
-    res.status(201).json({ success: true, message: "Society created successfully.", result: society });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-export const getSocieties = async (req, res) => {
-  try {
-    const societies = await Society.find()
-      .populate("admins", "name email role") // admins ka sirf name, email, role
-      .populate("members", "name email role"); // members ka sirf name, email, role
-
-    res.status(200).json({ success: true, message: "Societies fetched successfully.", result: societies });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
 };
 
 // Get all users of a specific society
@@ -382,55 +353,5 @@ export const getMaintenanceAuditHistory = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-export const getStripeSettings = async (req, res) => {
-  try {
-    const { societyId } = req.params;
-    const society = await Society.findById(societyId).select("stripe_config");
-
-    if (!society) {
-      return res.status(404).json({ success: false, message: "Society not found." });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "Stripe settings fetched successfully.",
-      result: maskStripeConfig(society.stripe_config || {}),
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-export const updateStripeSettings = async (req, res) => {
-  try {
-    const { societyId } = req.params;
-    const { userId, stripe_config } = req.body;
-    const { society, user, error } = await getAuthorizedSocietyAdmin({ societyId, userId });
-
-    if (error) {
-      return res.status(error.status).json({ success: false, message: error.message });
-    }
-
-    const normalizedConfig = normalizeStripeConfig({
-      ...(society.stripe_config || {}),
-      ...(stripe_config || {}),
-    });
-
-    society.stripe_config = normalizedConfig;
-    await society.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Stripe settings updated successfully.",
-      result: {
-        stripe_config: maskStripeConfig(society.stripe_config || {}),
-        admin_id: user._id,
-      },
-    });
-  } catch (error) {
-    return res.status(400).json({ success: false, message: error.message });
   }
 };

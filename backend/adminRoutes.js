@@ -161,6 +161,97 @@ webRouter.get("/admin-logout", (req, res) => {
   });
 });
 
+webRouter.get("/admin/api/elections", isAdminAuthenticated, async (_req, res) => {
+  try {
+    const Election = mongoose.model("Election");
+    const elections = await Election.find().sort({ created_at: -1 }).select("_id title status start_date end_date society_id");
+    return res.json({ success: true, result: elections });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+webRouter.post("/admin/api/elections/:id/force-complete", isAdminAuthenticated, async (req, res) => {
+  try {
+    const Election = mongoose.model("Election");
+    const { publishElectionResults } = await import("./services/electionResultService.js");
+    const election = await Election.findById(req.params.id);
+    if (!election) return res.status(404).json({ success: false, message: "Election not found." });
+    election.status = "completed";
+    election.end_date = new Date();
+    await election.save();
+    const publication = await publishElectionResults(election, req.io);
+    return res.json({ success: true, message: "Election force-completed and results published.", result: publication?.election || election });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+webRouter.get("/admin/api/withdrawals", isAdminAuthenticated, async (_req, res) => {
+  try {
+    const WithdrawalRequest = mongoose.model("WithdrawalRequest");
+    const requests = await WithdrawalRequest.find()
+      .populate("society_admin_id", "name email phone")
+      .populate({ path: "wallet_id", populate: { path: "society_id", select: "name" } })
+      .sort({ requested_at: -1 });
+
+    return res.status(200).json({ success: true, result: requests });
+  } catch (error) {
+    console.error("❌ Error fetching withdrawal requests:", error);
+    return res.status(500).json({ success: false, message: "Could not load withdrawal requests." });
+  }
+});
+
+webRouter.post("/admin/withdrawals/:id/:action", isAdminAuthenticated, async (req, res) => {
+  const { id, action } = req.params;
+  const validActions = { approve: "approved", reject: "rejected", paid: "paid" };
+
+  if (!validActions[action]) {
+    return res.status(400).json({ success: false, message: "Invalid action." });
+  }
+
+  try {
+    const WithdrawalRequest = mongoose.model("WithdrawalRequest");
+    const Wallet = mongoose.model("Wallet");
+    const Transaction = mongoose.model("Transaction");
+
+    const withdrawal = await WithdrawalRequest.findById(id);
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: "Withdrawal request not found." });
+    }
+
+    if (action === "paid") {
+      if (withdrawal.status !== "approved") {
+        return res.status(400).json({ success: false, message: "Withdrawal must be approved before it can be marked paid." });
+      }
+
+      const wallet = await Wallet.findById(withdrawal.wallet_id);
+      if (!wallet || wallet.balance < withdrawal.amount) {
+        return res.status(400).json({ success: false, message: "Insufficient wallet balance to fulfill this withdrawal." });
+      }
+
+      await Wallet.updateOne({ _id: wallet._id }, { $inc: { balance: -withdrawal.amount } });
+      await Transaction.create({
+        wallet_id: wallet._id,
+        type: "debit",
+        amount: withdrawal.amount,
+        reference_type: "withdrawal",
+        reference_id: withdrawal._id,
+        status: "completed",
+      });
+    }
+
+    withdrawal.status = validActions[action];
+    withdrawal.processed_at = new Date();
+    await withdrawal.save();
+
+    return res.status(200).json({ success: true, message: `Withdrawal marked as ${validActions[action]}.`, result: withdrawal });
+  } catch (error) {
+    console.error(`❌ Error processing withdrawal ${id}:`, error);
+    return res.status(500).json({ success: false, message: "Failed to process withdrawal request." });
+  }
+});
+
 webRouter.post(
   "/admin/society/:id/delete",
   isAdminAuthenticated,
@@ -205,5 +296,280 @@ webRouter.post(
     }
   }
 );
+
+// ─── TEST ROUTES ─────────────────────────────────────────────────────────────
+
+webRouter.post("/admin/test/notify-all", isAdminAuthenticated, async (req, res) => {
+  try {
+    const { title = "Test Notification", message = "This is a test notification from the super admin." } = req.body;
+    const { createAndSendNotification } = await import("./services/notificationService.js");
+    const users = await mongoose.model("User").find({}).select("_id");
+    const userIds = users.map((u) => u._id);
+
+    const result = await createAndSendNotification({
+      io: req.app.get("io"),
+      userIds,
+      type: "general",
+      title,
+      message,
+      sendSocket: true,
+      sendPush: true,
+    });
+
+    return res.json({ success: true, message: `Notification sent to ${userIds.length} users.`, result });
+  } catch (error) {
+    console.error("❌ Test notify-all error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Failed to send notifications." });
+  }
+});
+
+webRouter.post("/admin/test/notify-society/:id", isAdminAuthenticated, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { title = "Test Notification", message = "This is a test notification from the super admin." } = req.body;
+    const { createAndSendNotification } = await import("./services/notificationService.js");
+
+    const result = await createAndSendNotification({
+      io: req.app.get("io"),
+      societyId: id,
+      type: "general",
+      title,
+      message,
+      sendSocket: true,
+      sendPush: true,
+    });
+
+    return res.json({ success: true, message: `Notification sent to society ${id}.`, result });
+  } catch (error) {
+    console.error("❌ Test notify-society error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Failed to send notification." });
+  }
+});
+
+webRouter.post("/admin/test/payment/credit", isAdminAuthenticated, async (req, res) => {
+  try {
+    const { societyId, amount = 1000 } = req.body;
+    if (!societyId) return res.status(400).json({ success: false, message: "societyId is required." });
+
+    const txnAmt = Number(amount);
+    if (!txnAmt || txnAmt <= 0) return res.status(400).json({ success: false, message: "amount must be a positive number." });
+
+    const {
+      getDirectAccessToken,
+      validateCustomer,
+      initiateTransaction,
+    } = await import("./services/payfastService.js");
+
+    const Wallet = mongoose.model("Wallet");
+    const Transaction = mongoose.model("Transaction");
+
+    const basketId = `INV-${societyId}-${Date.now()}`;
+
+    // Idempotency guard
+    const existing = await Transaction.findOne({ payfast_basket_id: basketId });
+    if (existing) {
+      const wallet = await Wallet.findById(existing.wallet_id);
+      return res.json({ success: true, message: "Transaction already processed (idempotent).", basket_id: basketId, payfast_txn_id: existing.payfast_txn_id, wallet, transaction: existing });
+    }
+
+    // Step 1 — Get access token
+    const token = await getDirectAccessToken("111.111.111.111");
+
+    // Step 2 — Build shared payload
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const orderDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const customerPayload = {
+      basketId,
+      txnAmt,
+      orderDate,
+      accountNumber: "12353940226802034243",
+      cnicNumber: "4210131315089",
+      customerMobileNo: "03001234567",
+      customerEmailAddress: "test@test.com",
+      accountTypeId: "3",
+      bankCode: "JAZZ",
+    };
+
+    // Step 3 — Validate customer & get transaction_id
+    const payfastTransactionId = await validateCustomer(token, customerPayload);
+
+    // Step 4 — Initiate transaction with OTP
+    const pfResponse = await initiateTransaction(token, {
+      ...customerPayload,
+      otp: "123456",
+      transactionId: payfastTransactionId,
+    });
+
+    console.log("[PAYFAST TEST CREDIT] Response:", JSON.stringify(pfResponse));
+
+    if (pfResponse?.status_code !== "00") {
+      return res.status(400).json({
+        success: false,
+        message: pfResponse?.status_message || pfResponse?.error_description || "PayFast transaction failed.",
+        payfast_response: pfResponse,
+      });
+    }
+
+    // Step 5 — Credit wallet
+    let wallet = await Wallet.findOne({ society_id: societyId });
+    if (!wallet) {
+      wallet = await Wallet.create({ society_id: societyId, balance: 0, currency: "PKR" });
+    }
+
+    await Wallet.updateOne({ _id: wallet._id }, { $inc: { balance: txnAmt } });
+
+    const tx = await Transaction.create({
+      wallet_id: wallet._id,
+      type: "credit",
+      amount: txnAmt,
+      reference_type: "invoice",
+      reference_id: wallet._id,
+      status: "completed",
+      payfast_basket_id: basketId,
+      payfast_txn_id: pfResponse.transaction_id || payfastTransactionId,
+    });
+
+    const updated = await Wallet.findById(wallet._id);
+
+    return res.json({
+      success: true,
+      message: "Payment processed and wallet credited.",
+      basket_id: basketId,
+      payfast_txn_id: tx.payfast_txn_id,
+      wallet: updated,
+      transaction: tx,
+    });
+  } catch (error) {
+    console.error("❌ Test credit (PayFast) error:", error);
+    const isEndpointError = error.message?.includes("Expected JSON but got");
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to process payment.",
+      hint: isEndpointError
+        ? "The PayFast direct API URL is wrong for this sandbox. Set PAYFAST_DIRECT_BASE_URL in backend/.env to the correct base URL (e.g. https://ipguat.apps.net.pk/Ecommerce/api or a different host provided by PayFast)."
+        : undefined,
+    });
+  }
+});
+
+webRouter.post("/admin/test/payment/debit", isAdminAuthenticated, async (req, res) => {
+  try {
+    const { societyId, amount = 500, note = "Test debit from super admin" } = req.body;
+    if (!societyId) return res.status(400).json({ success: false, message: "societyId is required." });
+
+    const Wallet = mongoose.model("Wallet");
+    const Transaction = mongoose.model("Transaction");
+
+    const wallet = await Wallet.findOne({ society_id: societyId });
+    if (!wallet) return res.status(404).json({ success: false, message: "Wallet not found for this society." });
+
+    if (wallet.balance < Number(amount)) {
+      return res.status(400).json({ success: false, message: `Insufficient balance. Current: ${wallet.balance}, Requested: ${amount}` });
+    }
+
+    await Wallet.updateOne({ _id: wallet._id }, { $inc: { balance: -Number(amount) } });
+    const tx = await Transaction.create({
+      wallet_id: wallet._id,
+      type: "debit",
+      amount: Number(amount),
+      reference_type: "withdrawal",
+      reference_id: wallet._id,
+      status: "completed",
+    });
+
+    const updated = await Wallet.findById(wallet._id);
+    return res.json({ success: true, message: `Debited ${amount} from society wallet.`, wallet: updated, transaction: tx });
+  } catch (error) {
+    console.error("❌ Test debit error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Failed to debit wallet." });
+  }
+});
+
+// ─── Verified PayFast Payments (live status from sandbox) ────────────────────
+
+webRouter.get("/admin/api/payfast/transactions", isAdminAuthenticated, async (req, res) => {
+  try {
+    const Transaction = mongoose.model("Transaction");
+    const Wallet = mongoose.model("Wallet");
+
+    // Fetch all transactions that went through PayFast (have a basket_id)
+    const localTxns = await Transaction.find({ payfast_basket_id: { $exists: true, $ne: null } })
+      .populate({ path: "wallet_id", populate: { path: "society_id", select: "name" } })
+      .sort({ created_at: -1 })
+      .lean();
+
+    if (!localTxns.length) {
+      return res.json({ success: true, result: [], message: "No PayFast transactions found." });
+    }
+
+    // Attempt to get a direct API token to verify each transaction live from PayFast
+    let directToken = null;
+    let directApiAvailable = false;
+    let directApiError = null;
+
+    try {
+      const { getDirectAccessToken } = await import("./services/payfastService.js");
+      directToken = await getDirectAccessToken("111.111.111.111");
+      directApiAvailable = true;
+    } catch (err) {
+      directApiError = err.message;
+      console.warn("[PAYFAST] Direct API unavailable for status lookups:", err.message);
+    }
+
+    // For each transaction, try to fetch live status from PayFast
+    const { getTransactionByBasketId } = await import("./services/payfastService.js");
+
+    const results = await Promise.all(
+      localTxns.map(async (txn) => {
+        const base = {
+          local_id: txn._id,
+          basket_id: txn.payfast_basket_id,
+          payfast_txn_id: txn.payfast_txn_id,
+          amount: txn.amount,
+          type: txn.type,
+          local_status: txn.status,
+          society: txn.wallet_id?.society_id?.name || "Unknown",
+          created_at: txn.created_at,
+        };
+
+        if (!directApiAvailable || !directToken) {
+          return { ...base, payfast_status: null, payfast_verified: false, payfast_error: directApiError };
+        }
+
+        try {
+          const pfData = await getTransactionByBasketId(
+            directToken,
+            txn.payfast_basket_id,
+            txn.created_at
+              ? new Date(txn.created_at).toISOString().slice(0, 10)
+              : undefined
+          );
+          return {
+            ...base,
+            payfast_status_code: pfData.status_code,
+            payfast_status_msg: pfData.status_msg || pfData.status_message,
+            payfast_txn_id_live: pfData.transaction_id,
+            payfast_verified: pfData.status_code === "00",
+            payfast_raw: pfData,
+          };
+        } catch (err) {
+          return { ...base, payfast_status: null, payfast_verified: false, payfast_error: err.message };
+        }
+      })
+    );
+
+    return res.json({
+      success: true,
+      direct_api_available: directApiAvailable,
+      direct_api_error: directApiError || null,
+      result: results,
+    });
+  } catch (error) {
+    console.error("❌ PayFast transactions fetch error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Failed to fetch PayFast transactions." });
+  }
+});
 
 export default webRouter;

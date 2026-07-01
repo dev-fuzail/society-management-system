@@ -28,3 +28,19 @@ export const apiGetInvoiceById = async (invoiceId: string): Promise<ResponseObje
 export const apiGetInvoicePdfUrl = (invoiceId: string) => {
   return `${API_BASE.replace(/\/+$/, '')}/api/invoices/${invoiceId}/download`;
 };
+
+export interface SocietyPaymentSummary {
+  paidCount: number;
+  unpaidCount: number;
+  totalCollected: number;
+  totalDue: number;
+  invoices: any[];
+}
+
+export const apiGetSocietyPaymentSummary = async (
+  societyId: string,
+  periodKey?: string
+): Promise<ResponseObject<SocietyPaymentSummary>> => {
+  const suffix = periodKey ? `?periodKey=${encodeURIComponent(periodKey)}` : '';
+  return apiService.request<SocietyPaymentSummary>('get', `/api/invoices/society/${societyId}/summary${suffix}`);
+};

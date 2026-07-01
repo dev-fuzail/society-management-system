@@ -1,7 +1,6 @@
 import express from 'express';
-import { 
-    createApartment, 
-    getApartmentsBySociety,
+import {
+    createApartment,
     getApartmentsByUser,
     updateApartment,
     deleteApartment,
@@ -16,8 +15,7 @@ const router = express.Router();
 router.get('/for-admin', authMiddleware, getSocietyApartmentsForAdmin);
 router.post('/', authMiddleware, createApartment);
 router.get('/my-apartments', authMiddleware, getApartmentsByUser);
-router.get('/', getApartmentsBySociety);
-router.get('/:id', getApartmentsById);
+router.get('/:id', authMiddleware, getApartmentsById);
 router.put('/:id', authMiddleware, updateApartment);
 router.delete('/:id', authMiddleware, deleteApartment);
 router.patch('/:id/verify', authMiddleware, verifyApartment); // New route for verification

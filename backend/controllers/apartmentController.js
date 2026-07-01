@@ -98,16 +98,6 @@ export const deleteApartment = async (req, res) => {
   }
 };
 
-export const getApartmentsBySociety = async (req, res) => {
-  try {
-    const { society_id } = req.query;
-    const apartments = await Apartment.find({ society_id });
-    res.status(200).json({ success: true, message: "Apartments fetched successfully.", result: apartments });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 export const getApartmentsById = async (req, res) => {
   try {
     const { id } = req.params;

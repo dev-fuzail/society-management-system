@@ -245,6 +245,39 @@ export const getNotificationAnalytics = async (req, res) => {
   }
 };
 
+// DEV ONLY — inject a push token for any user so you can test FCM without a build
+export const injectDeviceToken = async (req, res) => {
+  try {
+    const { userId, token, platform = "android" } = req.body;
+
+    if (!token) {
+      return sendResponse(res, 400, "token is required.", null, false);
+    }
+
+    const targetId = userId || req.user._id;
+    const user = await User.findById(targetId);
+
+    if (!user) {
+      return sendResponse(res, 404, "User not found.", null, false);
+    }
+
+    const alreadyStored = user.fcm_tokens.some((e) => e.token === token);
+    if (!alreadyStored) {
+      user.fcm_tokens.push({ token, platform });
+      await user.save();
+    }
+
+    return sendResponse(res, 200, `Token injected for user ${user.email}.`, {
+      userId: user._id,
+      email: user.email,
+      token,
+      total_tokens: user.fcm_tokens.length,
+    });
+  } catch (error) {
+    return sendResponse(res, 500, "Failed to inject token.", null, false);
+  }
+};
+
 export const sendTestPush = async (req, res) => {
   try {
     const { title, message, data } = req.body;

@@ -37,7 +37,7 @@ export default function ElectionDetailScreen() {
           if (usersRes.success) {
             const combined = [...usersRes.result.members, ...usersRes.result.admins];
             const deduped = Array.from(new Map(combined.map((u) => [u._id, u])).values());
-            setSocietyUsers(deduped.filter((u) => u.role !== 'admin'));
+            setSocietyUsers(deduped);
           }
         }
       }

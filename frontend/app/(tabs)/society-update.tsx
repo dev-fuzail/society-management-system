@@ -6,11 +6,11 @@ import {
   apiGetUserSocieties,
   apiUpdateMaintenanceSettings,
   apiGetMaintenanceAuditHistory,
-  apiUpdateStripeSettings,
 } from "@/services/SocietyService";
 import { getAuthData } from "@/hooks/helperHooks";
 import { Ionicons } from "@expo/vector-icons";
-import { MaintenanceConfigAudit, StripeConfigForm } from "@/services/types";
+import { MaintenanceConfigAudit } from "@/services/types";
+import { EXPO_PUBLIC_API_BASE } from "@/constants";
 
 const formatDateInput = (value?: string) => {
   if (!value) return new Date().toISOString().slice(0, 10);
@@ -35,18 +35,13 @@ export default function SocietyUpdateScreen() {
     late_payment_charge: "0",
     effective_date: formatDateInput(),
   });
-  const [stripeForm, setStripeForm] = useState<StripeConfigForm>({
-    publishable_key: "",
-    secret_key: "",
-    webhook_secret: "",
-    connected_account_id: "",
-  });
   const [societyId, setSocietyId] = useState("");
   const [maintenanceHistory, setMaintenanceHistory] = useState<MaintenanceConfigAudit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingMaintenance, setIsSavingMaintenance] = useState(false);
-  const [isSavingStripe, setIsSavingStripe] = useState(false);
+  const [bankForm, setBankForm] = useState({ bank_name: "", account_title: "", account_number: "", iban: "" });
+  const [isSavingBank, setIsSavingBank] = useState(false);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -87,19 +82,25 @@ export default function SocietyUpdateScreen() {
             });
           }
 
-          const stripeConfig = currentSociety.stripe_config;
-          if (stripeConfig) {
-            setStripeForm({
-              publishable_key: stripeConfig.publishable_key || "",
-              secret_key: stripeConfig.secret_key || "",
-              webhook_secret: stripeConfig.webhook_secret || "",
-              connected_account_id: stripeConfig.connected_account_id || "",
-            });
-          }
 
           const historyRes = await apiGetMaintenanceAuditHistory(currentSociety._id);
           if (historyRes.success) {
             setMaintenanceHistory(historyRes.result);
+          }
+
+          // Load bank account
+          const { token } = await getAuthData();
+          const bankRes = await fetch(`${EXPO_PUBLIC_API_BASE}/api/payments/bank-account/${currentSociety._id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).then(r => r.json());
+          if (bankRes.success && bankRes.result?.bank_account) {
+            const b = bankRes.result.bank_account;
+            setBankForm({
+              bank_name: b.bank_name || "",
+              account_title: b.account_title || "",
+              account_number: b.account_number || "",
+              iban: b.iban || "",
+            });
           }
         } else {
           Alert.alert("Error", "Could not find society information.");
@@ -121,8 +122,28 @@ export default function SocietyUpdateScreen() {
     setMaintenanceForm({ ...maintenanceForm, [key]: value });
   };
 
-  const handleStripeChange = (key: keyof StripeConfigForm, value: string) => {
-    setStripeForm({ ...stripeForm, [key]: value });
+  const handleBankSubmit = async () => {
+    if (!bankForm.account_number.trim()) {
+      return Alert.alert("Required", "Please enter an account number.");
+    }
+    setIsSavingBank(true);
+    try {
+      const { token } = await getAuthData();
+      const res = await fetch(`${EXPO_PUBLIC_API_BASE}/api/payments/bank-account/${societyId}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(bankForm),
+      }).then(r => r.json());
+      if (res.success) {
+        Alert.alert("Saved", "Bank account details updated successfully.");
+      } else {
+        Alert.alert("Error", res.message || "Failed to save bank account.");
+      }
+    } catch {
+      Alert.alert("Error", "Something went wrong.");
+    } finally {
+      setIsSavingBank(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -240,78 +261,6 @@ export default function SocietyUpdateScreen() {
       Alert.alert("Error", "Something went wrong.");
     } finally {
       setIsSavingMaintenance(false);
-    }
-  };
-
-  const handleStripeSubmit = async () => {
-    const publishableKey = stripeForm.publishable_key.trim();
-    const secretKey = stripeForm.secret_key.trim();
-    const webhookSecret = stripeForm.webhook_secret.trim();
-    const connectedAccountId = stripeForm.connected_account_id.trim();
-
-    if (!societyId) {
-      return Alert.alert("Error", "Society not found.");
-    }
-
-    const hasAnyStripeValue = Boolean(publishableKey || secretKey || webhookSecret || connectedAccountId);
-    const hasCoreKeys = Boolean(publishableKey && secretKey && webhookSecret);
-
-    if (hasAnyStripeValue && !hasCoreKeys) {
-      return Alert.alert(
-        "Incomplete Stripe Settings",
-        "Provide publishable key, secret key, and webhook secret together or clear the form to disable Stripe."
-      );
-    }
-
-    if (publishableKey && !publishableKey.startsWith("pk_")) {
-      return Alert.alert("Invalid Publishable Key", "Stripe publishable keys usually start with pk_.");
-    }
-
-    if (secretKey && !secretKey.startsWith("sk_")) {
-      return Alert.alert("Invalid Secret Key", "Stripe secret keys usually start with sk_.");
-    }
-
-    if (webhookSecret && !webhookSecret.startsWith("whsec_")) {
-      return Alert.alert("Invalid Webhook Secret", "Stripe webhook secrets usually start with whsec_.");
-    }
-
-    if (connectedAccountId && !connectedAccountId.startsWith("acct_")) {
-      return Alert.alert("Invalid Account ID", "Connected account IDs usually start with acct_.");
-    }
-
-    try {
-      setIsSavingStripe(true);
-      const { userData } = await getAuthData();
-
-      if (!userData?.id) {
-        return Alert.alert("Error", "User not found. Please log in again.");
-      }
-
-      const res = await apiUpdateStripeSettings(societyId, {
-        userId: userData.id,
-        stripe_config: {
-          publishable_key: publishableKey,
-          secret_key: secretKey,
-          webhook_secret: webhookSecret,
-          connected_account_id: connectedAccountId,
-        },
-      });
-
-      if (res.success && res.result) {
-        setStripeForm({
-          publishable_key: res.result.stripe_config.publishable_key || publishableKey,
-          secret_key: secretKey,
-          webhook_secret: webhookSecret,
-          connected_account_id: res.result.stripe_config.connected_account_id || connectedAccountId,
-        });
-        Alert.alert("Success", "Stripe settings updated successfully.");
-      } else {
-        Alert.alert("Error", res.message || "Failed to update Stripe settings.");
-      }
-    } catch {
-      Alert.alert("Error", "Something went wrong.");
-    } finally {
-      setIsSavingStripe(false);
     }
   };
 
@@ -474,59 +423,6 @@ export default function SocietyUpdateScreen() {
         </View>
 
         <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Stripe Billing Configuration</Text>
-            <Text style={styles.helperText}>
-              Configure society-specific Stripe keys for maintenance payments and future billable services.
-            </Text>
-
-            <Text style={styles.label}>Publishable Key</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="pk_live_..."
-              autoCapitalize="none"
-              placeholderTextColor="#94a3b8"
-              value={stripeForm.publishable_key}
-              onChangeText={(t) => handleStripeChange("publishable_key", t)}
-            />
-
-            <Text style={styles.label}>Secret Key</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="sk_live_..."
-              secureTextEntry
-              autoCapitalize="none"
-              placeholderTextColor="#94a3b8"
-              value={stripeForm.secret_key}
-              onChangeText={(t) => handleStripeChange("secret_key", t)}
-            />
-
-            <Text style={styles.label}>Webhook Secret</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="whsec_..."
-              secureTextEntry
-              autoCapitalize="none"
-              placeholderTextColor="#94a3b8"
-              value={stripeForm.webhook_secret}
-              onChangeText={(t) => handleStripeChange("webhook_secret", t)}
-            />
-
-            <Text style={styles.label}>Connected Account ID</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="acct_..."
-              autoCapitalize="none"
-              placeholderTextColor="#94a3b8"
-              value={stripeForm.connected_account_id}
-              onChangeText={(t) => handleStripeChange("connected_account_id", t)}
-            />
-
-            <TouchableOpacity style={styles.secondarySubmitBtn} onPress={handleStripeSubmit} disabled={isSavingStripe}>
-              {isSavingStripe ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Save Stripe Settings</Text>}
-            </TouchableOpacity>
-        </View>
-
-        <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Maintenance Audit History</Text>
             {maintenanceHistory.length === 0 ? (
               <Text style={styles.emptyHistoryText}>No maintenance fee changes yet.</Text>
@@ -547,6 +443,65 @@ export default function SocietyUpdateScreen() {
                 </View>
               ))
             )}
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Bank Account for Offline Payments</Text>
+          <Text style={styles.helperText}>
+            Residents will see these details when choosing to pay offline. They can copy account info and submit a screenshot for approval.
+          </Text>
+
+          <Text style={styles.label}>Bank Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. HBL, Meezan Bank"
+            placeholderTextColor="#94a3b8"
+            value={bankForm.bank_name}
+            onChangeText={(t) => setBankForm({ ...bankForm, bank_name: t })}
+          />
+
+          <Text style={styles.label}>Account Title</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Green Valley Society"
+            placeholderTextColor="#94a3b8"
+            value={bankForm.account_title}
+            onChangeText={(t) => setBankForm({ ...bankForm, account_title: t })}
+          />
+
+          <Text style={styles.label}>Account Number *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. 01234567890123"
+            keyboardType="numeric"
+            placeholderTextColor="#94a3b8"
+            value={bankForm.account_number}
+            onChangeText={(t) => setBankForm({ ...bankForm, account_number: t })}
+          />
+
+          <Text style={styles.label}>IBAN (optional)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. PK36SCBL0000001123456702"
+            autoCapitalize="characters"
+            placeholderTextColor="#94a3b8"
+            value={bankForm.iban}
+            onChangeText={(t) => setBankForm({ ...bankForm, iban: t.toUpperCase() })}
+          />
+
+          <TouchableOpacity style={styles.secondarySubmitBtn} onPress={handleBankSubmit} disabled={isSavingBank}>
+            {isSavingBank ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Save Bank Account</Text>}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Resident Payments</Text>
+          <Text style={styles.helperText}>
+            Review which residents have paid this month's maintenance and who still owes.
+          </Text>
+          <TouchableOpacity style={styles.secondarySubmitBtn} onPress={() => router.push('/society-payments' as any)}>
+            <Text style={styles.submitBtnText}>View Payment Status</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>

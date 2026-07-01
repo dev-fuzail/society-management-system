@@ -114,10 +114,10 @@ export const getElectionDetails = async (req, res) => {
   }
 };
 
-// Cast a vote (Resident)
+// Cast a vote (Resident or Admin)
 export const castVote = async (req, res) => {
   try {
-    if (!requireRole(req, res, ["resident"])) return;
+    if (!requireRole(req, res, ["resident", "admin"])) return;
     const { election_id, candidate_id } = req.body;
     const voter_id = req.user.id;
 
@@ -181,6 +181,28 @@ export const getElectionResults = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Force-complete an election instantly (bypasses end_date — for testing)
+export const forceCompleteElection = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const election = await Election.findById(id);
+    if (!election) return res.status(404).json({ success: false, message: "Election not found." });
+
+    election.status = "completed";
+    election.end_date = new Date();
+    await election.save();
+
+    const publication = await publishElectionResults(election, req.io);
+    return res.status(200).json({
+      success: true,
+      message: "Election force-completed and results published.",
+      result: publication?.election || election,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 

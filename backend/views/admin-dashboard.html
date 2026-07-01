@@ -119,6 +119,42 @@
         color: white;
         margin-left: 8px;
       }
+      .approve-btn {
+        background-color: var(--success);
+        color: white;
+      }
+      .reject-btn {
+        background-color: var(--danger);
+        color: white;
+        margin-left: 8px;
+      }
+      .paid-btn {
+        background-color: var(--brand-2);
+        color: white;
+      }
+      .status-badge {
+        font-weight: 700;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        text-transform: capitalize;
+      }
+      .status-badge.pending {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .status-badge.approved {
+        background: #dbeafe;
+        color: #1e3a8a;
+      }
+      .status-badge.paid {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .status-badge.rejected {
+        background: #fee2e2;
+        color: #991b1b;
+      }
       .muted {
         color: var(--muted);
       }
@@ -221,12 +257,178 @@
               </tr>
             </tbody>
           </table>
+
+          <!-- TEST: Notifications -->
+          <h3 style="margin-top: 28px">Test — Push Notifications</h3>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 8px 18px rgba(15,23,42,0.06);">
+            <p style="margin:0 0 12px;color:var(--muted);font-size:13px;">Send a test push notification to all platform users or a specific society.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+              <input v-model="testNotifTitle" placeholder="Title" style="flex:1;min-width:160px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;" />
+              <input v-model="testNotifMessage" placeholder="Message" style="flex:2;min-width:200px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;" />
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+              <select v-model="testNotifSocietyId" style="flex:1;min-width:180px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+                <option value="">— All Users —</option>
+                <option v-for="s in societies" :key="s._id" :value="s._id">{{ s.name }}</option>
+              </select>
+              <button class="toggle-btn" @click="sendTestNotification" :disabled="testNotifLoading">
+                {{ testNotifLoading ? 'Sending...' : 'Send Notification' }}
+              </button>
+            </div>
+            <p v-if="testNotifResult" style="margin:10px 0 0;font-size:13px;color:var(--success);">✓ {{ testNotifResult }}</p>
+            <p v-if="testNotifError" style="margin:10px 0 0;font-size:13px;color:var(--danger);">✗ {{ testNotifError }}</p>
+          </div>
+
+          <!-- TEST: Payment Gateway -->
+          <h3 style="margin-top: 8px">Test — Payment Gateway (Wallet)</h3>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 8px 18px rgba(15,23,42,0.06);">
+            <p style="margin:0 0 12px;color:var(--muted);font-size:13px;">Simulate a credit or debit against a society wallet. Changes are real — affects wallet balance and creates a transaction record.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+              <select v-model="testPaySocietyId" style="flex:2;min-width:180px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+                <option value="">— Select Society —</option>
+                <option v-for="s in societies" :key="s._id" :value="s._id">{{ s.name }}</option>
+              </select>
+              <input v-model.number="testPayAmount" type="number" placeholder="Amount (PKR)" style="flex:1;min-width:120px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;" />
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button style="background:var(--success);color:#fff;font-weight:700;border:none;border-radius:8px;padding:10px 18px;cursor:pointer;" @click="testPayment('credit')" :disabled="testPayLoading">
+                {{ testPayLoading === 'credit' ? 'Processing...' : '+ Credit Wallet' }}
+              </button>
+              <button style="background:var(--danger);color:#fff;font-weight:700;border:none;border-radius:8px;padding:10px 18px;cursor:pointer;" @click="testPayment('debit')" :disabled="testPayLoading">
+                {{ testPayLoading === 'debit' ? 'Processing...' : '− Debit Wallet' }}
+              </button>
+            </div>
+            <p v-if="testPayResult" style="margin:10px 0 0;font-size:13px;color:var(--success);">✓ {{ testPayResult }}</p>
+            <p v-if="testPayError" style="margin:10px 0 0;font-size:13px;color:var(--danger);">✗ {{ testPayError }}</p>
+          </div>
+
+          <!-- TEST: Force-Complete Election -->
+          <h3 style="margin-top: 8px">Test — Force Complete Election</h3>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 8px 18px rgba(15,23,42,0.06);">
+            <p style="margin:0 0 12px;color:var(--muted);font-size:13px;">Instantly mark an election as completed and publish results — bypasses end date. For testing only.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+              <select v-model="forceElectionId" style="flex:1;min-width:220px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+                <option value="">— Select Election —</option>
+                <option v-for="e in elections" :key="e._id" :value="e._id">{{ e.title }} ({{ e.status }})</option>
+              </select>
+              <button style="background:#7c3aed;color:#fff;font-weight:700;border:none;border-radius:8px;padding:10px 18px;cursor:pointer;" @click="forceCompleteElection" :disabled="forceElectionLoading">
+                {{ forceElectionLoading ? 'Processing...' : '⚡ Force Complete' }}
+              </button>
+            </div>
+            <p v-if="forceElectionResult" style="margin:10px 0 0;font-size:13px;color:var(--success);">✓ {{ forceElectionResult }}</p>
+            <p v-if="forceElectionError" style="margin:10px 0 0;font-size:13px;color:var(--danger);">✗ {{ forceElectionError }}</p>
+          </div>
+
+          <!-- PAYFAST VERIFIED PAYMENTS -->
+          <h3 style="margin-top: 28px">PayFast — Verified Payments (Sandbox)</h3>
+          <div v-if="payfastTxnError" class="error">{{ payfastTxnError }}</div>
+          <div v-if="!payfastDirectApiAvailable && payfastDirectApiError" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px;margin-bottom:10px;font-size:13px;color:#92400e;">
+            ⚠ PayFast direct API unavailable: <strong>{{ payfastDirectApiError }}</strong><br/>
+            Set <code>PAYFAST_DIRECT_BASE_URL</code> in <code>backend/.env</code> to the correct sandbox host. Showing local records only.
+          </div>
+          <div v-if="loadingPayfastTxns" class="loading muted">Fetching PayFast transactions...</div>
+          <table v-else>
+            <thead>
+              <tr>
+                <th>Society</th>
+                <th>Basket ID (Test Order ID)</th>
+                <th>PayFast Txn ID</th>
+                <th>Amount (PKR)</th>
+                <th>Type</th>
+                <th>PayFast Status</th>
+                <th>Verified</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="t in payfastTxns" :key="t.local_id">
+                <td>{{ t.society }}</td>
+                <td style="font-size:11px;word-break:break-all;">{{ t.basket_id }}</td>
+                <td style="font-size:11px;">{{ t.payfast_txn_id_live || t.payfast_txn_id || '—' }}</td>
+                <td>{{ t.amount }}</td>
+                <td><span class="status-badge" :class="t.type === 'credit' ? 'approved' : 'pending'">{{ t.type }}</span></td>
+                <td>
+                  <span v-if="t.payfast_status_code">
+                    <span class="status-badge" :class="t.payfast_status_code === '00' ? 'paid' : 'rejected'">
+                      {{ t.payfast_status_code }}
+                    </span>
+                    <span class="muted" style="font-size:12px;margin-left:4px;">{{ t.payfast_status_msg }}</span>
+                  </span>
+                  <span v-else-if="t.payfast_error" style="color:var(--danger);font-size:12px;" :title="t.payfast_error">⚠ API error</span>
+                  <span v-else class="muted">—</span>
+                </td>
+                <td>
+                  <span v-if="t.payfast_verified" style="color:var(--success);font-weight:700;">✓ Yes</span>
+                  <span v-else-if="t.payfast_status_code" style="color:var(--danger);font-weight:700;">✗ No</span>
+                  <span v-else class="muted">Unverified</span>
+                </td>
+                <td style="font-size:12px;">{{ t.created_at ? new Date(t.created_at).toLocaleString() : '—' }}</td>
+              </tr>
+              <tr v-if="payfastTxns.length === 0">
+                <td colspan="8" class="muted">No PayFast transactions recorded yet. Complete a payment through the app or use the Test Credit route above.</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="margin-top:8px;">
+            <button class="toggle-btn" @click="fetchPayfastTransactions" :disabled="loadingPayfastTxns">↻ Refresh</button>
+          </div>
+
+          <h3 style="margin-top: 28px">Withdrawal Requests</h3>
+          <div v-if="withdrawalError" class="error">{{ withdrawalError }}</div>
+          <div v-if="loadingWithdrawals" class="loading muted">Loading withdrawal requests...</div>
+          <table v-else>
+            <thead>
+              <tr>
+                <th>Society</th>
+                <th>Requested By</th>
+                <th>Amount</th>
+                <th>Bank Details</th>
+                <th>Status</th>
+                <th>Requested At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="w in withdrawals" :key="w._id">
+                <td>{{ w.wallet_id?.society_id?.name || 'N/A' }}</td>
+                <td>
+                  {{ w.society_admin_id?.name || 'N/A' }}<br />
+                  <span class="muted">{{ w.society_admin_id?.email || '' }}</span>
+                </td>
+                <td>{{ w.amount }}</td>
+                <td>
+                  <span v-if="w.bank_details">
+                    {{ w.bank_details.bank_name || 'N/A' }}<br />
+                    {{ w.bank_details.account_title || '' }}<br />
+                    {{ w.bank_details.account_number || '' }}
+                  </span>
+                  <span v-else class="muted">No details provided</span>
+                </td>
+                <td><span class="status-badge" :class="w.status">{{ w.status }}</span></td>
+                <td>{{ new Date(w.requested_at).toLocaleString() }}</td>
+                <td>
+                  <template v-if="w.status === 'pending'">
+                    <button class="approve-btn" @click="processWithdrawal(w, 'approve')">Approve</button>
+                    <button class="reject-btn" @click="processWithdrawal(w, 'reject')">Reject</button>
+                  </template>
+                  <template v-else-if="w.status === 'approved'">
+                    <button class="paid-btn" @click="processWithdrawal(w, 'paid')">Mark Paid</button>
+                  </template>
+                  <span v-else class="muted">No action needed</span>
+                </td>
+              </tr>
+              <tr v-if="withdrawals.length === 0">
+                <td colspan="7" class="muted">No withdrawal requests yet.</td>
+              </tr>
+            </tbody>
+          </table>
         </template>
       </div>
     </div>
 
     <script>
       const { createApp } = Vue;
+      const API_BASE = window.location.origin;
 
       createApp({
         data() {
@@ -237,6 +439,30 @@
             totalUsersCount: 0,
             societies: [],
             donutChart: null,
+            loadingWithdrawals: true,
+            withdrawalError: "",
+            withdrawals: [],
+            testNotifTitle: "Test Notification",
+            testNotifMessage: "This is a test push notification from the super admin.",
+            testNotifSocietyId: "",
+            testNotifLoading: false,
+            testNotifResult: "",
+            testNotifError: "",
+            testPaySocietyId: "",
+            testPayAmount: 1000,
+            testPayLoading: false,
+            testPayResult: "",
+            testPayError: "",
+            elections: [],
+            forceElectionId: "",
+            forceElectionLoading: false,
+            forceElectionResult: "",
+            forceElectionError: "",
+            loadingPayfastTxns: true,
+            payfastTxnError: "",
+            payfastTxns: [],
+            payfastDirectApiAvailable: true,
+            payfastDirectApiError: "",
           };
         },
         methods: {
@@ -298,7 +524,7 @@
             this.loading = true;
             this.error = "";
             try {
-              const response = await fetch("/admin/api/dashboard", {
+              const response = await fetch(`${API_BASE}/admin/api/dashboard`, {
                 credentials: "same-origin",
               });
 
@@ -331,7 +557,7 @@
             }
 
             try {
-              const response = await fetch(`/admin/society/${society._id}/status`, {
+              const response = await fetch(`${API_BASE}/admin/society/${society._id}/status`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "same-origin",
@@ -361,7 +587,7 @@
             }
 
             try {
-              const response = await fetch(`/admin/society/${society._id}/delete`, {
+              const response = await fetch(`${API_BASE}/admin/society/${society._id}/delete`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "same-origin",
@@ -384,9 +610,160 @@
               alert(err.message || "Failed to delete society.");
             }
           },
+
+          async sendTestNotification() {
+            this.testNotifResult = "";
+            this.testNotifError = "";
+            this.testNotifLoading = true;
+            try {
+              const url = this.testNotifSocietyId
+                ? `${API_BASE}/admin/test/notify-society/${this.testNotifSocietyId}`
+                : `${API_BASE}/admin/test/notify-all`;
+              const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+                body: JSON.stringify({ title: this.testNotifTitle, message: this.testNotifMessage }),
+              });
+              const result = await response.json();
+              if (!result.success) throw new Error(result.message || "Failed.");
+              this.testNotifResult = result.message;
+            } catch (err) {
+              this.testNotifError = err.message || "Failed to send notification.";
+            } finally {
+              this.testNotifLoading = false;
+            }
+          },
+
+          async testPayment(action) {
+            this.testPayResult = "";
+            this.testPayError = "";
+            if (!this.testPaySocietyId) { this.testPayError = "Please select a society."; return; }
+            if (!this.testPayAmount || this.testPayAmount <= 0) { this.testPayError = "Enter a valid amount."; return; }
+            this.testPayLoading = action;
+            try {
+              const response = await fetch(`${API_BASE}/admin/test/payment/${action}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+                body: JSON.stringify({ societyId: this.testPaySocietyId, amount: this.testPayAmount }),
+              });
+              const result = await response.json();
+              if (!result.success) throw new Error(result.message || "Failed.");
+              this.testPayResult = `${result.message} New balance: ${result.wallet?.balance ?? "N/A"} PKR`;
+            } catch (err) {
+              this.testPayError = err.message || "Failed to process payment.";
+            } finally {
+              this.testPayLoading = false;
+            }
+          },
+
+          async fetchPayfastTransactions() {
+            this.loadingPayfastTxns = true;
+            this.payfastTxnError = "";
+            try {
+              const response = await fetch(`${API_BASE}/admin/api/payfast/transactions`, {
+                credentials: "same-origin",
+              });
+              const payload = await response.json();
+              if (!payload.success) throw new Error(payload.message || "Failed to load PayFast transactions.");
+              this.payfastTxns = payload.result || [];
+              this.payfastDirectApiAvailable = payload.direct_api_available;
+              this.payfastDirectApiError = payload.direct_api_error || "";
+            } catch (err) {
+              this.payfastTxnError = err.message || "An error occurred while loading PayFast transactions.";
+            } finally {
+              this.loadingPayfastTxns = false;
+            }
+          },
+
+          async fetchWithdrawals() {
+            this.loadingWithdrawals = true;
+            this.withdrawalError = "";
+            try {
+              const response = await fetch(`${API_BASE}/admin/api/withdrawals`, {
+                credentials: "same-origin",
+              });
+
+              const payload = await response.json();
+              if (!response.ok || !payload.success) {
+                throw new Error(payload.message || "Failed to load withdrawal requests.");
+              }
+
+              this.withdrawals = payload.result || [];
+            } catch (err) {
+              this.withdrawalError = err.message || "An error occurred while loading withdrawal requests.";
+            } finally {
+              this.loadingWithdrawals = false;
+            }
+          },
+
+          async fetchElections() {
+            try {
+              const res = await fetch(`${API_BASE}/admin/api/elections`, { credentials: "same-origin" });
+              const data = await res.json();
+              if (data.success) this.elections = data.result || [];
+            } catch (err) {
+              console.error("Failed to fetch elections:", err);
+            }
+          },
+
+          async forceCompleteElection() {
+            this.forceElectionResult = "";
+            this.forceElectionError = "";
+            if (!this.forceElectionId) { this.forceElectionError = "Please select an election."; return; }
+            if (!confirm("Force-complete this election and publish results immediately?")) return;
+            this.forceElectionLoading = true;
+            try {
+              const res = await fetch(`${API_BASE}/admin/api/elections/${this.forceElectionId}/force-complete`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+              });
+              const data = await res.json();
+              if (!data.success) throw new Error(data.message || "Failed.");
+              this.forceElectionResult = `Election completed. Results published.`;
+              await this.fetchElections();
+            } catch (err) {
+              this.forceElectionError = err.message || "Failed to complete election.";
+            } finally {
+              this.forceElectionLoading = false;
+            }
+          },
+
+          async processWithdrawal(withdrawal, action) {
+            const confirmText = {
+              approve: "Approve this withdrawal request?",
+              reject: "Reject this withdrawal request?",
+              paid: "Confirm that you have manually transferred these funds and mark this withdrawal as PAID? This will debit the society's wallet.",
+            }[action];
+
+            if (!confirm(confirmText)) return;
+
+            try {
+              const response = await fetch(`${API_BASE}/admin/withdrawals/${withdrawal._id}/${action}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+              });
+
+              const result = await response.json();
+              if (!response.ok || !result.success) {
+                throw new Error(result.message || "Failed to update withdrawal request.");
+              }
+
+              withdrawal.status = result.result.status;
+              alert(result.message || "Withdrawal request updated.");
+            } catch (err) {
+              alert(err.message || "Failed to update withdrawal request.");
+            }
+          },
         },
         mounted() {
           this.fetchDashboard();
+          this.fetchWithdrawals();
+          this.fetchPayfastTransactions();
+          this.fetchElections();
         },
       }).mount("#app");
     </script>

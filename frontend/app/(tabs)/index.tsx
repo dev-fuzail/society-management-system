@@ -1,13 +1,14 @@
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, Dimensions, Platform, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { Ionicons } from "@expo/vector-icons";
-import { getAuthData } from '@/hooks/helperHooks'; // Import your auth helper
-import { apiGetAnnouncements } from '@/services/AnnouncementService'; // Import the service
+import { getAuthData } from '@/hooks/helperHooks';
+import { apiGetAnnouncements } from '@/services/AnnouncementService';
 import { Announcement } from '@/services/types';
 import { apiGetUserSocieties } from '@/services/SocietyService';
 import AmenityService, { Amenity } from '@/services/AmenityService';
+import { apiGetWalletReport, WalletReport } from '@/services/FinanceService';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -17,45 +18,68 @@ const NOTICE_COLORS = ['#FFEB3B', '#FFCDD2', '#C8E6C9', '#BBDEFB', '#E1BEE7'];
 export default function HomeScreen() {
   const [showContent, setShowContent] = useState(Platform.OS !== 'web');
   const [tokenChecked, setTokenChecked] = useState(false);
-  const [realNotices, setRealNotices] = useState<Announcement[]>([]); // State for real data
+  const [realNotices, setRealNotices] = useState<Announcement[]>([]);
   const [loadingNotices, setLoadingNotices] = useState(true);
   const [realAmenities, setRealAmenities] = useState<Amenity[]>([]);
   const [loadingAmenities, setLoadingAmenities] = useState(true);
-  
+  const [walletReport, setWalletReport] = useState<WalletReport | null>(null);
+  const [societyId, setSocietyId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
   const router = useRouter();
 
-  useEffect(() => {
-    const verifyToken = async () => {
-      try {
-        const { token, userData } = await getAuthData();
-        const res = await apiGetUserSocieties(userData.id);
-        const selectedSociety = res.result[0];
-        if (!token) {
-          router.replace('/login');
-          return;
-        }
+  useFocusEffect(
+    useCallback(() => {
+      const verifyToken = async () => {
+        try {
+          const { token, userData } = await getAuthData();
+          const res = await apiGetUserSocieties(userData.id);
+          const selectedSociety = res.result[0];
+          if (!token) {
+            router.replace('/login');
+            return;
+          }
 
-        // ✅ Fetch Real Announcements if user has a society
-        if (userData && selectedSociety) {
-          fetchAnnouncements(selectedSociety._id);
-          fetchAmenities(selectedSociety._id);
-        } else {
-          setLoadingNotices(false);
-          setLoadingAmenities(false);
-        }
+          // ✅ Fetch Real Announcements if user has a society
+          if (userData && selectedSociety) {
+            setSocietyId(selectedSociety._id);
+            setIsAdmin(userData.role === 'admin');
+            fetchAnnouncements(selectedSociety._id);
+            fetchAmenities(selectedSociety._id);
+            fetchWalletReport(selectedSociety._id);
+          } else {
+            setLoadingNotices(false);
+            setLoadingAmenities(false);
+          }
 
-      } finally {
-        setTokenChecked(true);
-      }
-    };
-    verifyToken();
-  }, [router]);
+        } finally {
+          setTokenChecked(true);
+        }
+      };
+      verifyToken();
+    }, [router])
+  );
+
+  const fetchWalletReport = async (sid: string) => {
+    try {
+      const res = await apiGetWalletReport(sid);
+      if (res.success) setWalletReport(res.result);
+    } catch (e) {
+      console.log("Error fetching wallet:", e);
+    }
+  };
 
   const fetchAnnouncements = async (societyId: string) => {
     try {
       const response = await apiGetAnnouncements(societyId);
       if (response.success) {
-        setRealNotices(response.result);
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const thisMonth = (response.result as Announcement[]).filter(
+          (a) => new Date(a.created_at) >= monthStart
+        );
+        // Show up to 5 from this month
+        setRealNotices(thisMonth.slice(0, 5));
       }
     } catch (error) {
       console.log("Error fetching notices:", error);
@@ -86,29 +110,24 @@ export default function HomeScreen() {
 
   if (!tokenChecked) return null;
 
-  // Dummy data for charts/cards (kept as requested)
-  const totalPayments = 50000;
-  const totalExpenses = 32000;
+  // Monthly-scoped financials for the home overview
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthlyTx = walletReport?.transactions.filter(tx => new Date(tx.created_at) >= monthStart) ?? [];
+  const totalPayments = monthlyTx.filter(t => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
+  const totalExpenses = monthlyTx.filter(t => t.type === 'debit').reduce((s, t) => s + t.amount, 0);
+  const currentBalance = walletReport?.wallet.balance ?? 0;
+
   const issuesCovered = 45;
   const issuesResolved = 30;
   const issuesUnderProcess = 15;
 
-  // const dashboardCards = [
-  //   { title: 'Total Payments', value: `$${totalPayments}` },
-  //   { title: 'Total Expenses', value: `$${totalExpenses}` },
-  //   { title: 'Issues Covered', value: `${ticketStats.total}` },       // Real Total
-  //   { title: 'Issues Resolved', value: `${ticketStats.resolved}` },    // Real Resolved
-  //   { title: 'Issues Under Process', value: `${ticketStats.processing}` }, // Real Pending/In Progress
-  // ];
-
   const pieData = [
-    { name: 'Total Payments', population: totalPayments, color: '#1E88E5', legendFontColor: '#333', legendFontSize: 14 },
-    { name: 'Total Expenses', population: totalExpenses, color: '#00D39B', legendFontColor: '#333', legendFontSize: 14 },
+    { name: 'Credits', population: totalPayments || 1, color: '#1E88E5', legendFontColor: '#333', legendFontSize: 14 },
+    { name: 'Expenses', population: totalExpenses || 1, color: '#00D39B', legendFontColor: '#333', legendFontSize: 14 },
   ];
 
   const dashboardCards = [
-    { title: 'Total Payments', value: `$${totalPayments}` },
-    { title: 'Total Expenses', value: `$${totalExpenses}` },
     { title: 'Issues Covered', value: `${issuesCovered}` },
     { title: 'Issues Resolved', value: `${issuesResolved}` },
     { title: 'Issues Under Process', value: `${issuesUnderProcess}` },
@@ -119,81 +138,116 @@ export default function HomeScreen() {
       {/* Financial Overview Section */}
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeader}>Financial Overview</Text>
-            <TouchableOpacity onPress={() => Alert.alert("Reports", "Detailed financial reports are coming soon!")}>
-              <Ionicons name="stats-chart" size={18} color="#4f46e5" />
-            </TouchableOpacity>
+          <Text style={styles.sectionHeader}>Financial Overview</Text>
+          <TouchableOpacity onPress={() => router.push('/finance-report')} style={styles.reportLink}>
+            <Text style={styles.viewMoreText}>Full Report</Text>
+            <Ionicons name="chevron-forward" size={14} color="#4f46e5" />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.financeDashboardCard}>
-            <View style={styles.balanceHeader}>
+          <View style={styles.balanceHeader}>
+            <View>
+              <Text style={styles.balanceLabel}>Current Balance</Text>
+              <Text style={styles.balanceAmount}>
+                PKR {currentBalance.toLocaleString('en-PK')}
+              </Text>
+            </View>
+            {isAdmin && (
+              <TouchableOpacity style={styles.statusPill} onPress={() => router.push('/finance-report')}>
+                <Ionicons name="stats-chart-outline" size={13} color="#4f46e5" />
+                <Text style={styles.statusPillText}>Manage</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.mainFinanceContent}>
+            {showContent && Platform.OS !== 'web' && (
+              <View style={styles.chartSide}>
+                <PieChart
+                  data={pieData}
+                  width={screenWidth * 0.4}
+                  height={120}
+                  accessor="population"
+                  backgroundColor="transparent"
+                  paddingLeft="20"
+                  center={[0, 0]}
+                  absolute
+                  hasLegend={false}
+                  chartConfig={{ color: (opacity = 1) => `rgba(30, 136, 229, ${opacity})` }}
+                />
+              </View>
+            )}
+            <View style={styles.statsSide}>
+              <View style={styles.financeStatBox}>
+                <View style={[styles.statDot, { backgroundColor: '#1E88E5' }]} />
                 <View>
-                    <Text style={styles.balanceLabel}>Current Balance</Text>
-                    <Text style={styles.balanceAmount}>${(totalPayments - totalExpenses).toLocaleString()}</Text>
+                  <Text style={styles.statMiniLabel}>This Month</Text>
+                  <Text style={[styles.statMiniValue, { color: '#1E88E5' }]}>
+                    +PKR {totalPayments.toLocaleString('en-PK')}
+                  </Text>
                 </View>
-                <View style={styles.badgeContainer}>
-                    <View style={styles.statusPill}>
-                        <Text style={styles.statusPillText}>Q2 2026</Text>
-                    </View>
+              </View>
+              <View style={styles.financeStatBox}>
+                <View style={[styles.statDot, { backgroundColor: '#ef4444' }]} />
+                <View>
+                  <Text style={styles.statMiniLabel}>Expenses</Text>
+                  <Text style={[styles.statMiniValue, { color: '#ef4444' }]}>
+                    -PKR {totalExpenses.toLocaleString('en-PK')}
+                  </Text>
                 </View>
+              </View>
             </View>
+          </View>
 
-            <View style={styles.divider} />
-
-            <View style={styles.mainFinanceContent}>
-                {showContent && Platform.OS !== 'web' && (
-                    <View style={styles.chartSide}>
-                      <PieChart
-                        data={pieData}
-                        width={screenWidth * 0.4}
-                        height={120}
-                        accessor="population"
-                        backgroundColor="transparent"
-                        paddingLeft="20"
-                        center={[0, 0]}
-                        absolute
-                        hasLegend={false}
-                        chartConfig={{
-                          color: (opacity = 1) => `rgba(30, 136, 229, ${opacity})`,
-                        }}
-                      />
-                    </View>
-                )}
-
-                <View style={styles.statsSide}>
-                    <View style={styles.financeStatBox}>
-                      <View style={[styles.statDot, { backgroundColor: '#1E88E5' }]} />
-                        <View>
-                            <Text style={styles.statMiniLabel}>Collection</Text>
-                        <Text style={[styles.statMiniValue, { color: '#1E88E5' }]}>+${totalPayments.toLocaleString()}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.financeStatBox}>
-                      <View style={[styles.statDot, { backgroundColor: '#00D39B' }]} />
-                        <View>
-                            <Text style={styles.statMiniLabel}>Expenses</Text>
-                        <Text style={[styles.statMiniValue, { color: '#00D39B' }]}>-${totalExpenses.toLocaleString()}</Text>
-                        </View>
-                    </View>
-                </View>
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, {
+                width: `${totalPayments > 0 ? Math.min((totalExpenses / totalPayments) * 100, 100) : 0}%`
+              }]} />
             </View>
-
-            <View style={styles.progressContainer}>
-                <View style={styles.progressBarBg}>
-                    <View style={[styles.progressBarFill, { width: `${(totalExpenses / totalPayments) * 100}%` }]} />
-                </View>
-                <View style={styles.progressLabels}>
-                    <Text style={styles.progressText}>Budget Utilization</Text>
-                    <Text style={styles.progressPercentage}>{Math.round((totalExpenses / totalPayments) * 100)}%</Text>
-                </View>
+            <View style={styles.progressLabels}>
+              <Text style={styles.progressText}>Budget Utilization</Text>
+              <Text style={styles.progressPercentage}>
+                {totalPayments > 0 ? Math.round((totalExpenses / totalPayments) * 100) : 0}%
+              </Text>
             </View>
+          </View>
         </View>
+      </View>
+
+      {/* SOS Emergency Card */}
+      <View style={styles.sectionContainer}>
+        <TouchableOpacity style={styles.sosCard} onPress={() => router.push('/sos')} activeOpacity={0.85}>
+          <View style={styles.sosLeft}>
+            <View style={styles.sosIconRing}>
+              <Ionicons name="warning" size={22} color="#dc2626" />
+            </View>
+            <View>
+              <Text style={styles.sosTitle}>Emergency SOS</Text>
+              <Text style={styles.sosSub}>Police · Ambulance · Fire · Rescue</Text>
+            </View>
+          </View>
+          <View style={styles.sosCallPill}>
+            <Ionicons name="call" size={14} color="#fff" />
+            <Text style={styles.sosCallText}>Call</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Main Modules Grid */}
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionHeader}>Society Modules</Text>
         <View style={styles.moduleGrid}>
+          <TouchableOpacity style={styles.moduleCard} onPress={() => router.push('/invoices')} activeOpacity={0.8}>
+            <View style={[styles.iconCircle, { backgroundColor: '#ecfeff' }]}>
+              <Ionicons name="card-outline" size={26} color="#0891b2" />
+            </View>
+            <Text style={styles.moduleTitle}>Maintenance</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.moduleCard} onPress={() => router.push('/apartments')} activeOpacity={0.8}>
             <View style={[styles.iconCircle, { backgroundColor: '#eef2ff' }]}>
               <Ionicons name="business-outline" size={26} color="#4f46e5" />
@@ -222,12 +276,6 @@ export default function HomeScreen() {
             <Text style={styles.moduleTitle}>Invite</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.moduleCard} onPress={() => router.push('/profile')} activeOpacity={0.8}>
-            <View style={[styles.iconCircle, { backgroundColor: '#f5f5f5' }]}>
-              <Ionicons name="person-circle-outline" size={26} color="#666" />
-            </View>
-            <Text style={styles.moduleTitle}>Profile</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -263,7 +311,7 @@ export default function HomeScreen() {
                 <Text style={styles.amenityName}>{amenity.name}</Text>
                 <Text style={styles.amenityType}>{amenity.type === 'PER_USER' ? 'Recurring facility' : 'One-time event space'}</Text>
               </View>
-              <Text style={styles.amenityPrice}>${amenity.base_price}</Text>
+              <Text style={styles.amenityPrice}>PKR {amenity.base_price}</Text>
             </View>
           ))
         ) : (
@@ -276,7 +324,12 @@ export default function HomeScreen() {
       {/* Noticeboard Section */}
       <View style={[styles.sectionContainer, { marginBottom: 40 }]}>
         <View style={styles.noticeHeader}>
-          <Text style={styles.sectionHeader}>Noticeboard</Text>
+          <View>
+            <Text style={styles.sectionHeader}>Noticeboard</Text>
+            <Text style={{ fontSize: 11, color: '#94a3b8', fontWeight: '600', marginTop: 1 }}>
+              {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+            </Text>
+          </View>
           <Ionicons name="notifications-outline" size={20} color="#666" />
         </View>
         
@@ -304,7 +357,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <View style={styles.emptyNotice}>
-            <Text style={styles.emptyNoticeText}>No new announcements.</Text>
+            <Text style={styles.emptyNoticeText}>No announcements this month.</Text>
           </View>
         )}
       </View>
@@ -337,6 +390,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#4f46e5',
+  },
+  reportLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   amenityItem: {
     flexDirection: 'row',
@@ -576,6 +634,25 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
+  sosCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#fff', borderRadius: 18, padding: 16,
+    borderWidth: 1.5, borderColor: '#fecaca',
+    shadowColor: '#dc2626', shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
+  },
+  sosLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  sosIconRing: {
+    width: 46, height: 46, borderRadius: 23,
+    backgroundColor: '#fef2f2', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: '#fecaca',
+  },
+  sosTitle: { fontSize: 15, fontWeight: '800', color: '#0f172a' },
+  sosSub: { fontSize: 11, color: '#94a3b8', marginTop: 1, fontWeight: '500' },
+  sosCallPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#dc2626', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20,
+  },
+  sosCallText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   moduleGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -198,7 +198,7 @@ export default function AmenitiesScreen() {
         </View>
         <View style={styles.priceBox}>
             <Text style={styles.priceLabel}>From</Text>
-            <Text style={styles.priceValue}>${item.base_price}</Text>
+            <Text style={styles.priceValue}>PKR {item.base_price}</Text>
         </View>
       </View>
       <TouchableOpacity style={styles.bookBtn} onPress={() => handleBookPress(item)}>
@@ -300,7 +300,7 @@ export default function AmenitiesScreen() {
 
                       <View style={styles.priceBreakdown}>
                         <Text style={styles.priceBreakdownLabel}>Total Estimated Price</Text>
-                        <Text style={styles.priceBreakdownValue}>${totalPrice}</Text>
+                        <Text style={styles.priceBreakdownValue}>PKR {totalPrice}</Text>
                         <Text style={styles.bookingHint}>
                           {selectedAmenity?.type === 'PER_USER'
                             ? 'Recurring facilities can be booked in repeated slots.'

@@ -23,7 +23,8 @@
       "usesCleartextTraffic": true,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.livingsync"
+      "package": "com.anonymous.livingsync",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -32,15 +33,11 @@
     "splash": {
       "backgroundColor": "#000000"
     },
-    "googleServicesFile": "./google-services.json",
     "plugins": [
       "expo-router",
-      [
-        "@stripe/stripe-react-native",
-        {
-          "merchantIdentifier": "merchant.com.anonymous.livingsync"
-        }
-      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {

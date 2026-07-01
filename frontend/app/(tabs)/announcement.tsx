@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
     View,
     Text,
@@ -38,9 +39,11 @@ export default function AnnouncementsScreen() {
     const [formTitle, setFormTitle] = useState('');
     const [formMessage, setFormMessage] = useState('');
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            loadData();
+        }, [])
+    );
 
     const loadData = async () => {
         setLoading(true);

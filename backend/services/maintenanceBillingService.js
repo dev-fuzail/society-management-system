@@ -3,9 +3,9 @@ import Invoice from "../models/Invoice.js";
 import Payment from "../models/Payment.js";
 import Society from "../models/Society.js";
 import { createAndSendNotification } from "./notificationService.js";
-import { hasStripeConfig } from "./stripeService.js";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const DUE_SOON_WINDOW_DAYS = Number(process.env.DUE_REMINDER_DAYS || 3);
 
 const getPeriodKey = (date = new Date()) => {
   const year = date.getFullYear();
@@ -77,15 +77,14 @@ export const resolveMaintenancePricing = (society, billingDate) => {
 
 const createPaymentRecord = async ({ invoice, society, societyId, currency }) => {
   try {
-    const stripeEnabled = hasStripeConfig(society?.stripe_config || {});
     return await Payment.create({
       invoice_id: invoice._id,
       user_id: invoice.user_id,
       society_id: societyId,
       amount: invoice.amount,
       currency,
-      method: stripeEnabled ? "Stripe" : "System",
-      provider: stripeEnabled ? "Stripe" : "System",
+      method: "System",
+      provider: "System",
       status: "pending",
     });
   } catch (error) {
@@ -184,6 +183,59 @@ const sendMaintenanceReminder = async ({ io, society, invoice, dueDate }) => {
   return result;
 };
 
+export const sendUpcomingDueReminders = async ({ io } = {}) => {
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + DUE_SOON_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+  const invoices = await Invoice.find({
+    status: { $in: ["pending", "unpaid"] },
+    due_date: { $gte: now, $lte: windowEnd },
+    due_soon_reminder_sent_at: { $exists: false },
+  }).populate("society_id", "name");
+
+  let remindersSent = 0;
+
+  for (const invoice of invoices) {
+    const society = invoice.society_id;
+    if (!society) continue;
+
+    const dueDateLabel = new Date(invoice.due_date).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    await createAndSendNotification({
+      io,
+      userIds: [invoice.user_id],
+      societyId: society._id,
+      type: "maintenance_reminder",
+      title: `${society.name} maintenance due soon`,
+      message: `${invoice.currency} ${invoice.amount} is due by ${dueDateLabel}. Pay now to avoid late charges.`,
+      data: {
+        category: "maintenance",
+        societyId: society._id.toString(),
+        societyName: society.name,
+        invoiceId: invoice._id.toString(),
+        amount: String(invoice.amount),
+        currency: invoice.currency,
+        dueDate: new Date(invoice.due_date).toISOString(),
+        paymentLink: invoice.payment_link || `maintenance-payment?invoiceId=${invoice._id.toString()}`,
+        deepLink: invoice.payment_link || `maintenance-payment?invoiceId=${invoice._id.toString()}`,
+      },
+    });
+
+    await Invoice.updateOne(
+      { _id: invoice._id, due_soon_reminder_sent_at: { $exists: false } },
+      { due_soon_reminder_sent_at: new Date() }
+    );
+
+    remindersSent += 1;
+  }
+
+  return { remindersSent, windowDays: DUE_SOON_WINDOW_DAYS };
+};
+
 export const generateMonthlyMaintenanceBilling = async ({
   io,
   billingDate = new Date(),
@@ -269,6 +321,11 @@ export const startMaintenanceBillingScheduler = (io) => {
       const result = await generateMonthlyMaintenanceBilling({ io });
       if (!result.skipped) {
         console.log("[MAINTENANCE BILLING]", result);
+      }
+
+      const dueSoonResult = await sendUpcomingDueReminders({ io });
+      if (dueSoonResult.remindersSent > 0) {
+        console.log("[DUE SOON REMINDERS]", dueSoonResult);
       }
     } catch (error) {
       console.error("[MAINTENANCE BILLING] Failed:", error.message);

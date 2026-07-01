@@ -12,6 +12,7 @@ const invoiceSchema = new mongoose.Schema({
   due_date: { type: Date },
   payment_link: { type: String },
   reminder_sent_at: { type: Date },
+  due_soon_reminder_sent_at: { type: Date },
   status: {
     type: String,
     enum: ["pending", "paid", "partially_paid", "overdue", "cancelled", "unpaid"],

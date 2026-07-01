@@ -46,25 +46,17 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack screenOptions={{ headerShown: false }}>
-          {!isLoggedIn ? (
+          {!isLoggedIn ? [
             // 🔓 PUBLIC ROUTES
-            <>
-              <Stack.Screen name="login" />
-              <Stack.Screen name="register" />
-              <Stack.Screen name="join" />
-              <Stack.Screen name="forgot-password" options={{ title: "Forgot Password" }} />
-              <Stack.Screen name="reset-password" options={{ title: "Reset Password" }} />
-            </>
-          ) : (
+            <Stack.Screen key="login" name="login" />,
+            <Stack.Screen key="register" name="register" />,
+            <Stack.Screen key="join" name="join" />,
+            <Stack.Screen key="forgot-password" name="forgot-password" options={{ title: "Forgot Password" }} />,
+            <Stack.Screen key="reset-password" name="reset-password" options={{ title: "Reset Password" }} />,
+          ] : [
             // 🔒 PROTECTED ROUTES
-            <>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="profile" />
-              <Stack.Screen name="society-update" />
-              <Stack.Screen name="invoices" />
-              <Stack.Screen name="maintenance-payment" />
-            </>
-          )}
+            <Stack.Screen key="(tabs)" name="(tabs)" />,
+          ]}
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
