@@ -30,9 +30,8 @@ export const notifyAnnouncementPublished = async ({
   announcement,
   reason = "created",
 }) => {
-  const residents = await User.find({
+  const recipients = await User.find({
     society_id: announcement.society_id,
-    role: "resident",
   }).select("_id");
 
   const isEmergency = announcement.category === "emergency";
@@ -58,7 +57,7 @@ export const notifyAnnouncementPublished = async ({
 
   const notification = await createAndSendNotification({
     io,
-    userIds: residents.map((resident) => resident._id),
+    userIds: recipients.map((recipient) => recipient._id),
     societyId: announcement.society_id,
     type: notificationType,
     title,

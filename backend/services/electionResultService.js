@@ -1,6 +1,7 @@
 import Announcement from "../models/Announcement.js";
 import Candidate from "../models/Candidate.js";
 import Election from "../models/Election.js";
+import Society from "../models/Society.js";
 import User from "../models/User.js";
 import Vote from "../models/Vote.js";
 import { createAndSendNotification } from "./notificationService.js";
@@ -77,6 +78,48 @@ const buildResultCopy = (election, winners, completionDate) => {
   };
 };
 
+// Hands admin rights to a single, undisputed winner and demotes whoever held
+// them before. Ties, zero-vote elections, and a winner who is already the
+// admin are all no-ops — the last case per explicit product requirement.
+const transferAdminRole = async (election, winners) => {
+  if (winners.length !== 1) return null;
+
+  const winnerId = winners[0].user_id;
+  if (!winnerId) return null;
+
+  const winnerUser = await User.findById(winnerId).select("role");
+  if (!winnerUser || winnerUser.role === "admin") {
+    return null;
+  }
+
+  const society = await Society.findById(election.society_id).select("admins");
+  const previousAdmins = await User.find({
+    society_id: election.society_id,
+    role: "admin",
+  }).select("_id");
+
+  const previousAdminIds = [
+    ...new Set([
+      ...(society?.admins || []).map((id) => id.toString()),
+      ...previousAdmins.map((admin) => admin._id.toString()),
+    ]),
+  ].filter((id) => id !== winnerId.toString());
+
+  if (previousAdminIds.length > 0) {
+    await User.updateMany({ _id: { $in: previousAdminIds } }, { role: "resident" });
+    await Society.findByIdAndUpdate(election.society_id, {
+      $pull: { admins: { $in: previousAdminIds } },
+    });
+  }
+
+  await User.findByIdAndUpdate(winnerId, { role: "admin" });
+  await Society.findByIdAndUpdate(election.society_id, {
+    $addToSet: { admins: winnerId },
+  });
+
+  return { newAdminId: winnerId.toString(), previousAdminIds };
+};
+
 export const publishElectionResults = async (electionOrId, io) => {
   const election = typeof electionOrId === "object"
     ? electionOrId
@@ -128,9 +171,10 @@ export const publishElectionResults = async (electionOrId, io) => {
     return null;
   }
 
-  const residents = await User.find({
+  const roleTransfer = await transferAdminRole(election, winners);
+
+  const recipients = await User.find({
     society_id: election.society_id,
-    role: "resident",
   }).select("_id");
 
   const data = {
@@ -142,7 +186,7 @@ export const publishElectionResults = async (electionOrId, io) => {
 
   const notification = await createAndSendNotification({
     io,
-    userIds: residents.map((resident) => resident._id),
+    userIds: recipients.map((recipient) => recipient._id),
     societyId: election.society_id,
     type: "election_result",
     title: copy.title,
@@ -157,7 +201,7 @@ export const publishElectionResults = async (electionOrId, io) => {
     });
   }
 
-  return { election: updatedElection, announcement, notification };
+  return { election: updatedElection, announcement, notification, roleTransfer };
 };
 
 export const processExpiredElections = async (io) => {

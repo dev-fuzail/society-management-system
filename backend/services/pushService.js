@@ -145,20 +145,26 @@ export const sendFcmToTokens = async (tokens, payload) => {
       console.warn("[FCM] Messaging not initialized — skipping raw FCM tokens.");
       failed += fcmTokens.length;
     } else {
-      try {
-        const response = await messaging.sendEachForMulticast({
-          tokens: fcmTokens,
-          ...payload,
-          android: {
-            priority: "high",
-            notification: { channelId: "default", sound: "default" },
-          },
-        });
-        sent += response.successCount;
-        failed += response.failureCount;
-      } catch (err) {
-        console.error("[FCM] sendEachForMulticast error:", err.message);
-        failed += fcmTokens.length;
+      // sendEachForMulticast hard-caps at 500 tokens per call — batch to avoid
+      // a single large society (many devices) making the whole send throw.
+      const CHUNK = 500;
+      for (let i = 0; i < fcmTokens.length; i += CHUNK) {
+        const chunk = fcmTokens.slice(i, i + CHUNK);
+        try {
+          const response = await messaging.sendEachForMulticast({
+            tokens: chunk,
+            ...payload,
+            android: {
+              priority: "high",
+              notification: { channelId: "default", sound: "default" },
+            },
+          });
+          sent += response.successCount;
+          failed += response.failureCount;
+        } catch (err) {
+          console.error("[FCM] sendEachForMulticast error:", err.message);
+          failed += chunk.length;
+        }
       }
     }
   }
