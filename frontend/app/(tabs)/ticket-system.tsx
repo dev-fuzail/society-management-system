@@ -56,6 +56,8 @@ export default function TicketSystemScreen() {
                     setSocietyId(sId);
                     await fetchTickets(sId);
                 }
+            } catch (error: any) {
+                Alert.alert('Error', error?.message || 'Failed to load tickets.');
             } finally {
                 setLoading(false);
             }
@@ -80,6 +82,8 @@ export default function TicketSystemScreen() {
                 setSubject(''); setDescription(''); setComplaintImageUrl(null);
                 fetchTickets(societyId!);
             }
+        } catch (error: any) {
+            Alert.alert('Error', error?.message || 'Failed to submit complaint.');
         } finally {
             setIsSubmitting(false);
         }

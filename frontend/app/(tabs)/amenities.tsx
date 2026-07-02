@@ -99,6 +99,16 @@ export default function AmenitiesScreen() {
 
   const submitBooking = async () => {
     if (!selectedAmenity) return;
+
+    // Recurring facilities (PER_USER, e.g. Gym) are anytime-accessible — no slot to pick.
+    if (selectedAmenity.type === 'PER_USER') {
+      try {
+        const res = await AmenityService.bookAmenity({ amenity_id: selectedAmenity._id, society_id: societyId, guest_count: parseInt(guestCount) || 1 });
+        if (res.success) { Alert.alert("Success", "Booking request submitted!"); setBookingModalVisible(false); router.push('/amenity-bookings'); }
+      } catch (error: any) { handleApiError(error, 'Failed to submit booking.'); }
+      return;
+    }
+
     const startAt = applyTimeToDate(bookingStartDate, startTimeText);
     const endAt = applyTimeToDate(bookingEndDate, endTimeText);
     if (!startAt || !endAt) { Alert.alert('Validation', 'Please enter time in HH:mm format.'); return; }
@@ -194,27 +204,31 @@ export default function AmenitiesScreen() {
                   </>
                 )}
 
-                <Text style={[s.label, { color: theme.textSecondary }]}>Start Date & Time</Text>
-                <View style={s.dateTimeRow}>
-                  <TouchableOpacity style={[s.input, s.dateBtn, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]} onPress={() => setShowStartCalendar(true)}>
-                    <Text style={[s.dateBtnText, { color: theme.text }]}>{bookingStartDate.toLocaleDateString()}</Text>
-                  </TouchableOpacity>
-                  <TextInput style={[s.input, s.timeInput, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={startTimeText} onChangeText={setStartTimeText} placeholder="HH:mm" placeholderTextColor={theme.textMuted} />
-                </View>
+                {selectedAmenity?.type === 'FLAT_EVENT' && (
+                  <>
+                    <Text style={[s.label, { color: theme.textSecondary }]}>Start Date & Time</Text>
+                    <View style={s.dateTimeRow}>
+                      <TouchableOpacity style={[s.input, s.dateBtn, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]} onPress={() => setShowStartCalendar(true)}>
+                        <Text style={[s.dateBtnText, { color: theme.text }]}>{bookingStartDate.toLocaleDateString()}</Text>
+                      </TouchableOpacity>
+                      <TextInput style={[s.input, s.timeInput, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={startTimeText} onChangeText={setStartTimeText} placeholder="HH:mm" placeholderTextColor={theme.textMuted} />
+                    </View>
 
-                <Text style={[s.label, { color: theme.textSecondary }]}>End Date & Time</Text>
-                <View style={s.dateTimeRow}>
-                  <TouchableOpacity style={[s.input, s.dateBtn, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]} onPress={() => setShowEndCalendar(true)}>
-                    <Text style={[s.dateBtnText, { color: theme.text }]}>{bookingEndDate.toLocaleDateString()}</Text>
-                  </TouchableOpacity>
-                  <TextInput style={[s.input, s.timeInput, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={endTimeText} onChangeText={setEndTimeText} placeholder="HH:mm" placeholderTextColor={theme.textMuted} />
-                </View>
+                    <Text style={[s.label, { color: theme.textSecondary }]}>End Date & Time</Text>
+                    <View style={s.dateTimeRow}>
+                      <TouchableOpacity style={[s.input, s.dateBtn, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]} onPress={() => setShowEndCalendar(true)}>
+                        <Text style={[s.dateBtnText, { color: theme.text }]}>{bookingEndDate.toLocaleDateString()}</Text>
+                      </TouchableOpacity>
+                      <TextInput style={[s.input, s.timeInput, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={endTimeText} onChangeText={setEndTimeText} placeholder="HH:mm" placeholderTextColor={theme.textMuted} />
+                    </View>
+                  </>
+                )}
 
                 <View style={[s.priceBreakdown, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]}>
                   <Text style={[s.priceBreakdownLabel, { color: theme.textSecondary }]}>Total Estimated Price</Text>
                   <Text style={[s.priceBreakdownValue, { color: theme.text }]}>PKR {totalPrice}</Text>
                   <Text style={[s.bookingHint, { color: theme.textMuted }]}>
-                    {selectedAmenity?.type === 'PER_USER' ? 'Recurring facilities can be booked in repeated slots.' : 'Event halls are treated as one-time bookings.'}
+                    {selectedAmenity?.type === 'PER_USER' ? 'This is a recurring facility — accessible anytime once approved, no time slot needed.' : 'Event halls are treated as one-time bookings.'}
                   </Text>
                 </View>
 

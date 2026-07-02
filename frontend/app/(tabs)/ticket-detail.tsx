@@ -51,6 +51,8 @@ export default function TicketDetailScreen() {
         const uniqueUsers = Array.from(new Map(allUsers.map(item => [item._id || item.id, item])).values());
         setAssignableUsers(uniqueUsers);
       }
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to load society members.');
     } finally {
       setLoadingMembers(false);
     }
@@ -101,6 +103,8 @@ export default function TicketDetailScreen() {
         Alert.alert("Success", "Ticket updated!");
         setIsStatusModalVisible(false);
       }
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to update ticket.');
     } finally {
       setIsUpdating(false);
     }

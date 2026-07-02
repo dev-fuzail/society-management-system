@@ -64,8 +64,12 @@ export default function AmenityApprovalsScreen() {
 
       {[
         { icon: 'person-outline' as const, text: item.user_id?.name || 'Unknown User', color: theme.primary },
-        { icon: 'calendar-outline' as const, text: new Date(item.start_time).toLocaleString(), color: theme.success },
-        { icon: 'calendar-clear-outline' as const, text: new Date(item.end_time).toLocaleString(), color: theme.danger },
+        ...(item.start_time && item.end_time
+          ? [
+              { icon: 'calendar-outline' as const, text: new Date(item.start_time).toLocaleString(), color: theme.success },
+              { icon: 'calendar-clear-outline' as const, text: new Date(item.end_time).toLocaleString(), color: theme.danger },
+            ]
+          : [{ icon: 'time-outline' as const, text: 'Anytime access (recurring)', color: theme.success }]),
         { icon: 'people-outline' as const, text: `${item.guest_count} guests`, color: theme.textSecondary },
       ].map(({ icon, text, color }) => (
         <View key={icon + text} style={s.detailRow}>

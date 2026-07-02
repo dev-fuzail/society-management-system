@@ -200,7 +200,7 @@ export default function InvoicesScreen() {
               <Ionicons name="document-text-outline" size={36} color={theme.primary} />
             </View>
             <Text style={[s.emptyTitle, { color: theme.text }]}>No invoices found</Text>
-            <Text style={[s.emptyMsg, { color: theme.textMuted }]}>Your maintenance invoices will appear here.</Text>
+            <Text style={[s.emptyMsg, { color: theme.textMuted }]}>Your invoices will appear here.</Text>
           </View>
         ) : (
           items.map((invoice) => {

@@ -6,7 +6,7 @@ const invoiceSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   amount: { type: Number, required: true },
   currency: { type: String, default: "PKR" },
-  type: { type: String, enum: ["maintenance", "general"], default: "general" },
+  type: { type: String, enum: ["maintenance", "general", "amenity"], default: "general" },
   period_key: { type: String },
   month: { type: String },
   due_date: { type: Date },

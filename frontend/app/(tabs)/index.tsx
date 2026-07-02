@@ -9,6 +9,7 @@ import { Announcement } from '@/services/types';
 import { apiGetUserSocieties } from '@/services/SocietyService';
 import AmenityService, { Amenity } from '@/services/AmenityService';
 import { apiGetWalletReport, WalletReport } from '@/services/FinanceService';
+import { apiGetPendingInvoiceCount } from '@/services/InvoiceService';
 import { useTheme } from '@/hooks/useTheme';
 import { AppTheme } from '@/constants/theme';
 
@@ -27,6 +28,7 @@ export default function HomeScreen() {
   const [loadingAmenities, setLoadingAmenities] = useState(true);
   const [walletReport, setWalletReport] = useState<WalletReport | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [pendingInvoiceCount, setPendingInvoiceCount] = useState(0);
   const router = useRouter();
 
   useFocusEffect(
@@ -34,18 +36,24 @@ export default function HomeScreen() {
       const verifyToken = async () => {
         try {
           const { token, userData } = await getAuthData();
+          if (!token || !userData) { router.replace('/login'); return; }
+
           const res = await apiGetUserSocieties(userData.id);
-          const selectedSociety = res.result[0];
-          if (!token) { router.replace('/login'); return; }
-          if (userData && selectedSociety) {
+          const selectedSociety = res.result?.[0];
+          if (selectedSociety) {
             setIsAdmin(userData.role === 'admin');
             fetchAnnouncements(selectedSociety._id);
             fetchAmenities(selectedSociety._id);
             fetchWalletReport(selectedSociety._id);
+            fetchPendingInvoiceCount();
           } else {
             setLoadingNotices(false);
             setLoadingAmenities(false);
           }
+        } catch (error) {
+          console.log('Error loading home screen data:', error);
+          setLoadingNotices(false);
+          setLoadingAmenities(false);
         } finally {
           setTokenChecked(true);
         }
@@ -81,6 +89,13 @@ export default function HomeScreen() {
     finally { setLoadingAmenities(false); }
   };
 
+  const fetchPendingInvoiceCount = async () => {
+    try {
+      const res = await apiGetPendingInvoiceCount();
+      if (res.success && res.result) setPendingInvoiceCount(res.result.count);
+    } catch (e) { console.log('Error fetching pending invoice count:', e); }
+  };
+
   useEffect(() => {
     if (Platform.OS === 'web') {
       const timer = setTimeout(() => setShowContent(true), 100);
@@ -103,7 +118,7 @@ export default function HomeScreen() {
   ];
 
   const MODULES = [
-    { label: 'Maintenance', icon: 'card-outline' as const, bg: theme.infoLight, iconColor: theme.info, route: '/invoices' },
+    { label: 'Invoice', icon: 'card-outline' as const, bg: theme.infoLight, iconColor: theme.info, route: '/invoices' },
     { label: 'Apartments', icon: 'business-outline' as const, bg: theme.primaryLight, iconColor: theme.primary, route: '/apartments' },
     { label: 'Tickets', icon: 'alert-circle-outline' as const, bg: theme.warningLight, iconColor: theme.warning, route: '/ticket-system' },
     { label: 'Elections', icon: 'stats-chart-outline' as const, bg: theme.successLight, iconColor: theme.success, route: '/elections' },
@@ -211,6 +226,11 @@ export default function HomeScreen() {
         <View style={s.moduleGrid}>
           {MODULES.map((mod) => (
             <TouchableOpacity key={mod.label} style={[s.moduleCard, { backgroundColor: theme.surface, borderColor: theme.borderLight }]} onPress={() => router.push(mod.route as any)} activeOpacity={0.8}>
+              {mod.label === 'Invoice' && pendingInvoiceCount > 0 && (
+                <View style={[s.moduleBadge, { backgroundColor: theme.dangerText || '#ef4444', borderColor: theme.surface }]}>
+                  <Text style={s.moduleBadgeText}>{pendingInvoiceCount > 99 ? '99+' : pendingInvoiceCount}</Text>
+                </View>
+              )}
               <View style={[s.iconCircle, { backgroundColor: mod.bg }]}>
                 <Ionicons name={mod.icon} size={26} color={mod.iconColor} />
               </View>
@@ -319,7 +339,9 @@ function makeStyles(theme: AppTheme) {
     sosCallText: { color: '#fff', fontWeight: '700', fontSize: 13 },
 
     moduleGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 14, marginTop: 8 },
-    moduleCard: { width: (screenWidth - 54) / 2, borderRadius: 20, padding: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+    moduleCard: { width: (screenWidth - 54) / 2, borderRadius: 20, padding: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3, position: 'relative' },
+    moduleBadge: { position: 'absolute', top: 8, right: 8, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', borderWidth: 2, zIndex: 1 },
+    moduleBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
     iconCircle: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
     moduleTitle: { fontSize: 14, fontWeight: '700' },
 

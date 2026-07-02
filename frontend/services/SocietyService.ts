@@ -15,6 +15,9 @@ export const apiUpdateSociety = async (data: SocietyData): Promise<ResponseObjec
 };
 
 export const apiGetUserSocieties = async (userId: string): Promise<ResponseObject<Society[]>> => {
+  if (!userId) {
+    return { status: false, success: false, message: "No user ID available.", result: [] };
+  }
   return await apiService.request<Society[]>("get", `/api/societies/user-society/${userId}`);
 }
 

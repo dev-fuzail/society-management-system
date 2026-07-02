@@ -516,7 +516,7 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="maintenance-payment"
-          options={{ title: "Pay Maintenance", href: null }}
+          options={{ title: "Pay Invoice", href: null }}
         />
         <Tabs.Screen
           name="sos"

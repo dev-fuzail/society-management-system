@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View, Switch } from "react-native";
+import { ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View, Switch } from "react-native";
 import { io, Socket } from "socket.io-client";
 import { API_BASE } from "@/services/ApiService";
 import { apiGetNotifications, apiGetNotificationAnalytics, apiGetNotificationPreferences, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateNotificationPreferences } from "@/services/NotificationService";
@@ -46,12 +46,20 @@ const Notifications = () => {
         setPage(response.result.page);
         setTotal(response.result.total);
       }
+    } catch (error) {
+      console.log('Error loading notifications:', error);
     } finally { setLoading(false); setRefreshing(false); }
   }, []);
 
   const refresh = useCallback(() => { setRefreshing(true); loadNotifications(1, true); }, [loadNotifications]);
-  const markRead = async (id: string) => { setItems((prev) => prev.map((item) => (item._id === id ? { ...item, is_read: true } : item))); await apiMarkNotificationRead(id); };
-  const markAllRead = async () => { setItems((prev) => prev.map((item) => ({ ...item, is_read: true }))); await apiMarkAllNotificationsRead(); };
+  const markRead = async (id: string) => {
+    setItems((prev) => prev.map((item) => (item._id === id ? { ...item, is_read: true } : item)));
+    try { await apiMarkNotificationRead(id); } catch (error) { console.log('Error marking notification read:', error); }
+  };
+  const markAllRead = async () => {
+    setItems((prev) => prev.map((item) => ({ ...item, is_read: true })));
+    try { await apiMarkAllNotificationsRead(); } catch (error) { console.log('Error marking all notifications read:', error); }
+  };
 
   const loadPreferences = useCallback(async () => {
     try {
@@ -71,6 +79,8 @@ const Notifications = () => {
       setIsSavingPreferences(true);
       const response = await apiUpdateNotificationPreferences(preferences);
       if (response.success && response.result?.preferences) setPreferences((prev) => ({ ...prev, ...response.result.preferences }));
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to save preferences.');
     } finally { setIsSavingPreferences(false); }
   };
 

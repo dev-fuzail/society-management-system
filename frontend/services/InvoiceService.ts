@@ -25,6 +25,10 @@ export const apiGetInvoiceById = async (invoiceId: string): Promise<ResponseObje
   return apiService.request<any>('get', `/api/invoices/${invoiceId}`);
 };
 
+export const apiGetPendingInvoiceCount = async (): Promise<ResponseObject<{ count: number }>> => {
+  return apiService.request<{ count: number }>('get', '/api/invoices/pending-count');
+};
+
 export const apiGetInvoicePdfUrl = (invoiceId: string) => {
   return `${API_BASE.replace(/\/+$/, '')}/api/invoices/${invoiceId}/download`;
 };

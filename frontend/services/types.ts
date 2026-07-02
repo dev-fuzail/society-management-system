@@ -117,7 +117,7 @@ export interface InvoiceItem {
   user_id: string;
   amount: number;
   currency: string;
-  type: 'maintenance' | 'general';
+  type: 'maintenance' | 'general' | 'amenity';
   period_key?: string;
   month?: string;
   due_date?: string;

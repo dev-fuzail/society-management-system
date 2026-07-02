@@ -13,6 +13,17 @@ import { send2FAEmail } from '../utils/mailer.js';
 const JWT_SECRET = process.env.JWT_SECRET || "secret123";
 dotenv.config();
 
+// A raw Mongoose document serializes with `_id`, not `id` — but the frontend
+// consistently reads `userData.id` (see login/verify2FALogin below). Returning
+// the raw doc from register/invite/profile-update silently breaks every screen
+// that reads `userData.id` until the next full login re-sets it correctly.
+const toClientUser = (user) => {
+  const plain = user.toObject ? user.toObject() : { ...user };
+  plain.id = plain._id?.toString();
+  delete plain.password;
+  return plain;
+};
+
 // 🧍‍♂️ Register (Admin or Resident)
 export const register = async (req, res) => {
   console.log("request received", req.body);
@@ -121,7 +132,7 @@ export const register = async (req, res) => {
       success: true,
       message: "User registered successfully",
       result: {
-        user,
+        user: toClientUser(user),
         token,
       }
     });
@@ -374,7 +385,7 @@ export const registerFromInvite = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "User and Apartment registered successfully!",
-      result: { user, token: authToken }
+      result: { user: toClientUser(user), token: authToken }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -508,7 +519,7 @@ export const updateProfile = async (req, res) => {
 
     await user.save();
 
-    res.status(200).json({ success: true, message: "Profile updated successfully", result: { user } });
+    res.status(200).json({ success: true, message: "Profile updated successfully", result: { user: toClientUser(user) } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

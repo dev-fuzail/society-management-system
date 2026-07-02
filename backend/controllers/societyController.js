@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Society from "../models/Society.js";
 import User from "../models/User.js";
 import MaintenanceConfigAudit from "../models/MaintenanceConfigAudit.js";
@@ -77,8 +78,8 @@ export const getUserSocieties = async (req, res) => {
   try {
     const { user_id } = req.params;
 
-    if (!user_id) {
-      return res.status(400).json({ success: false, message: "User ID is required." });
+    if (!user_id || !mongoose.Types.ObjectId.isValid(user_id)) {
+      return res.status(400).json({ success: false, message: "A valid user ID is required." });
     }
 
     // Find all societies where user is admin or member

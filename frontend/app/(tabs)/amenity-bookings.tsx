@@ -48,9 +48,11 @@ export default function AmenityBookingsScreen() {
         <View style={s.details}>
           <View style={s.detailRow}>
             <View style={[s.iconCircle, { backgroundColor: theme.primaryLight }]}>
-              <Ionicons name="calendar-outline" size={14} color={theme.primary} />
+              <Ionicons name={item.start_time ? 'calendar-outline' : 'time-outline'} size={14} color={theme.primary} />
             </View>
-            <Text style={[s.detailText, { color: theme.textSecondary }]}>{new Date(item.start_time).toLocaleString()}</Text>
+            <Text style={[s.detailText, { color: theme.textSecondary }]}>
+              {item.start_time ? new Date(item.start_time).toLocaleString() : 'Anytime access (recurring)'}
+            </Text>
           </View>
           <View style={s.detailRow}>
             <View style={[s.iconCircle, { backgroundColor: theme.successLight }]}>
@@ -67,6 +69,15 @@ export default function AmenityBookingsScreen() {
             </Text>
           </View>
         </View>
+        {item.status === 'APPROVED' && item.invoice_id && (
+          <TouchableOpacity
+            style={[s.payBtn, { backgroundColor: theme.primary }]}
+            onPress={() => router.push({ pathname: '/maintenance-payment', params: { invoiceId: item.invoice_id } })}
+          >
+            <Ionicons name="card-outline" size={15} color="#fff" />
+            <Text style={s.payBtnText}>Pay Invoice</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -125,6 +136,8 @@ function makeStyles(theme: AppTheme) {
     iconCircle: { width: 30, height: 30, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
     detailText: { fontSize: 14, fontWeight: '500' },
     priceText: { fontWeight: '800' },
+    payBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, padding: 12, borderRadius: 12 },
+    payBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
     empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
     emptyIcon: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
     emptyTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },

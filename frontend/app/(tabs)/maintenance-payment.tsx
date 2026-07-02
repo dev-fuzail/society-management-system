@@ -28,7 +28,7 @@ export default function MaintenancePaymentScreen() {
 
   useEffect(() => {
     if (params.status === 'success') {
-      Alert.alert('Payment successful', 'Your maintenance payment was completed.');
+      Alert.alert('Payment successful', 'Your invoice payment was completed.');
       setShowCheckout(false);
       loadInvoice();
     } else if (params.status === 'failure') {
@@ -72,7 +72,7 @@ export default function MaintenancePaymentScreen() {
   const handleNavigationChange = useCallback((navState: WebViewNavigation) => {
     if (navState.url.includes('/payments/payfast/success') || navState.url.includes('status=success')) {
       setShowCheckout(false);
-      Alert.alert('Payment successful', 'Your maintenance payment was completed.');
+      Alert.alert('Payment successful', 'Your invoice payment was completed.');
       loadInvoice();
     } else if (navState.url.includes('/payments/payfast/failure') || navState.url.includes('status=failure')) {
       setShowCheckout(false);
@@ -114,7 +114,7 @@ export default function MaintenancePaymentScreen() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Pay Maintenance</Text>
+        <Text style={s.headerTitle}>Pay Invoice</Text>
       </View>
 
       <View style={s.container}>
@@ -143,7 +143,7 @@ export default function MaintenancePaymentScreen() {
             <View style={[s.cardIconBox, { backgroundColor: theme.primaryLight }]}>
               <Ionicons name="receipt-outline" size={28} color={theme.primary} />
             </View>
-            <Text style={[s.cardTitle, { color: theme.textSecondary }]}>Maintenance Invoice</Text>
+            <Text style={[s.cardTitle, { color: theme.textSecondary }]}>Invoice</Text>
             <Text style={[s.amount, { color: theme.primary }]}>PKR {invoice.amount}</Text>
             <View style={[s.divider, { backgroundColor: theme.borderLight }]} />
             <View style={s.metaRow}>

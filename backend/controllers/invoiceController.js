@@ -72,6 +72,21 @@ export const getInvoices = async (req, res) => {
   }
 };
 
+export const getPendingInvoiceCount = async (req, res) => {
+  try {
+    const query = {
+      user_id: req.user._id,
+      status: { $in: ["pending", "unpaid", "overdue", "partially_paid"] },
+    };
+
+    const count = await Invoice.countDocuments(query);
+
+    return sendResponse(res, 200, "Pending invoice count fetched successfully.", { count });
+  } catch (error) {
+    return sendResponse(res, 500, "Failed to fetch pending invoice count.", null, false);
+  }
+};
+
 export const getSocietyPaymentSummary = async (req, res) => {
   try {
     const { societyId } = req.params;

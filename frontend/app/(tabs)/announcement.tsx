@@ -34,6 +34,8 @@ export default function AnnouncementsScreen() {
                 const announcementsRes = await apiGetAnnouncements(selectedSociety[0]._id);
                 if (announcementsRes.success) setAnnouncements(announcementsRes.result);
             }
+        } catch (error: any) {
+            Alert.alert('Error', error?.message || 'Failed to load announcements.');
         } finally {
             setLoading(false);
         }
@@ -59,6 +61,8 @@ export default function AnnouncementsScreen() {
                 const res = await apiCreateAnnouncement({ society_id: selectedSociety._id, user_id: user.id, title: formTitle, message: formMessage });
                 if (res.success) { setAnnouncements(prev => [res.result, ...prev]); setModalVisible(false); }
             }
+        } catch (error: any) {
+            Alert.alert('Error', error?.message || 'Failed to save announcement.');
         } finally {
             setSubmitting(false);
         }

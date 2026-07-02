@@ -21,11 +21,12 @@ export interface AmenityBooking {
     phone: string;
   };
   society_id: string;
-  start_time: string;
-  end_time: string;
+  start_time?: string;
+  end_time?: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   calculated_price: number;
   guest_count: number;
+  invoice_id?: string;
   created_at: string;
 }
 
@@ -38,7 +39,7 @@ class AmenityService {
     return ApiService.request('post', '/amenities', data);
   }
 
-  async bookAmenity(data: { amenity_id: string; society_id: string; start_time: string; end_time: string; guest_count: number }): Promise<ResponseObject<AmenityBooking>> {
+  async bookAmenity(data: { amenity_id: string; society_id: string; start_time?: string; end_time?: string; guest_count: number }): Promise<ResponseObject<AmenityBooking>> {
     return ApiService.request('post', '/amenities/bookings', data);
   }
 
