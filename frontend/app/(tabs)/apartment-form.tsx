@@ -13,7 +13,9 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Modal,
-  Pressable
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -201,6 +203,7 @@ export default function ApartmentFormScreen() {
       </ScrollView>
 
       <Modal visible={showUserModal} animationType="slide" transparent={true}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.modalOverlay}>
             <Pressable style={styles.modalBackdrop} onPress={() => setShowUserModal(false)} />
             <View style={styles.modalContainer}>
@@ -256,6 +259,7 @@ export default function ApartmentFormScreen() {
                 </ScrollView>
             </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

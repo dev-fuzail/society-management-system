@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
+  View, Text, ScrollView, StyleSheet, TouchableOpacity, Pressable,
   Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView,
   Platform, RefreshControl,
 } from "react-native";
@@ -277,9 +277,9 @@ export default function FinanceReportScreen() {
 
       {/* Date Filter Modal */}
       <Modal visible={filterVisible} transparent animationType="slide" onRequestClose={() => setFilterVisible(false)}>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setFilterVisible(false)} />
-          <View style={styles.modalSheet}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setFilterVisible(false)}>
+          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filter Transactions</Text>
               <TouchableOpacity onPress={() => setFilterVisible(false)}>
@@ -337,14 +337,15 @@ export default function FinanceReportScreen() {
               <Text style={styles.clearBtnText}>Reset to This Month</Text>
             </TouchableOpacity>
           </View>
+          </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
 
       {/* Add Entry Modal */}
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setModalVisible(false)} />
-          <View style={styles.modalSheet}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
+          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
@@ -406,6 +407,7 @@ export default function FinanceReportScreen() {
               </TouchableOpacity>
             </ScrollView>
           </View>
+          </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
     </View>

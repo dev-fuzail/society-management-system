@@ -6,8 +6,12 @@ import { getAuthData } from '@/hooks/helperHooks';
 import AmenityService, { Amenity } from '@/services/AmenityService';
 import { apiGetUserSocieties } from '@/services/SocietyService';
 import CalendarModal from '@/components/CalendarModal';
+import { useTheme } from '@/hooks/useTheme';
+import { AppTheme } from '@/constants/theme';
 
 export default function AmenitiesScreen() {
+  const theme = useTheme();
+  const s = makeStyles(theme);
   const [amenities, setAmenities] = useState<Amenity[]>([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('resident');
@@ -17,11 +21,7 @@ export default function AmenitiesScreen() {
   const [selectedAmenity, setSelectedAmenity] = useState<Amenity | null>(null);
   const [guestCount, setGuestCount] = useState('1');
   const [bookingStartDate, setBookingStartDate] = useState<Date>(new Date());
-  const [bookingEndDate, setBookingEndDate] = useState<Date>(() => {
-    const nextHour = new Date();
-    nextHour.setHours(nextHour.getHours() + 1);
-    return nextHour;
-  });
+  const [bookingEndDate, setBookingEndDate] = useState<Date>(() => { const d = new Date(); d.setHours(d.getHours() + 1); return d; });
   const [showStartCalendar, setShowStartCalendar] = useState(false);
   const [showEndCalendar, setShowEndCalendar] = useState(false);
   const [startTimeText, setStartTimeText] = useState('09:00');
@@ -33,22 +33,12 @@ export default function AmenitiesScreen() {
   const [newCapacity, setNewCapacity] = useState('');
   const router = useRouter();
 
-  const formatDateTime = (date: Date) => {
-    const y = date.getFullYear();
-    const m = `${date.getMonth() + 1}`.padStart(2, '0');
-    const d = `${date.getDate()}`.padStart(2, '0');
-    const h = `${date.getHours()}`.padStart(2, '0');
-    const mm = `${date.getMinutes()}`.padStart(2, '0');
-    return `${y}-${m}-${d} ${h}:${mm}`;
-  };
-
   const formatTime = (date: Date) => `${`${date.getHours()}`.padStart(2, '0')}:${`${date.getMinutes()}`.padStart(2, '0')}`;
 
   const applyTimeToDate = (baseDate: Date, timeText: string) => {
     const m = /^(\d{1,2}):(\d{2})$/.exec(timeText.trim());
     if (!m) return null;
-    const hh = Number(m[1]);
-    const mm = Number(m[2]);
+    const hh = Number(m[1]); const mm = Number(m[2]);
     if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
     const updated = new Date(baseDate);
     updated.setHours(hh, mm, 0, 0);
@@ -57,185 +47,126 @@ export default function AmenitiesScreen() {
 
   const handleApiError = (error: any, fallbackMessage: string) => {
     if (error?.isAuthError || error?.statusCode === 401) {
-      Alert.alert('Session Expired', 'Please log in again.', [
-        { text: 'OK', onPress: () => router.replace('/login') },
-      ]);
+      Alert.alert('Session Expired', 'Please log in again.', [{ text: 'OK', onPress: () => router.replace('/login') }]);
       return;
     }
-
     Alert.alert('Error', error?.message || fallbackMessage);
   };
 
   const fetchAmenities = async () => {
     try {
       const { userData } = await getAuthData();
-      if (!userData?.id) {
-        Alert.alert('Session Expired', 'Please log in again.', [
-          { text: 'OK', onPress: () => router.replace('/login') },
-        ]);
-        return;
-      }
-
+      if (!userData?.id) { Alert.alert('Session Expired', 'Please log in again.', [{ text: 'OK', onPress: () => router.replace('/login') }]); return; }
       setUserRole(userData?.role || 'resident');
       const res = await apiGetUserSocieties(userData.id);
       if (res.success && res.result.length > 0) {
         const sId = res.result[0]._id;
         setSocietyId(sId);
         const amenityRes = await AmenityService.getAmenities(sId);
-        if (amenityRes.success) {
-          setAmenities(amenityRes.result);
-        }
+        if (amenityRes.success) setAmenities(amenityRes.result);
       }
-    } catch (error: any) {
-      handleApiError(error, 'Failed to load amenities.');
-    } finally {
-      setLoading(false);
-    }
+    } catch (error: any) { handleApiError(error, 'Failed to load amenities.'); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchAmenities();
-  }, []);
+  useEffect(() => { fetchAmenities(); }, []);
 
   const createAmenity = async () => {
-    if (!newAmenityName.trim() || !newBasePrice.trim()) {
-      Alert.alert('Validation', 'Name and base price are required.');
-      return;
-    }
-
+    if (!newAmenityName.trim() || !newBasePrice.trim()) { Alert.alert('Validation', 'Name and base price are required.'); return; }
     try {
-      const res = await AmenityService.createAmenity({
-        name: newAmenityName.trim(),
-        type: newAmenityType,
-        base_price: Number(newBasePrice),
-        max_capacity: Number(newCapacity || '1'),
-        society_id: societyId,
-      });
-
+      const res = await AmenityService.createAmenity({ name: newAmenityName.trim(), type: newAmenityType, base_price: Number(newBasePrice), max_capacity: Number(newCapacity || '1'), society_id: societyId });
       if (res.success) {
-        setCreateModalVisible(false);
-        setNewAmenityName('');
-        setNewBasePrice('');
-        setNewCapacity('');
-        setNewAmenityType('PER_USER');
+        setCreateModalVisible(false); setNewAmenityName(''); setNewBasePrice(''); setNewCapacity(''); setNewAmenityType('PER_USER');
         fetchAmenities();
       }
-    } catch (error: any) {
-      handleApiError(error, 'Failed to create amenity.');
-    }
+    } catch (error: any) { handleApiError(error, 'Failed to create amenity.'); }
   };
 
   useEffect(() => {
     if (selectedAmenity) {
-      if (selectedAmenity.type === 'PER_USER') {
-        setTotalPrice(selectedAmenity.base_price * (parseInt(guestCount) || 1));
-      } else {
-        setTotalPrice(selectedAmenity.base_price);
-      }
+      setTotalPrice(selectedAmenity.type === 'PER_USER' ? selectedAmenity.base_price * (parseInt(guestCount) || 1) : selectedAmenity.base_price);
     }
   }, [guestCount, selectedAmenity]);
 
   const handleBookPress = (amenity: Amenity) => {
     setSelectedAmenity(amenity);
-    const start = new Date();
-    const end = new Date();
-    end.setHours(end.getHours() + 1);
-    setBookingStartDate(start);
-    setBookingEndDate(end);
-    setStartTimeText(formatTime(start));
-    setEndTimeText(formatTime(end));
-    setShowStartCalendar(false);
-    setShowEndCalendar(false);
+    const start = new Date(); const end = new Date(); end.setHours(end.getHours() + 1);
+    setBookingStartDate(start); setBookingEndDate(end);
+    setStartTimeText(formatTime(start)); setEndTimeText(formatTime(end));
+    setShowStartCalendar(false); setShowEndCalendar(false);
     setBookingModalVisible(true);
   };
 
   const submitBooking = async () => {
     if (!selectedAmenity) return;
-
     const startAt = applyTimeToDate(bookingStartDate, startTimeText);
     const endAt = applyTimeToDate(bookingEndDate, endTimeText);
-
-    if (!startAt || !endAt) {
-      Alert.alert('Validation', 'Please enter time in HH:mm format.');
-      return;
-    }
-
-    if (endAt <= startAt) {
-      Alert.alert('Validation', 'End date/time must be after start date/time.');
-      return;
-    }
-
+    if (!startAt || !endAt) { Alert.alert('Validation', 'Please enter time in HH:mm format.'); return; }
+    if (endAt <= startAt) { Alert.alert('Validation', 'End date/time must be after start date/time.'); return; }
     try {
-      const res = await AmenityService.bookAmenity({
-        amenity_id: selectedAmenity._id,
-        society_id: societyId,
-        start_time: startAt.toISOString(),
-        end_time: endAt.toISOString(),
-        guest_count: parseInt(guestCount) || 1
-      });
-
-      if (res.success) {
-        Alert.alert("Success", "Booking request submitted!");
-        setBookingModalVisible(false);
-        router.push('/amenity-bookings');
-      }
-    } catch (error: any) {
-      handleApiError(error, 'Failed to submit booking.');
-    }
+      const res = await AmenityService.bookAmenity({ amenity_id: selectedAmenity._id, society_id: societyId, start_time: startAt.toISOString(), end_time: endAt.toISOString(), guest_count: parseInt(guestCount) || 1 });
+      if (res.success) { Alert.alert("Success", "Booking request submitted!"); setBookingModalVisible(false); router.push('/amenity-bookings'); }
+    } catch (error: any) { handleApiError(error, 'Failed to submit booking.'); }
   };
 
+  const getAmenityIcon = (name: string) => name.toLowerCase().includes('pool') ? 'water' : name.toLowerCase().includes('gym') ? 'barbell-outline' : name.toLowerCase().includes('hall') ? 'business-outline' : 'calendar-outline';
+
   const renderAmenityCard = ({ item }: { item: Amenity }) => (
-    <View style={styles.card}>
-      <View style={styles.cardMain}>
-        <View style={styles.amenityIconBox}>
-          <Ionicons name={item.name.toLowerCase().includes('pool') ? 'water' : 'business'} size={24} color="#4f46e5" />
+    <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
+      <View style={s.cardMain}>
+        <View style={[s.amenityIconBox, { backgroundColor: theme.primaryLight }]}>
+          <Ionicons name={getAmenityIcon(item.name) as any} size={24} color={theme.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{item.name}</Text>
-          <View style={styles.typeBadge}>
-            <Text style={styles.typeText}>{item.type === 'PER_USER' ? 'Recurring Facility (Gym/Pool)' : 'One-Time Event (Hall)'}</Text>
+          <Text style={[s.name, { color: theme.text }]}>{item.name}</Text>
+          <View style={[s.typeBadge, { backgroundColor: theme.surfaceSubtle }]}>
+            <Text style={[s.typeText, { color: theme.textSecondary }]}>{item.type === 'PER_USER' ? 'Recurring Facility' : 'One-Time Event'}</Text>
           </View>
         </View>
-        <View style={styles.priceBox}>
-            <Text style={styles.priceLabel}>From</Text>
-            <Text style={styles.priceValue}>PKR {item.base_price}</Text>
+        <View style={s.priceBox}>
+          <Text style={[s.priceLabel, { color: theme.textMuted }]}>From</Text>
+          <Text style={[s.priceValue, { color: theme.primary }]}>PKR {item.base_price}</Text>
         </View>
       </View>
-      <TouchableOpacity style={styles.bookBtn} onPress={() => handleBookPress(item)}>
-        <Text style={styles.bookBtnText}>Book Now</Text>
+      <TouchableOpacity style={[s.bookBtn, { backgroundColor: theme.primary }]} onPress={() => handleBookPress(item)}>
+        <Ionicons name="calendar-outline" size={16} color="#fff" />
+        <Text style={s.bookBtnText}>Book Now</Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: '#f8fafc' }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Society Amenities</Text>
-        <View style={styles.headerActions}>
+    <View style={[s.container, { backgroundColor: theme.bg }]}>
+      <View style={[s.header, { backgroundColor: theme.surface, borderBottomColor: theme.borderLight }]}>
+        <Text style={[s.headerTitle, { color: theme.text }]}>Society Amenities</Text>
+        <View style={s.headerActions}>
           {userRole === 'admin' && (
-            <TouchableOpacity style={styles.addBtn} onPress={() => setCreateModalVisible(true)}>
-              <Ionicons name="add" size={24} color="#fff" />
+            <TouchableOpacity style={[s.addBtn, { backgroundColor: theme.primary }]} onPress={() => setCreateModalVisible(true)}>
+              <Ionicons name="add" size={22} color="#fff" />
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={styles.historyBtn} onPress={() => router.push('/amenity-bookings')}>
-            <Ionicons name="calendar-outline" size={24} color="#4f46e5" />
+          <TouchableOpacity style={[s.historyBtn, { backgroundColor: theme.primaryLight }]} onPress={() => router.push('/amenity-bookings')}>
+            <Ionicons name="calendar-outline" size={22} color={theme.primary} />
           </TouchableOpacity>
         </View>
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#4f46e5" style={{ marginTop: 50 }} />
+        <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 50 }} />
       ) : (
         <FlatList
           data={amenities}
           renderItem={renderAmenityCard}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={s.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="gift-outline" size={60} color="#cbd5e1" />
-              <Text style={styles.emptyText}>No amenities defined.</Text>
+            <View style={s.empty}>
+              <View style={[s.emptyIcon, { backgroundColor: theme.primaryLight }]}>
+                <Ionicons name="gift-outline" size={36} color={theme.primary} />
+              </View>
+              <Text style={[s.emptyTitle, { color: theme.text }]}>No amenities yet</Text>
+              <Text style={[s.emptyMsg, { color: theme.textMuted }]}>Amenities will appear here once added by an admin.</Text>
             </View>
           }
           onRefresh={fetchAmenities}
@@ -245,233 +176,150 @@ export default function AmenitiesScreen() {
 
       {/* Booking Modal */}
       <Modal visible={bookingModalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={24}
-            style={{ flex: 1 }}
-        >
-            <Pressable style={styles.modalOverlay} onPress={() => setBookingModalVisible(false)}>
-                <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Book {selectedAmenity?.name}</Text>
-                        <TouchableOpacity onPress={() => setBookingModalVisible(false)}>
-                            <Ionicons name="close" size={24} color="#1e293b" />
-                        </TouchableOpacity>
-                    </View>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={24} style={{ flex: 1 }}>
+          <Pressable style={s.overlay} onPress={() => setBookingModalVisible(false)}>
+            <View style={[s.sheet, { backgroundColor: theme.surface }]} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
+              <View style={s.sheetHandle} />
+              <View style={s.sheetHeader}>
+                <Text style={[s.sheetTitle, { color: theme.text }]}>Book {selectedAmenity?.name}</Text>
+                <TouchableOpacity onPress={() => setBookingModalVisible(false)} style={[s.closeBtn, { backgroundColor: theme.surfaceSubtle }]}>
+                  <Ionicons name="close" size={18} color={theme.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView contentContainerStyle={s.sheetContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                {selectedAmenity?.type === 'PER_USER' && (
+                  <>
+                    <Text style={[s.label, { color: theme.textSecondary }]}>Number of Guests</Text>
+                    <TextInput style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} keyboardType="numeric" value={guestCount} onChangeText={setGuestCount} />
+                  </>
+                )}
 
-                    <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                      {selectedAmenity?.type === 'PER_USER' && (
-                        <View style={styles.inputGroup}>
-                          <Text style={styles.label}>Number of Guests</Text>
-                          <TextInput
-                            style={styles.modalInput}
-                            keyboardType="numeric"
-                            value={guestCount}
-                            onChangeText={setGuestCount}
-                          />
-                        </View>
-                      )}
-
-                      <Text style={styles.label}>Start Date & Time</Text>
-                      <View style={styles.dateTimeRow}>
-                        <TouchableOpacity style={[styles.modalInput, styles.dateTimeInput]} activeOpacity={0.8} onPress={() => setShowStartCalendar(true)}>
-                          <Text style={styles.dateValue}>{bookingStartDate.toLocaleDateString()}</Text>
-                        </TouchableOpacity>
-                        <TextInput
-                          style={[styles.modalInput, styles.dateTimeInput]}
-                          value={startTimeText}
-                          onChangeText={setStartTimeText}
-                          placeholder="HH:mm"
-                        />
-                      </View>
-
-                      <Text style={styles.label}>End Date & Time</Text>
-                      <View style={styles.dateTimeRow}>
-                        <TouchableOpacity style={[styles.modalInput, styles.dateTimeInput]} activeOpacity={0.8} onPress={() => setShowEndCalendar(true)}>
-                          <Text style={styles.dateValue}>{bookingEndDate.toLocaleDateString()}</Text>
-                        </TouchableOpacity>
-                        <TextInput
-                          style={[styles.modalInput, styles.dateTimeInput]}
-                          value={endTimeText}
-                          onChangeText={setEndTimeText}
-                          placeholder="HH:mm"
-                        />
-                      </View>
-
-                      <View style={styles.priceBreakdown}>
-                        <Text style={styles.priceBreakdownLabel}>Total Estimated Price</Text>
-                        <Text style={styles.priceBreakdownValue}>PKR {totalPrice}</Text>
-                        <Text style={styles.bookingHint}>
-                          {selectedAmenity?.type === 'PER_USER'
-                            ? 'Recurring facilities can be booked in repeated slots.'
-                            : 'Event halls are treated as one-time (non-recurring) bookings.'}
-                        </Text>
-                      </View>
-
-                      <TouchableOpacity style={styles.submitBtn} onPress={submitBooking}>
-                        <Text style={styles.submitBtnText}>Confirm Booking</Text>
-                      </TouchableOpacity>
-                    </ScrollView>
+                <Text style={[s.label, { color: theme.textSecondary }]}>Start Date & Time</Text>
+                <View style={s.dateTimeRow}>
+                  <TouchableOpacity style={[s.input, s.dateBtn, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]} onPress={() => setShowStartCalendar(true)}>
+                    <Text style={[s.dateBtnText, { color: theme.text }]}>{bookingStartDate.toLocaleDateString()}</Text>
+                  </TouchableOpacity>
+                  <TextInput style={[s.input, s.timeInput, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={startTimeText} onChangeText={setStartTimeText} placeholder="HH:mm" placeholderTextColor={theme.textMuted} />
                 </View>
-            </Pressable>
+
+                <Text style={[s.label, { color: theme.textSecondary }]}>End Date & Time</Text>
+                <View style={s.dateTimeRow}>
+                  <TouchableOpacity style={[s.input, s.dateBtn, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]} onPress={() => setShowEndCalendar(true)}>
+                    <Text style={[s.dateBtnText, { color: theme.text }]}>{bookingEndDate.toLocaleDateString()}</Text>
+                  </TouchableOpacity>
+                  <TextInput style={[s.input, s.timeInput, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={endTimeText} onChangeText={setEndTimeText} placeholder="HH:mm" placeholderTextColor={theme.textMuted} />
+                </View>
+
+                <View style={[s.priceBreakdown, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]}>
+                  <Text style={[s.priceBreakdownLabel, { color: theme.textSecondary }]}>Total Estimated Price</Text>
+                  <Text style={[s.priceBreakdownValue, { color: theme.text }]}>PKR {totalPrice}</Text>
+                  <Text style={[s.bookingHint, { color: theme.textMuted }]}>
+                    {selectedAmenity?.type === 'PER_USER' ? 'Recurring facilities can be booked in repeated slots.' : 'Event halls are treated as one-time bookings.'}
+                  </Text>
+                </View>
+
+                <TouchableOpacity style={[s.submitBtn, { backgroundColor: theme.primary }]} onPress={submitBooking}>
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                  <Text style={s.submitBtnText}>Confirm Booking</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </Pressable>
         </KeyboardAvoidingView>
       </Modal>
 
-      <CalendarModal
-        visible={showStartCalendar}
-        title="Select Start Date"
-        initialDate={bookingStartDate}
-        onClose={() => setShowStartCalendar(false)}
-        onSelect={(date) => setBookingStartDate(date)}
-      />
-
-      <CalendarModal
-        visible={showEndCalendar}
-        title="Select End Date"
-        initialDate={bookingEndDate}
-        minDate={bookingStartDate}
-        onClose={() => setShowEndCalendar(false)}
-        onSelect={(date) => setBookingEndDate(date)}
-      />
+      <CalendarModal visible={showStartCalendar} title="Select Start Date" initialDate={bookingStartDate} onClose={() => setShowStartCalendar(false)} onSelect={(date) => setBookingStartDate(date)} />
+      <CalendarModal visible={showEndCalendar} title="Select End Date" initialDate={bookingEndDate} minDate={bookingStartDate} onClose={() => setShowEndCalendar(false)} onSelect={(date) => setBookingEndDate(date)} />
 
       {/* Create Amenity Modal */}
       <Modal visible={createModalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1 }}
-        >
-            <Pressable style={styles.modalOverlay} onPress={() => setCreateModalVisible(false)}>
-                <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Create Amenity</Text>
-                        <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
-                            <Ionicons name="close" size={24} color="#1e293b" />
-                        </TouchableOpacity>
-                    </View>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <Pressable style={s.overlay} onPress={() => setCreateModalVisible(false)}>
+            <View style={[s.sheet, { backgroundColor: theme.surface }]} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
+              <View style={s.sheetHandle} />
+              <View style={s.sheetHeader}>
+                <Text style={[s.sheetTitle, { color: theme.text }]}>Create Amenity</Text>
+                <TouchableOpacity onPress={() => setCreateModalVisible(false)} style={[s.closeBtn, { backgroundColor: theme.surfaceSubtle }]}>
+                  <Ionicons name="close" size={18} color={theme.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetContent}>
+                <Text style={[s.label, { color: theme.textSecondary }]}>Amenity Name</Text>
+                <TextInput style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={newAmenityName} onChangeText={setNewAmenityName} placeholder="e.g. Swimming Pool" placeholderTextColor={theme.textMuted} />
 
-                    <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                        <Text style={styles.label}>Amenity Name</Text>
-                        <TextInput
-                        style={styles.modalInput}
-                        value={newAmenityName}
-                        onChangeText={setNewAmenityName}
-                        placeholder="e.g. Swimming Pool"
-                        />
-
-                        <Text style={styles.label}>Pricing Model</Text>
-                        <View style={styles.typeSwitchRow}>
-                        <TouchableOpacity
-                            style={[styles.typeSwitchBtn, newAmenityType === 'PER_USER' && styles.typeSwitchBtnActive]}
-                            onPress={() => setNewAmenityType('PER_USER')}
-                        >
-                            <Text style={[styles.typeSwitchText, newAmenityType === 'PER_USER' && styles.typeSwitchTextActive]}>Per User</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.typeSwitchBtn, newAmenityType === 'FLAT_EVENT' && styles.typeSwitchBtnActive]}
-                            onPress={() => setNewAmenityType('FLAT_EVENT')}
-                        >
-                            <Text style={[styles.typeSwitchText, newAmenityType === 'FLAT_EVENT' && styles.typeSwitchTextActive]}>Flat Rate</Text>
-                        </TouchableOpacity>
-                        </View>
-
-                        <Text style={styles.label}>Base Price ($)</Text>
-                        <TextInput
-                        style={styles.modalInput}
-                        value={newBasePrice}
-                        onChangeText={setNewBasePrice}
-                        placeholder="0.00"
-                        keyboardType="numeric"
-                        />
-                        
-                        <Text style={styles.label}>Max Capacity</Text>
-                        <TextInput
-                        style={styles.modalInput}
-                        value={newCapacity}
-                        onChangeText={setNewCapacity}
-                        placeholder="1"
-                        keyboardType="numeric"
-                        />
-
-                        <TouchableOpacity style={styles.submitBtn} onPress={createAmenity}>
-                            <Text style={styles.submitBtnText}>Save Amenity</Text>
-                        </TouchableOpacity>
-                    </ScrollView>
+                <Text style={[s.label, { color: theme.textSecondary }]}>Pricing Model</Text>
+                <View style={s.typeSwitchRow}>
+                  {(['PER_USER', 'FLAT_EVENT'] as const).map((t) => (
+                    <TouchableOpacity key={t} style={[s.typeSwitchBtn, { backgroundColor: newAmenityType === t ? theme.primaryLight : theme.surfaceSubtle, borderColor: newAmenityType === t ? theme.primary : theme.border }]} onPress={() => setNewAmenityType(t)}>
+                      <Text style={[s.typeSwitchText, { color: newAmenityType === t ? theme.primary : theme.textSecondary }]}>{t === 'PER_USER' ? 'Per User' : 'Flat Rate'}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-            </Pressable>
+
+                <Text style={[s.label, { color: theme.textSecondary }]}>Base Price (PKR)</Text>
+                <TextInput style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={newBasePrice} onChangeText={setNewBasePrice} placeholder="0.00" placeholderTextColor={theme.textMuted} keyboardType="numeric" />
+
+                <Text style={[s.label, { color: theme.textSecondary }]}>Max Capacity</Text>
+                <TextInput style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={newCapacity} onChangeText={setNewCapacity} placeholder="1" placeholderTextColor={theme.textMuted} keyboardType="numeric" />
+
+                <TouchableOpacity style={[s.submitBtn, { backgroundColor: theme.primary }]} onPress={createAmenity}>
+                  <Ionicons name="add-circle-outline" size={18} color="#fff" />
+                  <Text style={s.submitBtnText}>Save Amenity</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </Pressable>
         </KeyboardAvoidingView>
       </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    padding: 24,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9'
-  },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1e293b' },
-  headerActions: { flexDirection: 'row', gap: 12 },
-  addBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#4f46e5', justifyContent: 'center', alignItems: 'center' },
-  historyBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center' },
-  
-  listContainer: { padding: 20, paddingBottom: 40 },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-  },
-  cardMain: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
-  amenityIconBox: { width: 50, height: 50, borderRadius: 16, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center' },
-  name: { fontSize: 18, fontWeight: '700', color: '#1e293b' },
-  typeBadge: { backgroundColor: '#f1f5f9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 4 },
-  typeText: { fontSize: 11, fontWeight: '700', color: '#64748b' },
-  priceBox: { alignItems: 'flex-end' },
-  priceLabel: { fontSize: 10, color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' },
-  priceValue: { fontSize: 20, fontWeight: '800', color: '#4f46e5' },
-  
-  bookBtn: { backgroundColor: '#4f46e5', alignItems: 'center', paddingVertical: 14, borderRadius: 16, shadowColor: '#4f46e5', shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
-  bookBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  
-  emptyState: { alignItems: 'center', marginTop: 80 },
-  emptyText: { marginTop: 16, fontSize: 16, color: '#94a3b8', fontWeight: '500' },
-  
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
-  modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '85%', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#1e293b' },
-  modalScrollContent: { paddingBottom: 24 },
-  
-  inputGroup: { marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '700', color: '#475569', marginBottom: 8, marginLeft: 4 },
-  modalInput: { backgroundColor: '#f8fafc', borderRadius: 14, padding: 16, fontSize: 16, color: '#1e293b', marginBottom: 20, borderWidth: 1, borderColor: '#e2e8f0' },
-  dateValue: { color: '#1e293b', fontSize: 16 },
-  dateTimeRow: { flexDirection: 'row', gap: 12, marginBottom: 6 },
-  dateTimeInput: { flex: 1 },
-  
-  priceBreakdown: { backgroundColor: '#f8fafc', padding: 20, borderRadius: 16, marginBottom: 24, borderWidth: 1, borderColor: '#e2e8f0', borderStyle: 'dashed' },
-  priceBreakdownLabel: { fontSize: 12, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: 4 },
-  priceBreakdownValue: { fontSize: 24, fontWeight: '800', color: '#1e293b' },
-  bookingHint: { marginTop: 8, fontSize: 12, color: '#64748b' },
-  
-  submitBtn: { backgroundColor: '#4f46e5', padding: 18, borderRadius: 16, alignItems: 'center', marginTop: 10, shadowColor: '#4f46e5', shadowOpacity: 0.2, shadowRadius: 10, elevation: 4 },
-  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-
-  typeSwitchRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-  typeSwitchBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#f8fafc' },
-  typeSwitchBtnActive: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
-  typeSwitchText: { color: '#64748b', fontWeight: '700', fontSize: 14 },
-  typeSwitchTextActive: { color: '#4f46e5' },
-});
+function makeStyles(theme: AppTheme) {
+  return StyleSheet.create({
+    container: { flex: 1 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1 },
+    headerTitle: { fontSize: 22, fontWeight: '800' },
+    headerActions: { flexDirection: 'row', gap: 10 },
+    addBtn: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    historyBtn: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    listContent: { padding: 16, paddingBottom: 40 },
+    card: { borderRadius: 22, padding: 20, marginBottom: 16, borderWidth: 1, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+    cardMain: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 18 },
+    amenityIconBox: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+    name: { fontSize: 17, fontWeight: '700', marginBottom: 6 },
+    typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start' },
+    typeText: { fontSize: 11, fontWeight: '700' },
+    priceBox: { alignItems: 'flex-end' },
+    priceLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+    priceValue: { fontSize: 18, fontWeight: '800' },
+    bookBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14 },
+    bookBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
+    emptyIcon: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    emptyTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
+    emptyMsg: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: '88%', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
+    sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1', alignSelf: 'center', marginBottom: 16 },
+    sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    sheetTitle: { fontSize: 20, fontWeight: '800' },
+    closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    sheetContent: { paddingBottom: 32 },
+    label: { fontSize: 13, fontWeight: '700', marginBottom: 8, marginLeft: 2 },
+    input: { borderRadius: 14, padding: 14, fontSize: 15, marginBottom: 18, borderWidth: 1 },
+    dateTimeRow: { flexDirection: 'row', gap: 10, marginBottom: 6 },
+    dateBtn: { flex: 1.5, justifyContent: 'center' },
+    dateBtnText: { fontSize: 15 },
+    timeInput: { flex: 1 },
+    priceBreakdown: { borderRadius: 16, padding: 18, marginBottom: 22, borderWidth: 1, borderStyle: 'dashed' },
+    priceBreakdownLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
+    priceBreakdownValue: { fontSize: 22, fontWeight: '800' },
+    bookingHint: { marginTop: 6, fontSize: 12 },
+    submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 14 },
+    submitBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    typeSwitchRow: { flexDirection: 'row', gap: 10, marginBottom: 18 },
+    typeSwitchBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1.5 },
+    typeSwitchText: { fontWeight: '700', fontSize: 14 },
+  });
+}

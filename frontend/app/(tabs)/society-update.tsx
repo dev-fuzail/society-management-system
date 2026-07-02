@@ -11,6 +11,7 @@ import { getAuthData } from "@/hooks/helperHooks";
 import { Ionicons } from "@expo/vector-icons";
 import { MaintenanceConfigAudit } from "@/services/types";
 import { EXPO_PUBLIC_API_BASE } from "@/constants";
+import { useTheme } from "@/hooks/useTheme";
 
 const formatDateInput = (value?: string) => {
   if (!value) return new Date().toISOString().slice(0, 10);
@@ -20,6 +21,7 @@ const formatDateInput = (value?: string) => {
 };
 
 export default function SocietyUpdateScreen() {
+  const theme = useTheme();
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -266,116 +268,116 @@ export default function SocietyUpdateScreen() {
 
   if (isLoading) {
     return (
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }]}>
-            <ActivityIndicator size="large" color="#4f46e5" />
-            <Text style={{ marginTop: 12, color: '#64748b', fontWeight: '500' }}>Loading Society Data...</Text>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.bg }]}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={{ marginTop: 12, color: theme.textSecondary, fontWeight: '500' }}>Loading Society Data...</Text>
         </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: '#f8fafc' }]}>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={20} color="#1e293b" />
-            <Text style={styles.backBtnText}>Back</Text>
+            <Ionicons name="arrow-back" size={20} color={theme.text} />
+            <Text style={[styles.backBtnText, { color: theme.text }]}>Back</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Society Settings</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Society Settings</Text>
 
-        <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Basic Information</Text>
+        <View style={[styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Basic Information</Text>
             
-            <Text style={styles.label}>Society Name</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Society Name</Text>
             <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
             placeholder="e.g. Green Valley Residency"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textMuted}
             value={form.name}
             onChangeText={(t) => handleChange("name", t)}
             />
 
-            <Text style={styles.label}>Full Address</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Full Address</Text>
             <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
             placeholder="Building, Road, Landmark"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textMuted}
             value={form.address}
             onChangeText={(t) => handleChange("address", t)}
             />
 
-            <Text style={styles.label}>City</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>City</Text>
             <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
             placeholder="City"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textMuted}
             value={form.city}
             onChangeText={(t) => handleChange("city", t)}
             />
         </View>
 
-        <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Contact & Scale</Text>
+        <View style={[styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Contact & Scale</Text>
 
-            <Text style={styles.label}>Official Email</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Official Email</Text>
             <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
             placeholder="contact@society.com"
             keyboardType="email-address"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textMuted}
             value={form.contact_email}
             onChangeText={(t) => handleChange("contact_email", t)}
             />
 
-            <Text style={styles.label}>Total Apartment Units</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Total Apartment Units</Text>
             <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
             placeholder="0"
             keyboardType="numeric"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textMuted}
             value={form.total_apartments}
             onChangeText={(t) => handleChange("total_apartments", t)}
             />
         </View>
 
-        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={isSubmitting}>
+        <TouchableOpacity style={[styles.submitBtn, { backgroundColor: theme.primary }]} onPress={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Save Society Details</Text>}
         </TouchableOpacity>
 
-        <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Maintenance Billing</Text>
+        <View style={[styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Maintenance Billing</Text>
 
-            <Text style={styles.label}>Monthly Fee Amount</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Monthly Fee Amount</Text>
             <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
             placeholder="0"
             keyboardType="numeric"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textMuted}
             value={maintenanceForm.amount}
             onChangeText={(t) => handleMaintenanceChange("amount", t)}
             />
 
             <View style={styles.fieldRow}>
               <View style={styles.fieldHalf}>
-                <Text style={styles.label}>Currency</Text>
+                <Text style={[styles.label, { color: theme.textSecondary }]}>Currency</Text>
                 <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
                 placeholder="PKR"
                 autoCapitalize="characters"
                 maxLength={3}
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={theme.textMuted}
                 value={maintenanceForm.currency}
                 onChangeText={(t) => handleMaintenanceChange("currency", t.toUpperCase())}
                 />
               </View>
 
               <View style={styles.fieldHalf}>
-                <Text style={styles.label}>Due Day</Text>
+                <Text style={[styles.label, { color: theme.textSecondary }]}>Due Day</Text>
                 <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
                 placeholder="1"
                 keyboardType="numeric"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={theme.textMuted}
                 value={maintenanceForm.due_day}
                 onChangeText={(t) => handleMaintenanceChange("due_day", t)}
                 />
@@ -384,35 +386,35 @@ export default function SocietyUpdateScreen() {
 
             <View style={styles.fieldRow}>
               <View style={styles.fieldHalf}>
-                <Text style={styles.label}>Grace Days</Text>
+                <Text style={[styles.label, { color: theme.textSecondary }]}>Grace Days</Text>
                 <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
                 placeholder="0"
                 keyboardType="numeric"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={theme.textMuted}
                 value={maintenanceForm.grace_period_days}
                 onChangeText={(t) => handleMaintenanceChange("grace_period_days", t)}
                 />
               </View>
 
               <View style={styles.fieldHalf}>
-                <Text style={styles.label}>Late Charge</Text>
+                <Text style={[styles.label, { color: theme.textSecondary }]}>Late Charge</Text>
                 <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
                 placeholder="0"
                 keyboardType="numeric"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={theme.textMuted}
                 value={maintenanceForm.late_payment_charge}
                 onChangeText={(t) => handleMaintenanceChange("late_payment_charge", t)}
                 />
               </View>
             </View>
 
-            <Text style={styles.label}>Effective Date</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Effective Date</Text>
             <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
             placeholder="YYYY-MM-DD"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textMuted}
             value={maintenanceForm.effective_date}
             onChangeText={(t) => handleMaintenanceChange("effective_date", t)}
             />
@@ -422,10 +424,10 @@ export default function SocietyUpdateScreen() {
             </TouchableOpacity>
         </View>
 
-        <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Maintenance Audit History</Text>
+        <View style={[styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Maintenance Audit History</Text>
             {maintenanceHistory.length === 0 ? (
-              <Text style={styles.emptyHistoryText}>No maintenance fee changes yet.</Text>
+              <Text style={[styles.emptyHistoryText, { color: theme.textMuted }]}>No maintenance fee changes yet.</Text>
             ) : (
               maintenanceHistory.slice(0, 5).map((item) => (
                 <View key={item._id} style={styles.historyRow}>
@@ -445,46 +447,46 @@ export default function SocietyUpdateScreen() {
             )}
         </View>
 
-        <View style={styles.sectionCard}>
+        <View style={[styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
           <Text style={styles.sectionTitle}>Bank Account for Offline Payments</Text>
-          <Text style={styles.helperText}>
+          <Text style={[styles.helperText, { color: theme.textSecondary }]}>
             Residents will see these details when choosing to pay offline. They can copy account info and submit a screenshot for approval.
           </Text>
 
           <Text style={styles.label}>Bank Name</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
             placeholder="e.g. HBL, Meezan Bank"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textMuted}
             value={bankForm.bank_name}
             onChangeText={(t) => setBankForm({ ...bankForm, bank_name: t })}
           />
 
           <Text style={styles.label}>Account Title</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
             placeholder="e.g. Green Valley Society"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textMuted}
             value={bankForm.account_title}
             onChangeText={(t) => setBankForm({ ...bankForm, account_title: t })}
           />
 
           <Text style={styles.label}>Account Number *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
             placeholder="e.g. 01234567890123"
             keyboardType="numeric"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textMuted}
             value={bankForm.account_number}
             onChangeText={(t) => setBankForm({ ...bankForm, account_number: t })}
           />
 
           <Text style={styles.label}>IBAN (optional)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
             placeholder="e.g. PK36SCBL0000001123456702"
             autoCapitalize="characters"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textMuted}
             value={bankForm.iban}
             onChangeText={(t) => setBankForm({ ...bankForm, iban: t.toUpperCase() })}
           />
@@ -494,9 +496,9 @@ export default function SocietyUpdateScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.sectionCard}>
+        <View style={[styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
           <Text style={styles.sectionTitle}>Resident Payments</Text>
-          <Text style={styles.helperText}>
+          <Text style={[styles.helperText, { color: theme.textSecondary }]}>
             Review which residents have paid this month's maintenance and who still owes.
           </Text>
           <TouchableOpacity style={styles.secondarySubmitBtn} onPress={() => router.push('/society-payments' as any)}>

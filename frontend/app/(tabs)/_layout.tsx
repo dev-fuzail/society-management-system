@@ -10,10 +10,10 @@ import {
   Pressable,
   Platform,
   Alert,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useTheme } from "@/hooks/useTheme";
 import { HapticTab } from "@/components/haptic-tab";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -36,8 +36,7 @@ Notifications.setNotificationHandler({
 });
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? "light"];
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [isProfileMenuVisible, setIsProfileMenuVisible] = useState(false);
   const [isAdminMenuVisible, setIsAdminMenuVisible] = useState(false);
@@ -123,37 +122,23 @@ export default function TabLayout() {
           <View
             style={[
               styles.profileMenuContainer,
-              { backgroundColor: theme.background, borderColor: theme.icon, top: 60 + insets.top },
+              { backgroundColor: theme.surface, borderColor: theme.border, top: 60 + insets.top },
             ]}
           >
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => handleMenuNavigate("/notifications")}
             >
-              <Ionicons
-                name="notifications-outline"
-                size={20}
-                color={theme.text}
-                style={styles.menuIcon}
-              />
-              <Text style={[styles.menuText, { color: theme.text }]}>
-                Notifications
-              </Text>
+              <Ionicons name="notifications-outline" size={20} color={theme.primary} style={styles.menuIcon} />
+              <Text style={[styles.menuText, { color: theme.text }]}>Notifications</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => handleMenuNavigate("/profile")}
             >
-              <Ionicons
-                name="person-outline"
-                size={20}
-                color={theme.text}
-                style={styles.menuIcon}
-              />
-              <Text style={[styles.menuText, { color: theme.text }]}>
-                Profile Management
-              </Text>
+              <Ionicons name="person-outline" size={20} color={theme.primary} style={styles.menuIcon} />
+              <Text style={[styles.menuText, { color: theme.text }]}>Profile</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -173,10 +158,10 @@ export default function TabLayout() {
           <View
             style={[
               styles.adminMenuContainer,
-              { backgroundColor: theme.background, borderColor: theme.icon, top: 60 + insets.top },
+              { backgroundColor: theme.surface, borderColor: theme.border, top: 60 + insets.top },
             ]}
           >
-            <Text style={[styles.adminMenuHeader, { color: theme.text, borderBottomColor: theme.icon }]}>
+            <Text style={[styles.adminMenuHeader, { color: theme.primary, borderBottomColor: theme.borderLight }]}>
               Admin Settings
             </Text>
             
@@ -187,7 +172,7 @@ export default function TabLayout() {
               <Ionicons
                 name="business-outline"
                 size={20}
-                color={theme.text}
+                color={theme.primary}
                 style={styles.menuIcon}
               />
               <Text style={[styles.menuText, { color: theme.text }]}>
@@ -195,7 +180,7 @@ export default function TabLayout() {
               </Text>
             </TouchableOpacity>
 
-            <View style={[styles.separator, { backgroundColor: theme.icon }]} />
+            <View style={[styles.separator, { backgroundColor: theme.border }]} />
 
             <TouchableOpacity
               style={styles.menuItem}
@@ -204,7 +189,7 @@ export default function TabLayout() {
               <Ionicons
                 name="megaphone-outline"
                 size={20}
-                color={theme.text}
+                color={theme.primary}
                 style={styles.menuIcon}
               />
               <Text style={[styles.menuText, { color: theme.text }]}>
@@ -212,7 +197,7 @@ export default function TabLayout() {
               </Text>
             </TouchableOpacity>
 
-            <View style={[styles.separator, { backgroundColor: theme.icon }]} />
+            <View style={[styles.separator, { backgroundColor: theme.border }]} />
 
             <TouchableOpacity
               style={styles.menuItem}
@@ -221,7 +206,7 @@ export default function TabLayout() {
               <Ionicons
                 name="checkmark-done-outline"
                 size={20}
-                color={theme.text}
+                color={theme.primary}
                 style={styles.menuIcon}
               />
               <Text style={[styles.menuText, { color: theme.text }]}> 
@@ -229,7 +214,7 @@ export default function TabLayout() {
               </Text>
             </TouchableOpacity>
 
-            <View style={[styles.separator, { backgroundColor: theme.icon }]} />
+            <View style={[styles.separator, { backgroundColor: theme.border }]} />
 
             <TouchableOpacity
               style={styles.menuItem}
@@ -238,7 +223,7 @@ export default function TabLayout() {
               <Ionicons
                 name="clipboard-outline"
                 size={20}
-                color={theme.text}
+                color={theme.primary}
                 style={styles.menuIcon}
               />
               <Text style={[styles.menuText, { color: theme.text }]}>
@@ -246,7 +231,7 @@ export default function TabLayout() {
               </Text>
             </TouchableOpacity>
 
-            <View style={[styles.separator, { backgroundColor: theme.icon }]} />
+            <View style={[styles.separator, { backgroundColor: theme.border }]} />
 
             <TouchableOpacity
               style={styles.menuItem}
@@ -255,7 +240,7 @@ export default function TabLayout() {
               <Ionicons
                 name="cash-outline"
                 size={20}
-                color={theme.text}
+                color={theme.primary}
                 style={styles.menuIcon}
               />
               <Text style={[styles.menuText, { color: theme.text }]}>
@@ -271,58 +256,63 @@ export default function TabLayout() {
         screenOptions={({ route }) => ({
           headerShown: true,
           headerStyle: {
-            backgroundColor: theme.background,
+            backgroundColor: theme.headerBg,
             elevation: 0,
             shadowOpacity: 0,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.icon + '20',
+            borderBottomWidth: 0,
           },
+          headerTintColor: theme.headerText,
           title:
             route.name === "index"
               ? "Living Sync"
-              : route.name.charAt(0).toUpperCase() + route.name.slice(1).replace("-", " "),
+              : route.name.charAt(0).toUpperCase() + route.name.slice(1).replace(/-/g, " "),
           headerTitleAlign: "center",
+          headerTitleStyle: {
+            fontWeight: '800',
+            fontSize: 17,
+            color: theme.headerText,
+          },
           headerLeft: () => (
             isAdmin ? (
               <TouchableOpacity
-                style={{ marginLeft: 16 }}
+                style={styles.headerBtn}
                 onPress={() => setIsAdminMenuVisible(true)}
               >
-                <Ionicons
-                  name="menu-outline"
-                  size={28}
-                  color={theme.text}
-                />
+                <Ionicons name="menu-outline" size={24} color={theme.headerText} />
               </TouchableOpacity>
             ) : (
-              <Image
-                source={require("@/assets/images/icon.png")}
-                style={{ width: 32, height: 32, marginLeft: 16 }}
-                resizeMode="contain"
-              />
+              <View style={styles.logoWrap}>
+                <Image
+                  source={require('@/assets/images/icon.png')}
+                  style={styles.logoIcon}
+                  resizeMode="contain"
+                />
+              </View>
             )
           ),
           headerRight: () => (
             <TouchableOpacity
-              style={{ marginRight: 16 }}
+              style={styles.headerBtn}
               onPress={() => setIsProfileMenuVisible(true)}
             >
-              <Ionicons
-                name="person-circle-outline"
-                size={28}
-                color={theme.text}
-              />
+              <Ionicons name="person-circle-outline" size={26} color={theme.headerText} />
             </TouchableOpacity>
           ),
           tabBarStyle: {
-            backgroundColor: theme.background,
-            borderTopColor: theme.icon + '20',
+            backgroundColor: theme.tabBg,
+            borderTopColor: theme.tabBorder,
+            borderTopWidth: 1,
             height: 60 + insets.bottom,
-            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
             paddingTop: 8,
+            elevation: 12,
+            shadowColor: '#000',
+            shadowOpacity: 0.08,
+            shadowRadius: 16,
           },
-          tabBarActiveTintColor: "#2563eb",
-          tabBarInactiveTintColor: theme.icon,
+          tabBarActiveTintColor: theme.tabActive,
+          tabBarInactiveTintColor: theme.tabInactive,
+          tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: 2 },
           tabBarButton: HapticTab,
         })}
       >
@@ -501,70 +491,32 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
-  },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)" },
   profileMenuContainer: {
-    position: "absolute",
-    top: 60,
-    right: 16,
-    width: 220,
-    borderWidth: 1,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
-    overflow: "hidden",
+    position: "absolute", top: 60, right: 16, width: 220,
+    borderWidth: 1, borderRadius: 16,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15, shadowRadius: 16, elevation: 12, overflow: "hidden",
   },
   adminMenuContainer: {
-    position: "absolute",
-    top: 60,
-    left: 16,
-    width: 240,
-    borderWidth: 1,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
-    overflow: "hidden",
+    position: "absolute", top: 60, left: 16, width: 250,
+    borderWidth: 1, borderRadius: 16,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15, shadowRadius: 16, elevation: 12, overflow: "hidden",
   },
   adminMenuHeader: {
-    padding: 16,
-    fontSize: 14,
-    fontWeight: "bold",
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1.2,
     borderBottomWidth: 1,
-    backgroundColor: "rgba(0,0,0,0.02)",
   },
   menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 16, paddingVertical: 13,
   },
-  menuIcon: {
-    marginRight: 12,
-  },
-  menuText: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  separator: {
-    height: 1,
-    width: "100%",
-    opacity: 0.1,
-  },
-  centerTab: {
-    backgroundColor: "#2563eb",
-    padding: 12,
-    borderRadius: 50,
-    marginBottom: 25,
-    elevation: 5,
-  },
+  menuIcon: { marginRight: 12 },
+  menuText: { fontSize: 14, fontWeight: "600" },
+  separator: { height: 1, width: "100%", opacity: 0.08 },
+  headerBtn: { paddingHorizontal: 14, paddingVertical: 6 },
+  logoWrap: { paddingHorizontal: 12, paddingVertical: 4 },
+  logoIcon: { width: 32, height: 32 },
 });

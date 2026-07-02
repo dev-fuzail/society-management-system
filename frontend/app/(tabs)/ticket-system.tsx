@@ -1,88 +1,48 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-    View,
-    Text,
-    StyleSheet,
-    FlatList,
-    TouchableOpacity,
-    Alert,
-    ActivityIndicator,
-    Modal,
-    TextInput,
-    ScrollView,
-    Platform,
-    KeyboardAvoidingView,
-    Pressable,
-    Image,
-} from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput, ScrollView, Platform, KeyboardAvoidingView, Pressable, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-
-// Import necessary services and types
 import { apiGetTickets, apiCreateTicket } from "@/services/TicketService";
 import { apiUploadFile } from "@/services/ChatService";
 import { apiGetUserSocieties } from "@/services/SocietyService";
-import { TicketResponse, TicketStatus, TicketData } from "@/services/types"; // Ensure these types are correctly defined
-import { getAuthData } from "@/hooks/helperHooks"; // Corrected import path
-// import { Colors } from "@/constants/theme"; // Removed theme import
+import { TicketResponse, TicketStatus, TicketData } from "@/services/types";
+import { getAuthData } from "@/hooks/helperHooks";
+import { useTheme } from "@/hooks/useTheme";
+import { AppTheme } from "@/constants/theme";
 
-// --- Status Color Utility ---
-const getStatusStyles = (status: TicketStatus) => {
-    switch (status) {
-        case 'Pending':
-            return { color: '#FF9800', backgroundColor: '#FFF3E0', cardBorder: '#FF9800' }; // Orange
-        case 'In Progress':
-            return { color: '#2196F3', backgroundColor: '#E3F2FD', cardBorder: '#2196F3' }; // Blue
-        case 'Resolved':
-            return { color: '#4CAF50', backgroundColor: '#E8F5E9', cardBorder: '#4CAF50' }; // Green
-        case 'Closed':
-            return { color: '#9E9E9E', backgroundColor: '#FAFAFA', cardBorder: '#9E9E9E' }; // Grey
-        default:
-            return { color: '#9E9E9E', backgroundColor: '#FAFAFA', cardBorder: '#9E9E9E' };
-    }
+const STATUS_META: Record<TicketStatus, { bg: string; text: string; label: string }> = {
+    Pending:     { bg: '#fef3c7', text: '#92400e', label: 'PENDING' },
+    'In Progress': { bg: '#dbeafe', text: '#1e40af', label: 'IN PROGRESS' },
+    Resolved:    { bg: '#d1fae5', text: '#065f46', label: 'RESOLVED' },
+    Closed:      { bg: '#f1f5f9', text: '#475569', label: 'CLOSED' },
 };
-
-const CustomTheme = {
-    background: '#f8fafc',
-    card: '#FFFFFF',
-    text: '#1e293b',
-    textMuted: '#64748b',
-    tint: '#4f46e5',
-    border: '#f1f5f9',
-};
-
 
 export default function TicketSystemScreen() {
+    const theme = useTheme();
+    const s = makeStyles(theme);
     const router = useRouter();
     const [tickets, setTickets] = useState<TicketResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState<any>(null);
     const [societyId, setSocietyId] = useState<string | null>(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
-
-    // Form State
     const [subject, setSubject] = useState('');
     const [description, setDescription] = useState('');
     const [complaintImageUrl, setComplaintImageUrl] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const theme = CustomTheme;
     const isUserAdmin = user?.role === 'admin';
 
-    // --- Fetch Data ---
     const fetchTickets = async (sId: string) => {
         try {
             const res = await apiGetTickets(sId);
-            if (res.success && res.result) {
-                setTickets(res.result);
-            }
+            if (res.success && res.result) setTickets(res.result);
         } catch (error: any) {
             console.error("Ticket fetch error:", error);
         }
     };
 
-    // --- Initialization ---
     useEffect(() => {
         const init = async () => {
             setLoading(true);
@@ -103,14 +63,8 @@ export default function TicketSystemScreen() {
         init();
     }, []);
 
-    // --- Refresh on Focus ---
-    useFocusEffect(
-        useCallback(() => {
-            if (societyId) fetchTickets(societyId);
-        }, [societyId])
-    );
+    useFocusEffect(useCallback(() => { if (societyId) fetchTickets(societyId); }, [societyId]));
 
-    // --- Handle New Ticket Submission ---
     const handleSubmit = async () => {
         if (!subject.trim() || !description.trim()) {
             Alert.alert("Validation", "Please fill in all fields.");
@@ -118,20 +72,12 @@ export default function TicketSystemScreen() {
         }
         setIsSubmitting(true);
         try {
-            const ticketData: TicketData = {
-                subject: subject.trim(),
-                description: description.trim(),
-                imageUrl: complaintImageUrl || undefined,
-                createdBy: user.id,
-                societyId: societyId!,
-            };
+            const ticketData: TicketData = { subject: subject.trim(), description: description.trim(), imageUrl: complaintImageUrl || undefined, createdBy: user.id, societyId: societyId! };
             const res = await apiCreateTicket(ticketData);
             if (res.success) {
                 Alert.alert("Success", "Complaint submitted!");
                 setIsModalVisible(false);
-                setSubject('');
-                setDescription('');
-                setComplaintImageUrl(null);
+                setSubject(''); setDescription(''); setComplaintImageUrl(null);
                 fetchTickets(societyId!);
             }
         } finally {
@@ -143,83 +89,51 @@ export default function TicketSystemScreen() {
         try {
             if (source === 'camera') {
                 const permission = await ImagePicker.requestCameraPermissionsAsync();
-                if (!permission.granted) {
-                    Alert.alert('Permission Required', 'Camera permission is needed to capture complaint image.');
-                    return;
-                }
-
-                const result = await ImagePicker.launchCameraAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    allowsEditing: true,
-                    quality: 0.8,
-                });
-
+                if (!permission.granted) { Alert.alert('Permission Required', 'Camera permission is needed.'); return; }
+                const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8 });
                 if (result.canceled) return;
                 const asset = result.assets[0];
-                const uploaded = await apiUploadFile({
-                    uri: asset.uri,
-                    name: `complaint-${Date.now()}.${asset.uri.split('.').pop() || 'jpg'}`,
-                    mimeType: asset.mimeType || 'image/jpeg',
-                });
+                const uploaded = await apiUploadFile({ uri: asset.uri, name: `complaint-${Date.now()}.${asset.uri.split('.').pop() || 'jpg'}`, mimeType: asset.mimeType || 'image/jpeg' });
                 setComplaintImageUrl(uploaded);
                 return;
             }
-
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                quality: 0.8,
-            });
-
+            const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8 });
             if (result.canceled) return;
             const asset = result.assets[0];
-            const uploaded = await apiUploadFile({
-                uri: asset.uri,
-                name: `complaint-${Date.now()}.${asset.uri.split('.').pop() || 'jpg'}`,
-                mimeType: asset.mimeType || 'image/jpeg',
-            });
+            const uploaded = await apiUploadFile({ uri: asset.uri, name: `complaint-${Date.now()}.${asset.uri.split('.').pop() || 'jpg'}`, mimeType: asset.mimeType || 'image/jpeg' });
             setComplaintImageUrl(uploaded);
         } catch {
             Alert.alert('Upload Failed', 'Could not upload image. Please try again.');
         }
     };
 
-    const renderTicket = ({ item }: { item: TicketResponse }) => {
-        const statusStyle = getStatusStyles(item.status);
-        const ticketNumber = tickets.indexOf(item) + 1;
-
+    const renderTicket = ({ item, index }: { item: TicketResponse; index: number }) => {
+        const meta = STATUS_META[item.status] ?? STATUS_META.Pending;
         return (
-            <TouchableOpacity
-                style={styles.card}
-                onPress={() => router.push(`/ticket-detail?id=${item._id}`)}
-                activeOpacity={0.7}
-            >
-                <View style={styles.cardHeader}>
-                    <View style={styles.numberBadge}>
-                        <Text style={styles.ticketNumber}>#{ticketNumber}</Text>
+            <TouchableOpacity style={[s.card, { backgroundColor: theme.surface, borderColor: theme.borderLight }]} onPress={() => router.push(`/ticket-detail?id=${item._id}`)} activeOpacity={0.7}>
+                <View style={s.cardHeader}>
+                    <View style={[s.numberBadge, { backgroundColor: theme.surfaceSubtle }]}>
+                        <Text style={[s.ticketNumber, { color: theme.textSecondary }]}>#{index + 1}</Text>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: statusStyle.backgroundColor }]}>
-                        <Text style={[styles.statusText, { color: statusStyle.color }]}>{item.status}</Text>
+                    <View style={[s.statusBadge, { backgroundColor: meta.bg }]}>
+                        <Text style={[s.statusText, { color: meta.text }]}>{meta.label}</Text>
                     </View>
                 </View>
-
-                <Text style={styles.cardTitle}>{item.subject}</Text>
-                
-                <View style={styles.cardMeta}>
-                    <View style={styles.metaItem}>
+                <Text style={[s.cardTitle, { color: theme.text }]}>{item.subject}</Text>
+                <View style={s.cardMeta}>
+                    <View style={s.metaItem}>
                         <Ionicons name="person-outline" size={12} color={theme.textMuted} />
-                        <Text style={styles.metaText}>{item.createdBy.name}</Text>
+                        <Text style={[s.metaText, { color: theme.textSecondary }]}>{item.createdBy.name}</Text>
                     </View>
-                    <View style={styles.metaItem}>
+                    <View style={s.metaItem}>
                         <Ionicons name="calendar-outline" size={12} color={theme.textMuted} />
-                        <Text style={styles.metaText}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+                        <Text style={[s.metaText, { color: theme.textSecondary }]}>{new Date(item.createdAt).toLocaleDateString()}</Text>
                     </View>
                 </View>
-
                 {isUserAdmin && (
-                    <View style={styles.assignedBox}>
-                        <Text style={styles.assignedLabel}>Assigned to:</Text>
-                        <Text style={styles.assignedValue}>{item.assignedTo?.name || 'Unassigned'}</Text>
+                    <View style={[s.assignedBox, { borderTopColor: theme.borderLight }]}>
+                        <Text style={[s.assignedLabel, { color: theme.textMuted }]}>Assigned to:</Text>
+                        <Text style={[s.assignedValue, { color: theme.textSecondary }]}>{item.assignedTo?.name || 'Unassigned'}</Text>
                     </View>
                 )}
             </TouchableOpacity>
@@ -227,22 +141,15 @@ export default function TicketSystemScreen() {
     };
 
     if (loading) {
-        return (
-            <View style={[styles.container, styles.center]}>
-                <ActivityIndicator size="large" color={theme.tint} />
-            </View>
-        );
+        return <View style={[s.container, s.center, { backgroundColor: theme.bg }]}><ActivityIndicator size="large" color={theme.primary} /></View>;
     }
 
     return (
-        <View style={styles.container}>
-            <View style={styles.listHeader}>
-                <Text style={styles.title}>Complaints</Text>
-                <TouchableOpacity
-                    style={styles.addButton}
-                    onPress={() => setIsModalVisible(true)}
-                >
-                    <Ionicons name="add-circle" size={40} color={theme.tint} />
+        <View style={[s.container, { backgroundColor: theme.bg }]}>
+            <View style={[s.listHeader, { backgroundColor: theme.surface, borderBottomColor: theme.borderLight }]}>
+                <Text style={[s.title, { color: theme.text }]}>Complaints</Text>
+                <TouchableOpacity style={[s.addBtn, { backgroundColor: theme.primary }]} onPress={() => setIsModalVisible(true)}>
+                    <Ionicons name="add" size={22} color="#fff" />
                 </TouchableOpacity>
             </View>
 
@@ -250,330 +157,115 @@ export default function TicketSystemScreen() {
                 data={tickets}
                 keyExtractor={(item) => item._id}
                 renderItem={renderTicket}
-                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+                contentContainerStyle={s.listContent}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <Ionicons name="mail-unread-outline" size={60} color="#cbd5e1" />
-                        <Text style={styles.emptyText}>No active complaints.</Text>
+                    <View style={s.empty}>
+                        <View style={[s.emptyIcon, { backgroundColor: theme.primaryLight }]}>
+                            <Ionicons name="mail-unread-outline" size={36} color={theme.primary} />
+                        </View>
+                        <Text style={[s.emptyTitle, { color: theme.text }]}>No complaints yet</Text>
+                        <Text style={[s.emptyMsg, { color: theme.textMuted }]}>Tap the + button to submit a new complaint.</Text>
                     </View>
                 }
             />
 
-            <Modal
-                visible={isModalVisible}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => setIsModalVisible(false)}
-            >
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.modalOverlay}
-                >
-                    <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setIsModalVisible(false)} />
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>New Complaint</Text>
-                            <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                                <Ionicons name="close" size={24} color={theme.text} />
+            <Modal visible={isModalVisible} transparent animationType="slide" onRequestClose={() => setIsModalVisible(false)}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+                    <Pressable style={s.overlay} onPress={() => setIsModalVisible(false)}>
+                    <View style={[s.sheet, { backgroundColor: theme.surface }]} onStartShouldSetResponder={() => true}>
+                        <View style={s.sheetHandle} />
+                        <View style={s.sheetHeader}>
+                            <Text style={[s.sheetTitle, { color: theme.text }]}>New Complaint</Text>
+                            <TouchableOpacity onPress={() => setIsModalVisible(false)} style={[s.closeBtn, { backgroundColor: theme.surfaceSubtle }]}>
+                                <Ionicons name="close" size={18} color={theme.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView
-                            contentContainerStyle={styles.formContent}
-                            showsVerticalScrollIndicator={false}
-                            keyboardShouldPersistTaps="handled"
-                            bounces={true}
-                        >
-                            <Text style={styles.label}>Subject</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Summary of the issue"
-                                value={subject}
-                                onChangeText={setSubject}
-                            />
+                        <ScrollView contentContainerStyle={s.formContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                            <Text style={[s.label, { color: theme.textSecondary }]}>Subject</Text>
+                            <TextInput style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} placeholder="Summary of the issue" placeholderTextColor={theme.textMuted} value={subject} onChangeText={setSubject} />
 
-                            <Text style={styles.label}>Description</Text>
-                            <TextInput
-                                style={[styles.input, styles.textArea]}
-                                placeholder="Detailed description..."
-                                value={description}
-                                onChangeText={setDescription}
-                                multiline
-                                numberOfLines={5}
-                            />
+                            <Text style={[s.label, { color: theme.textSecondary }]}>Description</Text>
+                            <TextInput style={[s.input, s.textArea, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} placeholder="Detailed description..." placeholderTextColor={theme.textMuted} value={description} onChangeText={setDescription} multiline numberOfLines={5} />
 
-                            <Text style={styles.label}>Attachment (Optional)</Text>
-                            <View style={styles.attachActionsRow}>
-                                <TouchableOpacity style={styles.attachBtn} onPress={() => pickAndUploadImage('camera')}>
-                                    <Ionicons name="camera-outline" size={16} color="#4f46e5" />
-                                    <Text style={styles.attachBtnText}>Use Camera</Text>
+                            <Text style={[s.label, { color: theme.textSecondary }]}>Attachment (Optional)</Text>
+                            <View style={s.attachRow}>
+                                <TouchableOpacity style={[s.attachBtn, { backgroundColor: theme.primaryLight, borderColor: theme.primaryMid }]} onPress={() => pickAndUploadImage('camera')}>
+                                    <Ionicons name="camera-outline" size={16} color={theme.primary} />
+                                    <Text style={[s.attachBtnText, { color: theme.primary }]}>Camera</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.attachBtn} onPress={() => pickAndUploadImage('gallery')}>
-                                    <Ionicons name="images-outline" size={16} color="#4f46e5" />
-                                    <Text style={styles.attachBtnText}>Upload</Text>
+                                <TouchableOpacity style={[s.attachBtn, { backgroundColor: theme.primaryLight, borderColor: theme.primaryMid }]} onPress={() => pickAndUploadImage('gallery')}>
+                                    <Ionicons name="images-outline" size={16} color={theme.primary} />
+                                    <Text style={[s.attachBtnText, { color: theme.primary }]}>Gallery</Text>
                                 </TouchableOpacity>
                             </View>
 
-                            {complaintImageUrl ? (
-                                <View style={styles.previewWrap}>
-                                    <Image source={{ uri: complaintImageUrl }} style={styles.previewImage} />
-                                    <TouchableOpacity style={styles.removeImageBtn} onPress={() => setComplaintImageUrl(null)}>
-                                        <Ionicons name="trash-outline" size={14} color="#dc2626" />
-                                        <Text style={styles.removeImageText}>Remove</Text>
+                            {complaintImageUrl && (
+                                <View style={[s.previewWrap, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]}>
+                                    <Image source={{ uri: complaintImageUrl }} style={s.previewImage} />
+                                    <TouchableOpacity style={s.removeBtn} onPress={() => setComplaintImageUrl(null)}>
+                                        <Ionicons name="trash-outline" size={14} color={theme.danger} />
+                                        <Text style={[s.removeText, { color: theme.danger }]}>Remove</Text>
                                     </TouchableOpacity>
                                 </View>
-                            ) : null}
+                            )}
 
-                            <TouchableOpacity
-                                style={styles.submitButton}
-                                onPress={handleSubmit}
-                                disabled={isSubmitting}
-                            >
-                                {isSubmitting ? (
-                                    <ActivityIndicator color="#fff" />
-                                ) : (
-                                    <Text style={styles.submitButtonText}>Submit Complaint</Text>
-                                )}
+                            <TouchableOpacity style={[s.submitBtn, { backgroundColor: theme.primary }]} onPress={handleSubmit} disabled={isSubmitting}>
+                                {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={s.submitText}>Submit Complaint</Text>}
                             </TouchableOpacity>
                         </ScrollView>
                     </View>
+                    </Pressable>
                 </KeyboardAvoidingView>
             </Modal>
         </View>
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f8fafc',
-    },
-    center: {
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    listHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 24,
-    },
-    title: {
-        fontSize: 26,
-        fontWeight: '800',
-        color: '#1e293b',
-    },
-    addButton: {
-        shadowColor: '#4f46e5',
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    card: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 20,
-        marginBottom: 16,
-        shadowColor: '#000',
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        elevation: 4,
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 14,
-    },
-    numberBadge: {
-        backgroundColor: '#f1f5f9',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 6,
-    },
-    ticketNumber: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#64748b',
-    },
-    statusBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 20,
-    },
-    statusText: {
-        fontSize: 11,
-        fontWeight: '800',
-        textTransform: 'uppercase',
-    },
-    cardTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#1e293b',
-        marginBottom: 12,
-    },
-    cardMeta: {
-        flexDirection: 'row',
-        gap: 16,
-        marginBottom: 12,
-    },
-    metaItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    metaText: {
-        fontSize: 13,
-        color: '#64748b',
-        fontWeight: '500',
-    },
-    assignedBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingTop: 12,
-        borderTopWidth: 1,
-        borderTopColor: '#f1f5f9',
-        marginTop: 4,
-    },
-    assignedLabel: {
-        fontSize: 12,
-        color: '#94a3b8',
-        marginRight: 6,
-    },
-    assignedValue: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#475569',
-    },
-    emptyState: {
-        alignItems: 'center',
-        marginTop: 80,
-    },
-    emptyText: {
-        marginTop: 16,
-        fontSize: 16,
-        color: '#94a3b8',
-        fontWeight: '500',
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(15, 23, 42, 0.4)',
-        justifyContent: 'flex-end',
-    },
-    modalContainer: {
-        backgroundColor: '#fff',
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
-        padding: 24,
-        maxHeight: '88%',
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 10,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 24,
-    },
-    modalTitle: {
-        fontSize: 22,
-        fontWeight: '800',
-        color: '#1e293b',
-    },
-    formContent: {
-        paddingBottom: 40,
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#475569',
-        marginBottom: 8,
-        marginLeft: 4,
-    },
-    input: {
-        backgroundColor: '#f8fafc',
-        borderRadius: 14,
-        padding: 16,
-        fontSize: 16,
-        color: '#1e293b',
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-    },
-    textArea: {
-        height: 120,
-        textAlignVertical: 'top',
-    },
-    attachActionsRow: {
-        flexDirection: 'row',
-        gap: 10,
-        marginBottom: 14,
-    },
-    attachBtn: {
-        flex: 1,
-        backgroundColor: '#eef2ff',
-        borderWidth: 1,
-        borderColor: '#c7d2fe',
-        borderRadius: 12,
-        paddingVertical: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'row',
-        gap: 6,
-    },
-    attachBtnText: {
-        color: '#4338ca',
-        fontWeight: '700',
-        fontSize: 13,
-    },
-    previewWrap: {
-        backgroundColor: '#f8fafc',
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-        padding: 10,
-        marginBottom: 20,
-    },
-    previewImage: {
-        width: '100%',
-        height: 150,
-        borderRadius: 10,
-        marginBottom: 8,
-    },
-    removeImageBtn: {
-        alignSelf: 'flex-start',
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 10,
-        backgroundColor: '#fff1f2',
-    },
-    removeImageText: {
-        color: '#dc2626',
-        fontWeight: '700',
-        fontSize: 12,
-    },
-    submitButton: {
-        backgroundColor: '#4f46e5',
-        padding: 18,
-        borderRadius: 16,
-        alignItems: 'center',
-        marginTop: 10,
-        shadowColor: '#4f46e5',
-        shadowOpacity: 0.2,
-        shadowRadius: 10,
-        elevation: 4,
-    },
-    submitButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '700',
-    },
-});
+function makeStyles(theme: AppTheme) {
+    return StyleSheet.create({
+        container: { flex: 1 },
+        center: { justifyContent: 'center', alignItems: 'center' },
+        listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1 },
+        title: { fontSize: 22, fontWeight: '800' },
+        addBtn: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+        listContent: { padding: 16, paddingBottom: 40 },
+        card: { borderRadius: 20, padding: 18, marginBottom: 14, borderWidth: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+        cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+        numberBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+        ticketNumber: { fontSize: 12, fontWeight: '700' },
+        statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+        statusText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+        cardTitle: { fontSize: 17, fontWeight: '700', marginBottom: 10 },
+        cardMeta: { flexDirection: 'row', gap: 16, marginBottom: 10 },
+        metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+        metaText: { fontSize: 13, fontWeight: '500' },
+        assignedBox: { flexDirection: 'row', alignItems: 'center', paddingTop: 10, borderTopWidth: 1, marginTop: 4 },
+        assignedLabel: { fontSize: 12, marginRight: 6 },
+        assignedValue: { fontSize: 13, fontWeight: '600' },
+        empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
+        emptyIcon: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+        emptyTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
+        emptyMsg: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+        overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+        sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: '88%', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
+        sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1', alignSelf: 'center', marginBottom: 16 },
+        sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+        sheetTitle: { fontSize: 20, fontWeight: '800' },
+        closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+        formContent: { paddingBottom: 40 },
+        label: { fontSize: 13, fontWeight: '700', marginBottom: 8, marginLeft: 2 },
+        input: { borderRadius: 14, padding: 14, fontSize: 15, marginBottom: 18, borderWidth: 1 },
+        textArea: { height: 110, textAlignVertical: 'top' },
+        attachRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+        attachBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: 12, paddingVertical: 10 },
+        attachBtnText: { fontWeight: '700', fontSize: 13 },
+        previewWrap: { borderRadius: 14, borderWidth: 1, padding: 10, marginBottom: 18 },
+        previewImage: { width: '100%', height: 140, borderRadius: 10, marginBottom: 8 },
+        removeBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: '#fff1f2' },
+        removeText: { fontWeight: '700', fontSize: 12 },
+        submitBtn: { padding: 16, borderRadius: 14, alignItems: 'center', marginTop: 8 },
+        submitText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    });
+}

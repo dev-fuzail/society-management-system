@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator, Alert, RefreshControl,
   ScrollView, StyleSheet, Text, TouchableOpacity, View, Modal,
-  TextInput, Image, KeyboardAvoidingView, Platform, Clipboard,
+  TextInput, Image, KeyboardAvoidingView, Platform, Clipboard, Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
@@ -14,6 +14,8 @@ import { apiGetUserSocieties } from '@/services/SocietyService';
 import { EXPO_PUBLIC_API_BASE } from '@/constants';
 import * as ImagePicker from 'expo-image-picker';
 import { apiUploadFile } from '@/services/ChatService';
+import { useTheme } from '@/hooks/useTheme';
+import { AppTheme } from '@/constants/theme';
 
 interface BankAccount {
   bank_name?: string;
@@ -23,14 +25,14 @@ interface BankAccount {
 }
 
 export default function InvoicesScreen() {
+  const theme = useTheme();
+  const s = makeStyles(theme);
   const router = useRouter();
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [societyId, setSocietyId] = useState<string | null>(null);
   const [bankAccount, setBankAccount] = useState<BankAccount | null>(null);
-
-  // Offline payment modal state
   const [offlineModal, setOfflineModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceItem | null>(null);
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
@@ -141,52 +143,51 @@ export default function InvoicesScreen() {
     setOfflineModal(true);
   };
 
-  const screenHeader = (
-    <Stack.Screen options={{
-      headerShown: true, title: 'Invoices',
-      headerLeft: () => (
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBackBtn}>
-          <Ionicons name="arrow-back" size={24} color="#0f172a" />
-        </TouchableOpacity>
-      ),
-    }} />
-  );
-
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        {screenHeader}
-        <View style={styles.centered}><ActivityIndicator size="large" color="#2563eb" /></View>
+      <SafeAreaView style={[s.safeArea, { backgroundColor: theme.bg }]}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={s.centered}><ActivityIndicator size="large" color={theme.primary} /></View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      {screenHeader}
+    <SafeAreaView style={[s.safeArea, { backgroundColor: theme.bg }]}>
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {/* Header */}
+      <View style={[s.header, { backgroundColor: theme.headerBg }]}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <Ionicons name="arrow-back" size={22} color="#fff" />
+        </TouchableOpacity>
+        <Text style={s.headerTitle}>Invoices</Text>
+      </View>
+
       <ScrollView
-        style={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={theme.primary} />}
       >
-        {/* Bank Account Info Card (if set) */}
+        {/* Bank Account Info Card */}
         {bankAccount?.account_number && (
-          <View style={styles.bankCard}>
-            <View style={styles.bankCardHeader}>
-              <Ionicons name="business-outline" size={18} color="#1d4ed8" />
-              <Text style={styles.bankCardTitle}>Society Bank Account</Text>
+          <View style={[s.bankCard, { backgroundColor: theme.infoLight, borderColor: '#bfdbfe' }]}>
+            <View style={s.bankCardHeader}>
+              <Ionicons name="business-outline" size={18} color={theme.infoText} />
+              <Text style={[s.bankCardTitle, { color: theme.infoText }]}>Society Bank Account</Text>
             </View>
-            <Text style={styles.bankHint}>For offline payments, transfer to:</Text>
+            <Text style={[s.bankHint, { color: theme.textSecondary }]}>For offline payments, transfer to:</Text>
             {[
               { label: 'Bank', value: bankAccount.bank_name },
               { label: 'Account Title', value: bankAccount.account_title },
               { label: 'Account No.', value: bankAccount.account_number },
               { label: 'IBAN', value: bankAccount.iban },
             ].filter(f => f.value).map(f => (
-              <TouchableOpacity key={f.label} style={styles.bankRow} onPress={() => copyToClipboard(f.value!, f.label)}>
-                <Text style={styles.bankLabel}>{f.label}</Text>
-                <View style={styles.bankValueRow}>
-                  <Text style={styles.bankValue}>{f.value}</Text>
-                  <Ionicons name="copy-outline" size={14} color="#4f46e5" />
+              <TouchableOpacity key={f.label} style={[s.bankRow, { borderBottomColor: theme.borderLight }]} onPress={() => copyToClipboard(f.value!, f.label)}>
+                <Text style={[s.bankLabel, { color: theme.textSecondary }]}>{f.label}</Text>
+                <View style={s.bankValueRow}>
+                  <Text style={[s.bankValue, { color: theme.text }]}>{f.value}</Text>
+                  <Ionicons name="copy-outline" size={14} color={theme.primary} />
                 </View>
               </TouchableOpacity>
             ))}
@@ -194,39 +195,51 @@ export default function InvoicesScreen() {
         )}
 
         {items.length === 0 ? (
-          <Text style={styles.empty}>No invoices found.</Text>
+          <View style={s.empty}>
+            <View style={[s.emptyIcon, { backgroundColor: theme.primaryLight }]}>
+              <Ionicons name="document-text-outline" size={36} color={theme.primary} />
+            </View>
+            <Text style={[s.emptyTitle, { color: theme.text }]}>No invoices found</Text>
+            <Text style={[s.emptyMsg, { color: theme.textMuted }]}>Your maintenance invoices will appear here.</Text>
+          </View>
         ) : (
           items.map((invoice) => {
             const isPaid = invoice.status === 'paid';
             return (
-              <View key={invoice._id} style={styles.card}>
-                <View style={styles.row}>
+              <View key={invoice._id} style={[s.card, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
+                <View style={s.cardTop}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.amount}>{invoice.currency} {invoice.amount}</Text>
-                    <Text style={styles.meta}>Status: {invoice.status}</Text>
-                    <Text style={styles.meta}>Period: {invoice.period_key || invoice.month || 'N/A'}</Text>
+                    <Text style={[s.amount, { color: theme.text }]}>PKR {invoice.amount}</Text>
+                    <Text style={[s.meta, { color: theme.textSecondary }]}>Period: {invoice.period_key || invoice.month || 'N/A'}</Text>
                   </View>
-                  <View style={[styles.statusPill, isPaid && styles.statusPillPaid]}>
-                    <Text style={[styles.statusText, isPaid && styles.statusTextPaid]}>{invoice.type}</Text>
+                  <View style={[s.statusPill, { backgroundColor: isPaid ? theme.successLight : theme.warningLight }]}>
+                    <Text style={[s.statusText, { color: isPaid ? theme.successText : theme.warningText }]}>
+                      {isPaid ? 'PAID' : invoice.status.toUpperCase()}
+                    </Text>
                   </View>
                 </View>
 
-                {!isPaid && (
-                  <View style={styles.actionsRow}>
-                    <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push({ pathname: '/maintenance-payment', params: { invoiceId: invoice._id } })}>
-                      <Ionicons name="card-outline" size={15} color="#fff" />
-                      <Text style={styles.primaryBtnText}>Pay Online</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.offlineBtn} onPress={() => openOfflineModal(invoice)}>
-                      <Ionicons name="camera-outline" size={15} color="#7c3aed" />
-                      <Text style={styles.offlineBtnText}>Pay Offline</Text>
-                    </TouchableOpacity>
+                {isPaid ? (
+                  <View style={s.paidBadge}>
+                    <Ionicons name="checkmark-circle" size={15} color={theme.successText} />
+                    <Text style={[s.paidText, { color: theme.successText }]}>Payment confirmed</Text>
                   </View>
-                )}
-                {isPaid && (
-                  <View style={styles.paidBadge}>
-                    <Ionicons name="checkmark-circle" size={14} color="#15803d" />
-                    <Text style={styles.paidText}>Paid</Text>
+                ) : (
+                  <View style={s.actionsRow}>
+                    <TouchableOpacity
+                      style={[s.primaryBtn, { backgroundColor: theme.primary }]}
+                      onPress={() => router.push({ pathname: '/maintenance-payment', params: { invoiceId: invoice._id } })}
+                    >
+                      <Ionicons name="card-outline" size={15} color="#fff" />
+                      <Text style={s.primaryBtnText}>Pay Online</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.offlineBtn, { backgroundColor: theme.primaryLight, borderColor: theme.primaryMid }]}
+                      onPress={() => openOfflineModal(invoice)}
+                    >
+                      <Ionicons name="camera-outline" size={15} color={theme.primary} />
+                      <Text style={[s.offlineBtnText, { color: theme.primary }]}>Pay Offline</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </View>
@@ -237,160 +250,146 @@ export default function InvoicesScreen() {
 
       {/* Offline Payment Modal */}
       <Modal visible={offlineModal} transparent animationType="slide" onRequestClose={() => setOfflineModal(false)}>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setOfflineModal(false)} />
-          <View style={styles.modalSheet}>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Pay Offline</Text>
-                <TouchableOpacity onPress={() => setOfflineModal(false)}>
-                  <Ionicons name="close" size={24} color="#64748b" />
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={s.overlay} onPress={() => setOfflineModal(false)}>
+            <View style={[s.sheet, { backgroundColor: theme.surface }]} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
+              <View style={s.sheetHandle} />
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
+                <View style={s.sheetHeader}>
+                  <Text style={[s.sheetTitle, { color: theme.text }]}>Pay Offline</Text>
+                  <TouchableOpacity onPress={() => setOfflineModal(false)} style={[s.closeBtn, { backgroundColor: theme.surfaceSubtle }]}>
+                    <Ionicons name="close" size={18} color={theme.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                {selectedInvoice && (
+                  <View style={[s.invoiceSummary, { backgroundColor: theme.surfaceSubtle, borderColor: theme.borderLight }]}>
+                    <Text style={[s.invoiceSummaryAmount, { color: theme.text }]}>PKR {selectedInvoice.amount}</Text>
+                    <Text style={[s.invoiceSummaryPeriod, { color: theme.textSecondary }]}>{selectedInvoice.period_key || selectedInvoice.month}</Text>
+                  </View>
+                )}
+
+                {bankAccount?.account_number ? (
+                  <View style={[s.bankInfoBox, { backgroundColor: theme.infoLight, borderColor: '#bfdbfe' }]}>
+                    <Text style={[s.bankInfoTitle, { color: theme.infoText }]}>Transfer to this account:</Text>
+                    {[
+                      { label: 'Bank', value: bankAccount.bank_name },
+                      { label: 'Account Title', value: bankAccount.account_title },
+                      { label: 'Account No.', value: bankAccount.account_number },
+                      { label: 'IBAN', value: bankAccount.iban },
+                    ].filter(f => f.value).map(f => (
+                      <TouchableOpacity key={f.label} style={[s.bankRow, { borderBottomColor: theme.borderLight }]} onPress={() => copyToClipboard(f.value!, f.label)}>
+                        <Text style={[s.bankLabel, { color: theme.textSecondary }]}>{f.label}</Text>
+                        <View style={s.bankValueRow}>
+                          <Text style={[s.bankValue, { color: theme.text }]}>{f.value}</Text>
+                          <Ionicons name="copy-outline" size={13} color={theme.primary} />
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={[s.noBankBox, { backgroundColor: theme.warningLight, borderColor: theme.warning }]}>
+                    <Ionicons name="information-circle-outline" size={22} color={theme.warningText} />
+                    <Text style={[s.noBankText, { color: theme.warningText }]}>Bank account not configured yet. Contact your society admin.</Text>
+                  </View>
+                )}
+
+                <Text style={[s.inputLabel, { color: theme.textSecondary }]}>Attach Payment Screenshot *</Text>
+                <TouchableOpacity style={[s.uploadBtn, { backgroundColor: theme.primaryLight, borderColor: theme.primaryMid }]} onPress={pickScreenshot}>
+                  <Ionicons name="cloud-upload-outline" size={22} color={theme.primary} />
+                  <Text style={[s.uploadBtnText, { color: theme.primary }]}>{screenshotUrl ? 'Change Screenshot' : 'Upload Screenshot'}</Text>
                 </TouchableOpacity>
-              </View>
+                {screenshotUrl && (
+                  <Image source={{ uri: screenshotUrl }} style={s.previewImage} />
+                )}
 
-              {selectedInvoice && (
-                <View style={styles.invoiceSummary}>
-                  <Text style={styles.invoiceSummaryAmount}>{selectedInvoice.currency} {selectedInvoice.amount}</Text>
-                  <Text style={styles.invoiceSummaryPeriod}>{selectedInvoice.period_key || selectedInvoice.month}</Text>
-                </View>
-              )}
+                <Text style={[s.inputLabel, { color: theme.textSecondary }]}>Notes (optional)</Text>
+                <TextInput
+                  style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
+                  placeholder="e.g. Transfer ID, date, bank branch..."
+                  placeholderTextColor={theme.textMuted}
+                  value={offlineNotes}
+                  onChangeText={setOfflineNotes}
+                  multiline
+                  returnKeyType="done"
+                />
 
-              {/* Bank details — or notice if not set */}
-              {bankAccount?.account_number ? (
-                <View style={styles.bankInfoBox}>
-                  <Text style={styles.bankInfoTitle}>Transfer to this account:</Text>
-                  {[
-                    { label: 'Bank', value: bankAccount.bank_name },
-                    { label: 'Account Title', value: bankAccount.account_title },
-                    { label: 'Account No.', value: bankAccount.account_number },
-                    { label: 'IBAN', value: bankAccount.iban },
-                  ].filter(f => f.value).map(f => (
-                    <TouchableOpacity key={f.label} style={styles.bankRow} onPress={() => copyToClipboard(f.value!, f.label)}>
-                      <Text style={styles.bankLabel}>{f.label}</Text>
-                      <View style={styles.bankValueRow}>
-                        <Text style={styles.bankValue}>{f.value}</Text>
-                        <Ionicons name="copy-outline" size={13} color="#4f46e5" />
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ) : (
-                <View style={styles.noBankBox}>
-                  <Ionicons name="information-circle-outline" size={22} color="#92400e" />
-                  <Text style={styles.noBankText}>Bank account not configured yet. Contact your society admin to set up bank details.</Text>
-                </View>
-              )}
-
-              <Text style={styles.inputLabel}>Attach Payment Screenshot *</Text>
-              <TouchableOpacity style={styles.uploadBtn} onPress={pickScreenshot}>
-                <Ionicons name="cloud-upload-outline" size={22} color="#4f46e5" />
-                <Text style={styles.uploadBtnText}>{screenshotUrl ? 'Change Screenshot' : 'Upload Screenshot'}</Text>
-              </TouchableOpacity>
-              {screenshotUrl && (
-                <Image source={{ uri: screenshotUrl }} style={styles.previewImage} />
-              )}
-
-              <Text style={styles.inputLabel}>Notes (optional)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Transfer ID, date, bank branch..."
-                placeholderTextColor="#94a3b8"
-                value={offlineNotes}
-                onChangeText={setOfflineNotes}
-                multiline
-                returnKeyType="done"
-              />
-
-              <TouchableOpacity
-                style={[styles.submitBtn, (!screenshotUrl || submitting) && { opacity: 0.5 }]}
-                onPress={submitOffline}
-                disabled={submitting || !screenshotUrl}
-              >
-                {submitting
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.submitBtnText}>Submit for Approval</Text>
-                }
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+                <TouchableOpacity
+                  style={[s.submitBtn, { backgroundColor: theme.primary }, (!screenshotUrl || submitting) && { opacity: 0.5 }]}
+                  onPress={submitOffline}
+                  disabled={submitting || !screenshotUrl}
+                >
+                  {submitting
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={s.submitBtnText}>Submit for Approval</Text>
+                  }
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </Pressable>
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f8fafc' },
-  headerBackBtn: { paddingHorizontal: 12, paddingVertical: 6 },
-  container: { flex: 1, backgroundColor: '#f8fafc', padding: 20 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  empty: { color: '#64748b', textAlign: 'center', marginTop: 40 },
+function makeStyles(theme: AppTheme) {
+  return StyleSheet.create({
+    safeArea: { flex: 1 },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 14 },
+    backBtn: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)' },
+    headerTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
+    scroll: { flex: 1 },
+    scrollContent: { padding: 16, paddingBottom: 40 },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  bankCard: {
-    backgroundColor: '#eff6ff', borderRadius: 16, padding: 16,
-    marginBottom: 20, borderWidth: 1, borderColor: '#bfdbfe',
-  },
-  bankCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  bankCardTitle: { fontSize: 15, fontWeight: '800', color: '#1d4ed8' },
-  bankHint: { fontSize: 12, color: '#64748b', marginBottom: 12 },
-  bankRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#dbeafe',
-  },
-  bankLabel: { fontSize: 12, fontWeight: '700', color: '#475569' },
-  bankValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  bankValue: { fontSize: 13, fontWeight: '600', color: '#1e293b' },
+    bankCard: { borderRadius: 18, padding: 16, marginBottom: 16, borderWidth: 1 },
+    bankCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+    bankCardTitle: { fontSize: 15, fontWeight: '800' },
+    bankHint: { fontSize: 12, marginBottom: 12 },
+    bankRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
+    bankLabel: { fontSize: 12, fontWeight: '700' },
+    bankValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    bankValue: { fontSize: 13, fontWeight: '600' },
 
-  card: { backgroundColor: '#fff', borderRadius: 20, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#e2e8f0' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  amount: { fontSize: 18, fontWeight: '800', color: '#0f172a' },
-  meta: { color: '#64748b', marginTop: 3 },
-  statusPill: { backgroundColor: '#e0f2fe', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  statusPillPaid: { backgroundColor: '#dcfce7' },
-  statusText: { fontSize: 12, fontWeight: '700', color: '#0369a1' },
-  statusTextPaid: { color: '#15803d' },
-  actionsRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  primaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#2563eb', padding: 13, borderRadius: 12 },
-  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  offlineBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#ddd6fe', padding: 13, borderRadius: 12 },
-  offlineBtnText: { color: '#7c3aed', fontWeight: '700', fontSize: 13 },
-  paidBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },
-  paidText: { color: '#15803d', fontWeight: '700', fontSize: 13 },
+    card: { borderRadius: 22, padding: 18, marginBottom: 14, borderWidth: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+    cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+    amount: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
+    meta: { fontSize: 13, fontWeight: '500' },
+    statusPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+    statusText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+    actionsRow: { flexDirection: 'row', gap: 10 },
+    primaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 13, borderRadius: 12 },
+    primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+    offlineBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, padding: 13, borderRadius: 12 },
+    offlineBtnText: { fontWeight: '700', fontSize: 14 },
+    paidBadge: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    paidText: { fontWeight: '700', fontSize: 13 },
 
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalSheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    padding: 24, paddingBottom: 32, maxHeight: '88%',
-  },
-  bankInfoBox: {
-    backgroundColor: '#eff6ff', borderRadius: 14, padding: 14,
-    marginBottom: 20, borderWidth: 1, borderColor: '#bfdbfe',
-  },
-  bankInfoTitle: { fontSize: 13, fontWeight: '700', color: '#1d4ed8', marginBottom: 10 },
-  noBankBox: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: '#fef3c7', borderRadius: 12, padding: 14,
-    marginBottom: 20, borderWidth: 1, borderColor: '#fcd34d',
-  },
-  noBankText: { flex: 1, fontSize: 13, color: '#92400e', fontWeight: '500', lineHeight: 20 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#1e293b' },
-  invoiceSummary: { backgroundColor: '#f8fafc', borderRadius: 14, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center' },
-  invoiceSummaryAmount: { fontSize: 24, fontWeight: '800', color: '#1e293b' },
-  invoiceSummaryPeriod: { fontSize: 13, color: '#64748b', marginTop: 2 },
-  inputLabel: { fontSize: 13, fontWeight: '700', color: '#475569', marginBottom: 8 },
-  uploadBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#eef2ff', borderRadius: 14, borderWidth: 1, borderColor: '#c7d2fe',
-    paddingVertical: 14, marginBottom: 12,
-  },
-  uploadBtnText: { color: '#4f46e5', fontWeight: '700', fontSize: 14 },
-  previewImage: { width: '100%', height: 160, borderRadius: 12, marginBottom: 16 },
-  input: {
-    backgroundColor: '#f8fafc', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0',
-    padding: 14, fontSize: 14, color: '#1e293b', marginBottom: 20, minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  submitBtn: { backgroundColor: '#4f46e5', padding: 16, borderRadius: 14, alignItems: 'center' },
-  submitBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-});
+    empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
+    emptyIcon: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    emptyTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
+    emptyMsg: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 36, maxHeight: '88%' },
+    sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1', alignSelf: 'center', marginBottom: 16 },
+    sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+    sheetTitle: { fontSize: 20, fontWeight: '800' },
+    closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    invoiceSummary: { borderRadius: 14, padding: 14, marginBottom: 18, borderWidth: 1, alignItems: 'center' },
+    invoiceSummaryAmount: { fontSize: 24, fontWeight: '800' },
+    invoiceSummaryPeriod: { fontSize: 13, marginTop: 2 },
+    bankInfoBox: { borderRadius: 14, padding: 14, marginBottom: 18, borderWidth: 1 },
+    bankInfoTitle: { fontSize: 13, fontWeight: '700', marginBottom: 10 },
+    noBankBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 12, padding: 14, marginBottom: 18, borderWidth: 1 },
+    noBankText: { flex: 1, fontSize: 13, fontWeight: '500', lineHeight: 20 },
+    inputLabel: { fontSize: 13, fontWeight: '700', marginBottom: 8 },
+    uploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, borderWidth: 1, paddingVertical: 14, marginBottom: 12 },
+    uploadBtnText: { fontWeight: '700', fontSize: 14 },
+    previewImage: { width: '100%', height: 160, borderRadius: 12, marginBottom: 16 },
+    input: { borderRadius: 12, borderWidth: 1, padding: 14, fontSize: 14, marginBottom: 18, minHeight: 80, textAlignVertical: 'top' },
+    submitBtn: { padding: 16, borderRadius: 14, alignItems: 'center', marginBottom: 8 },
+    submitBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  });
+}

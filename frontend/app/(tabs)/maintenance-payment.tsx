@@ -7,8 +7,12 @@ import { WebView, WebViewNavigation } from 'react-native-webview';
 import { API_BASE } from '@/services/ApiService';
 import { apiGetInvoiceById } from '@/services/InvoiceService';
 import { InvoiceItem } from '@/services/types';
+import { useTheme } from '@/hooks/useTheme';
+import { AppTheme } from '@/constants/theme';
 
 export default function MaintenancePaymentScreen() {
+  const theme = useTheme();
+  const s = makeStyles(theme);
   const params = useLocalSearchParams<{ invoiceId?: string; status?: string }>();
   const router = useRouter();
   const [invoiceId, setInvoiceId] = useState<string>(typeof params.invoiceId === 'string' ? params.invoiceId : '');
@@ -39,11 +43,9 @@ export default function MaintenancePaymentScreen() {
       setLoading(false);
       return;
     }
-
     try {
       setLoading(true);
       const invoiceRes = await apiGetInvoiceById(invoiceId);
-
       if (invoiceRes.success && invoiceRes.result) {
         setInvoice(invoiceRes.result);
       } else {
@@ -80,26 +82,22 @@ export default function MaintenancePaymentScreen() {
 
   if (showCheckout && invoiceId) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <Stack.Screen
-          options={{
-            headerShown: true,
-            title: 'PayFast Checkout',
-            headerLeft: () => (
-              <TouchableOpacity onPress={() => setShowCheckout(false)} style={styles.headerBackBtn}>
-                <Ionicons name="arrow-back" size={24} color="#0f172a" />
-              </TouchableOpacity>
-            ),
-          }}
-        />
-        <View style={styles.container}>
+      <SafeAreaView style={[s.safeArea, { backgroundColor: theme.bg }]}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={[s.checkoutHeader, { backgroundColor: theme.headerBg }]}>
+          <TouchableOpacity onPress={() => setShowCheckout(false)} style={s.backBtn}>
+            <Ionicons name="arrow-back" size={22} color="#fff" />
+          </TouchableOpacity>
+          <Text style={s.checkoutHeaderTitle}>PayFast Checkout</Text>
+        </View>
+        <View style={{ flex: 1 }}>
           <WebView
             source={{ uri: checkoutUrl }}
             onNavigationStateChange={handleNavigationChange}
             startInLoadingState
             renderLoading={() => (
-              <View style={styles.centered}>
-                <ActivityIndicator size="large" color="#2563eb" />
+              <View style={s.centered}>
+                <ActivityIndicator size="large" color={theme.primary} />
               </View>
             )}
           />
@@ -109,82 +107,115 @@ export default function MaintenancePaymentScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Pay Maintenance',
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={styles.headerBackBtn}>
-              <Ionicons name="arrow-back" size={24} color="#0f172a" />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      <View style={styles.container}>
+    <SafeAreaView style={[s.safeArea, { backgroundColor: theme.bg }]}>
+      <Stack.Screen options={{ headerShown: false }} />
 
-      {!invoiceId ? (
-        <View style={styles.centered}>
-          <Text style={styles.title}>Open an invoice</Text>
-          <TextInput
-            style={styles.input}
-            value={invoiceId}
-            onChangeText={setInvoiceId}
-            placeholder="Paste invoice ID"
-            placeholderTextColor="#94a3b8"
-            autoCapitalize="none"
-          />
-          <TouchableOpacity style={styles.primaryButton} onPress={loadInvoice}>
-            <Text style={styles.primaryButtonText}>Load Invoice</Text>
-          </TouchableOpacity>
-        </View>
-      ) : loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.helper}>Loading invoice...</Text>
-        </View>
-      ) : invoice ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Maintenance Payment</Text>
-          <Text style={styles.amount}>{invoice.currency} {invoice.amount}</Text>
-          <Text style={styles.meta}>Invoice: {invoice._id}</Text>
-          <Text style={styles.meta}>Status: {invoice.status}</Text>
-          {invoice.status === 'paid' ? (
-            <Text style={styles.helper}>This invoice has already been paid.</Text>
-          ) : (
-            <TouchableOpacity style={styles.payButton} onPress={() => setShowCheckout(true)}>
-              <Text style={styles.payButtonText}>Pay with PayFast</Text>
+      <View style={[s.header, { backgroundColor: theme.headerBg }]}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <Ionicons name="arrow-back" size={22} color="#fff" />
+        </TouchableOpacity>
+        <Text style={s.headerTitle}>Pay Maintenance</Text>
+      </View>
+
+      <View style={s.container}>
+        {!invoiceId ? (
+          <View style={s.centered}>
+            <Text style={[s.title, { color: theme.text }]}>Open an invoice</Text>
+            <TextInput
+              style={[s.input, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }]}
+              value={invoiceId}
+              onChangeText={setInvoiceId}
+              placeholder="Paste invoice ID"
+              placeholderTextColor={theme.textMuted}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity style={[s.primaryButton, { backgroundColor: theme.primary }]} onPress={loadInvoice}>
+              <Text style={s.primaryButtonText}>Load Invoice</Text>
             </TouchableOpacity>
-          )}
-        </View>
-      ) : (
-        <View style={styles.centered}>
-          <Text style={styles.title}>Payment unavailable</Text>
-          <Text style={styles.helper}>The invoice could not be loaded.</Text>
-          <TouchableOpacity style={styles.primaryButton} onPress={() => router.back()}>
-            <Text style={styles.primaryButtonText}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+          </View>
+        ) : loading ? (
+          <View style={s.centered}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[s.helper, { color: theme.textSecondary }]}>Loading invoice...</Text>
+          </View>
+        ) : invoice ? (
+          <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
+            <View style={[s.cardIconBox, { backgroundColor: theme.primaryLight }]}>
+              <Ionicons name="receipt-outline" size={28} color={theme.primary} />
+            </View>
+            <Text style={[s.cardTitle, { color: theme.textSecondary }]}>Maintenance Invoice</Text>
+            <Text style={[s.amount, { color: theme.primary }]}>PKR {invoice.amount}</Text>
+            <View style={[s.divider, { backgroundColor: theme.borderLight }]} />
+            <View style={s.metaRow}>
+              <Text style={[s.metaLabel, { color: theme.textMuted }]}>Invoice ID</Text>
+              <Text style={[s.metaValue, { color: theme.text }]}>#{invoice._id.slice(-8).toUpperCase()}</Text>
+            </View>
+            <View style={s.metaRow}>
+              <Text style={[s.metaLabel, { color: theme.textMuted }]}>Status</Text>
+              <View style={[s.statusPill, { backgroundColor: invoice.status === 'paid' ? theme.successLight : theme.warningLight }]}>
+                <Text style={[s.statusText, { color: invoice.status === 'paid' ? theme.successText : theme.warningText }]}>
+                  {invoice.status.toUpperCase()}
+                </Text>
+              </View>
+            </View>
+            {invoice.status === 'paid' ? (
+              <View style={[s.paidNote, { backgroundColor: theme.successLight }]}>
+                <Ionicons name="checkmark-circle" size={18} color={theme.successText} />
+                <Text style={[s.paidNoteText, { color: theme.successText }]}>This invoice has already been paid.</Text>
+              </View>
+            ) : (
+              <TouchableOpacity style={[s.payButton, { backgroundColor: theme.primary }]} onPress={() => setShowCheckout(true)}>
+                <Ionicons name="shield-checkmark-outline" size={18} color="#fff" />
+                <Text style={s.payButtonText}>Pay with PayFast</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <View style={s.centered}>
+            <View style={[s.errorIcon, { backgroundColor: theme.dangerLight }]}>
+              <Ionicons name="alert-circle-outline" size={36} color={theme.dangerText} />
+            </View>
+            <Text style={[s.title, { color: theme.text }]}>Invoice unavailable</Text>
+            <Text style={[s.helper, { color: theme.textSecondary }]}>The invoice could not be loaded.</Text>
+            <TouchableOpacity style={[s.primaryButton, { backgroundColor: theme.primary }]} onPress={() => router.back()}>
+              <Text style={s.primaryButtonText}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f8fafc' },
-  headerBackBtn: { paddingHorizontal: 12, paddingVertical: 6 },
-  container: { flex: 1, backgroundColor: '#f8fafc', padding: 20 },
-  centered: { flex: 1, justifyContent: 'center' },
-  title: { fontSize: 24, fontWeight: '800', color: '#0f172a', marginBottom: 12 },
-  helper: { color: '#64748b', fontSize: 14, marginTop: 12 },
-  input: { backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 12, color: '#0f172a' },
-  primaryButton: { backgroundColor: '#2563eb', padding: 16, borderRadius: 14, alignItems: 'center' },
-  primaryButtonText: { color: '#fff', fontWeight: '700' },
-  card: { backgroundColor: '#fff', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#e2e8f0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 12, elevation: 3 },
-  cardTitle: { fontSize: 18, fontWeight: '800', color: '#0f172a', marginBottom: 8 },
-  amount: { fontSize: 30, fontWeight: '900', color: '#2563eb', marginBottom: 10 },
-  meta: { color: '#475569', marginBottom: 4 },
-  payButton: { marginTop: 20, backgroundColor: '#0f766e', padding: 16, borderRadius: 14, alignItems: 'center' },
-  payButtonText: { color: '#fff', fontWeight: '700' },
-});
+function makeStyles(theme: AppTheme) {
+  return StyleSheet.create({
+    safeArea: { flex: 1 },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 14 },
+    checkoutHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 14 },
+    backBtn: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)' },
+    headerTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
+    checkoutHeaderTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
+    container: { flex: 1, padding: 20 },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 14 },
+    title: { fontSize: 22, fontWeight: '800' },
+    helper: { fontSize: 14, textAlign: 'center' },
+    input: { width: '100%', borderRadius: 14, padding: 16, borderWidth: 1, fontSize: 15, marginBottom: 4 },
+    primaryButton: { width: '100%', padding: 16, borderRadius: 14, alignItems: 'center' },
+    primaryButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    card: { borderRadius: 28, padding: 28, borderWidth: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 14, elevation: 4 },
+    cardIconBox: { width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    cardTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+    amount: { fontSize: 36, fontWeight: '900', marginBottom: 20 },
+    divider: { height: 1, marginBottom: 16 },
+    metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    metaLabel: { fontSize: 13, fontWeight: '600' },
+    metaValue: { fontSize: 13, fontWeight: '700' },
+    statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+    statusText: { fontSize: 11, fontWeight: '800' },
+    paidNote: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, borderRadius: 14, marginTop: 16 },
+    paidNoteText: { fontWeight: '600', fontSize: 14 },
+    payButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20, padding: 18, borderRadius: 16 },
+    payButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+    errorIcon: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  });
+}

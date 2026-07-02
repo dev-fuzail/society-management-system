@@ -6,8 +6,18 @@ import { getAuthData } from '@/hooks/helperHooks';
 import ElectionService, { Election } from '@/services/ElectionService';
 import { apiGetUserSocieties } from '@/services/SocietyService';
 import CalendarModal from '@/components/CalendarModal';
+import { useTheme } from '@/hooks/useTheme';
+import { AppTheme } from '@/constants/theme';
+
+const STATUS_META: Record<string, { bg: string; text: string; label: string }> = {
+  ongoing:   { bg: '#d1fae5', text: '#065f46', label: 'ONGOING' },
+  completed: { bg: '#f1f5f9', text: '#475569', label: 'COMPLETED' },
+  upcoming:  { bg: '#ede9fe', text: '#4c1d95', label: 'UPCOMING' },
+};
 
 export default function ElectionsScreen() {
+  const theme = useTheme();
+  const s = makeStyles(theme);
   const [elections, setElections] = useState<Election[]>([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('');
@@ -21,26 +31,20 @@ export default function ElectionsScreen() {
   const router = useRouter();
 
   const formatDate = (date: Date | null) => {
-    if (!date) return 'YYYY-MM-DD';
-    const y = date.getFullYear();
-    const m = `${date.getMonth() + 1}`.padStart(2, '0');
-    const d = `${date.getDate()}`.padStart(2, '0');
-    return `${y}-${m}-${d}`;
+    if (!date) return 'Select date…';
+    return date.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   const fetchElections = async () => {
     try {
       const { userData } = await getAuthData();
       setUserRole(userData.role);
-      
       const res = await apiGetUserSocieties(userData.id);
       if (res.success && res.result.length > 0) {
         const sId = res.result[0]._id;
         setSocietyId(sId);
         const electionRes = await ElectionService.getElections(sId);
-        if (electionRes.success) {
-          setElections(electionRes.result);
-        }
+        if (electionRes.success) setElections(electionRes.result);
       }
     } catch (error) {
       console.error("Error fetching elections:", error);
@@ -49,40 +53,20 @@ export default function ElectionsScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchElections();
-  }, []);
+  useEffect(() => { fetchElections(); }, []);
 
   const createElection = async () => {
     if (!newTitle.trim() || !newStartDate || !newEndDate) {
       Alert.alert('Validation', 'Title, start date, and end date are required.');
       return;
     }
-
+    const startAt = new Date(newStartDate); startAt.setHours(0, 0, 0, 0);
+    const endAt = new Date(newEndDate); endAt.setHours(23, 59, 59, 999);
+    if (endAt <= startAt) { Alert.alert('Validation', 'End date must be after start date.'); return; }
     try {
-      const startAt = new Date(newStartDate);
-      startAt.setHours(0, 0, 0, 0);
-
-      const endAt = new Date(newEndDate);
-      endAt.setHours(23, 59, 59, 999);
-
-      if (endAt <= startAt) {
-        Alert.alert('Validation', 'End date must be after start date.');
-        return;
-      }
-
-      const res = await ElectionService.createElection({
-        title: newTitle.trim(),
-        start_date: startAt.toISOString(),
-        end_date: endAt.toISOString(),
-        society_id: societyId,
-      });
-
+      const res = await ElectionService.createElection({ title: newTitle.trim(), start_date: startAt.toISOString(), end_date: endAt.toISOString(), society_id: societyId });
       if (res.success) {
-        setCreateModalVisible(false);
-        setNewTitle('');
-        setNewStartDate(null);
-        setNewEndDate(null);
+        setCreateModalVisible(false); setNewTitle(''); setNewStartDate(null); setNewEndDate(null);
         fetchElections();
       }
     } catch (error: any) {
@@ -90,70 +74,75 @@ export default function ElectionsScreen() {
     }
   };
 
-  const renderElectionCard = ({ item }: { item: Election }) => (
-    <TouchableOpacity 
-      style={styles.card} 
-      onPress={() => router.push({ pathname: '/election-detail', params: { id: item._id } })}
-      activeOpacity={0.7}
-    >
-      <View style={styles.cardHeader}>
-        <Text style={styles.title}>{item.title}</Text>
-        <View style={[styles.badge, { backgroundColor: item.status === 'ongoing' ? '#dcfce7' : '#f1f5f9' }]}>
-          <Text style={[styles.badgeText, { color: item.status === 'ongoing' ? '#059669' : '#64748b' }]}>
-            {item.status.toUpperCase()}
-          </Text>
-        </View>
-      </View>
-      
-      <View style={styles.cardBody}>
-        <View style={styles.infoRow}>
-          <View style={styles.iconBox}>
-            <Ionicons name="time-outline" size={14} color="#4f46e5" />
+  const renderElectionCard = ({ item }: { item: Election }) => {
+    const meta = STATUS_META[item.status] ?? STATUS_META.completed;
+    return (
+      <TouchableOpacity
+        style={[s.card, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}
+        onPress={() => router.push({ pathname: '/election-detail', params: { id: item._id } })}
+        activeOpacity={0.7}
+      >
+        <View style={s.cardTop}>
+          <View style={s.cardIconBox}>
+            <Ionicons name="stats-chart-outline" size={20} color={theme.primary} />
           </View>
-          <Text style={styles.infoText}>Starts: {new Date(item.start_date).toLocaleDateString()}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <View style={styles.iconBox}>
-            <Ionicons name="calendar-outline" size={14} color="#ef4444" />
+          <View style={{ flex: 1 }}>
+            <Text style={[s.cardTitle, { color: theme.text }]}>{item.title}</Text>
+            <View style={[s.badge, { backgroundColor: meta.bg }]}>
+              <Text style={[s.badgeText, { color: meta.text }]}>{meta.label}</Text>
+            </View>
           </View>
-          <Text style={styles.infoText}>Ends: {new Date(item.end_date).toLocaleDateString()}</Text>
         </View>
-      </View>
-      
-      <View style={styles.cardFooter}>
-        <Text style={styles.footerLink}>View Candidates</Text>
-        <Ionicons name="chevron-forward" size={16} color="#4f46e5" />
-      </View>
-    </TouchableOpacity>
-  );
+
+        <View style={[s.cardDates, { borderTopColor: theme.borderLight }]}>
+          <View style={s.dateRow}>
+            <Ionicons name="play-circle-outline" size={14} color={theme.success} />
+            <Text style={[s.dateText, { color: theme.textSecondary }]}>
+              Starts {new Date(item.start_date).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </Text>
+          </View>
+          <View style={s.dateRow}>
+            <Ionicons name="stop-circle-outline" size={14} color={theme.danger} />
+            <Text style={[s.dateText, { color: theme.textSecondary }]}>
+              Ends {new Date(item.end_date).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </Text>
+          </View>
+          <View style={s.viewRow}>
+            <Text style={[s.viewLink, { color: theme.primary }]}>View Candidates</Text>
+            <Ionicons name="chevron-forward" size={14} color={theme.primary} />
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: '#f8fafc' }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Committee Elections</Text>
+    <View style={[s.container, { backgroundColor: theme.bg }]}>
+      <View style={[s.pageHeader, { backgroundColor: theme.surface, borderBottomColor: theme.borderLight }]}>
+        <Text style={[s.pageTitle, { color: theme.text }]}>Committee Elections</Text>
         {userRole === 'admin' && (
-          <TouchableOpacity 
-            style={styles.addButton} 
-            onPress={() => setCreateModalVisible(true)}
-          >
-            <Ionicons name="add" size={24} color="#fff" />
+          <TouchableOpacity style={[s.addBtn, { backgroundColor: theme.primary }]} onPress={() => setCreateModalVisible(true)}>
+            <Ionicons name="add" size={22} color="#fff" />
           </TouchableOpacity>
         )}
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#4f46e5" style={{ marginTop: 50 }} />
+        <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 60 }} />
       ) : (
         <FlatList
           data={elections}
           renderItem={renderElectionCard}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={s.list}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="stats-chart-outline" size={64} color="#cbd5e1" />
-              <Text style={styles.emptyText}>No elections scheduled.</Text>
+            <View style={s.empty}>
+              <View style={[s.emptyIcon, { backgroundColor: theme.primaryLight }]}>
+                <Ionicons name="stats-chart-outline" size={36} color={theme.primary} />
+              </View>
+              <Text style={[s.emptyTitle, { color: theme.text }]}>No elections yet</Text>
+              <Text style={[s.emptyMsg, { color: theme.textMuted }]}>Elections will appear here once created by an admin.</Text>
             </View>
           }
           onRefresh={fetchElections}
@@ -162,160 +151,88 @@ export default function ElectionsScreen() {
       )}
 
       <Modal visible={createModalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={24}
-          style={{ flex: 1 }}
-        >
-            <Pressable style={styles.modalOverlay} onPress={() => setCreateModalVisible(false)}>
-                <View style={styles.modalContainer} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Create Election</Text>
-                        <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
-                            <Ionicons name="close" size={24} color="#1e293b" />
-                        </TouchableOpacity>
-                    </View>
-                    
-                    <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                        <Text style={styles.label}>Title</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={newTitle}
-                            onChangeText={setNewTitle}
-                            placeholder="e.g. Society President 2026"
-                        />
-                        <Text style={styles.label}>Start Date</Text>
-                        <TouchableOpacity style={styles.input} activeOpacity={0.8} onPress={() => setShowStartCalendar(true)}>
-                          <Text style={[styles.dateValue, !newStartDate && styles.datePlaceholder]}>{formatDate(newStartDate)}</Text>
-                        </TouchableOpacity>
-                        <Text style={styles.label}>End Date</Text>
-                        <TouchableOpacity style={styles.input} activeOpacity={0.8} onPress={() => setShowEndCalendar(true)}>
-                          <Text style={[styles.dateValue, !newEndDate && styles.datePlaceholder]}>{formatDate(newEndDate)}</Text>
-                        </TouchableOpacity>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={24} style={{ flex: 1 }}>
+          <Pressable style={s.overlay} onPress={() => setCreateModalVisible(false)}>
+            <View style={[s.sheet, { backgroundColor: theme.surface }]} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
+              <View style={s.sheetHandle} />
+              <View style={s.sheetHeader}>
+                <Text style={[s.sheetTitle, { color: theme.text }]}>Create Election</Text>
+                <TouchableOpacity onPress={() => setCreateModalVisible(false)} style={[s.closeBtn, { backgroundColor: theme.surfaceSubtle }]}>
+                  <Ionicons name="close" size={18} color={theme.textSecondary} />
+                </TouchableOpacity>
+              </View>
 
-                        <TouchableOpacity style={styles.saveButton} onPress={createElection}>
-                            <Text style={styles.saveButtonText}>Launch Election</Text>
-                        </TouchableOpacity>
-                    </ScrollView>
-                </View>
-            </Pressable>
+              <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <Text style={[s.label, { color: theme.textSecondary }]}>Election Title</Text>
+                <TextInput
+                  style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]}
+                  value={newTitle}
+                  onChangeText={setNewTitle}
+                  placeholder="e.g. Society President 2026"
+                  placeholderTextColor={theme.textMuted}
+                />
+
+                <Text style={[s.label, { color: theme.textSecondary }]}>Start Date</Text>
+                <TouchableOpacity style={[s.datePicker, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]} onPress={() => setShowStartCalendar(true)}>
+                  <Ionicons name="calendar-outline" size={16} color={theme.primary} />
+                  <Text style={[s.datePickerText, { color: newStartDate ? theme.text : theme.textMuted }]}>{formatDate(newStartDate)}</Text>
+                </TouchableOpacity>
+
+                <Text style={[s.label, { color: theme.textSecondary }]}>End Date</Text>
+                <TouchableOpacity style={[s.datePicker, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border }]} onPress={() => setShowEndCalendar(true)}>
+                  <Ionicons name="calendar-outline" size={16} color={theme.primary} />
+                  <Text style={[s.datePickerText, { color: newEndDate ? theme.text : theme.textMuted }]}>{formatDate(newEndDate)}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[s.submitBtn, { backgroundColor: theme.primary }]} onPress={createElection}>
+                  <Ionicons name="rocket-outline" size={18} color="#fff" />
+                  <Text style={s.submitText}>Launch Election</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </Pressable>
         </KeyboardAvoidingView>
       </Modal>
 
-      <CalendarModal
-        visible={showStartCalendar}
-        title="Select Start Date"
-        initialDate={newStartDate || new Date()}
-        onClose={() => setShowStartCalendar(false)}
-        onSelect={(date) => setNewStartDate(date)}
-      />
-
-      <CalendarModal
-        visible={showEndCalendar}
-        title="Select End Date"
-        initialDate={newEndDate || new Date()}
-        minDate={newStartDate || undefined}
-        onClose={() => setShowEndCalendar(false)}
-        onSelect={(date) => setNewEndDate(date)}
-      />
+      <CalendarModal visible={showStartCalendar} title="Select Start Date" initialDate={newStartDate || new Date()} onClose={() => setShowStartCalendar(false)} onSelect={(date) => setNewStartDate(date)} />
+      <CalendarModal visible={showEndCalendar} title="Select End Date" initialDate={newEndDate || new Date()} minDate={newStartDate || undefined} onClose={() => setShowEndCalendar(false)} onSelect={(date) => setNewEndDate(date)} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    padding: 24,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9'
-  },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1e293b' },
-  addButton: { 
-    backgroundColor: '#4f46e5', 
-    width: 40, 
-    height: 40, 
-    borderRadius: 12, 
-    justifyContent: 'center', 
-    alignItems: 'center',
-    shadowColor: '#4f46e5',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  list: { padding: 20, paddingBottom: 40 },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-  },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  title: { fontSize: 18, fontWeight: '700', color: '#1e293b', flex: 1, marginRight: 10 },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  badgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  cardBody: { gap: 10, marginBottom: 16 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconBox: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#f8fafc', justifyContent: 'center', alignItems: 'center' },
-  infoText: { fontSize: 14, color: '#64748b', fontWeight: '500' },
-  cardFooter: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-  },
-  footerLink: { fontSize: 14, color: '#4f46e5', fontWeight: '700' },
-  emptyState: { alignItems: 'center', marginTop: 80 },
-  emptyText: { marginTop: 16, fontSize: 16, color: '#94a3b8', fontWeight: '500' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
-  modalContainer: { 
-    backgroundColor: '#fff', 
-    borderTopLeftRadius: 32, 
-    borderTopRightRadius: 32, 
-    padding: 24, 
-    maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#1e293b' },
-  modalScrollContent: { paddingBottom: 28 },
-  label: { fontSize: 14, fontWeight: '700', color: '#475569', marginBottom: 8, marginLeft: 4 },
-  input: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 14,
-    padding: 16,
-    fontSize: 16,
-    color: '#1e293b',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  dateValue: { color: '#1e293b', fontSize: 16 },
-  datePlaceholder: { color: '#94a3b8' },
-  saveButton: { 
-    backgroundColor: '#4f46e5', 
-    padding: 18, 
-    borderRadius: 16, 
-    alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#4f46e5',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 4
-  },
-  saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-});
+function makeStyles(theme: AppTheme) {
+  return StyleSheet.create({
+    container: { flex: 1 },
+    pageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1 },
+    pageTitle: { fontSize: 22, fontWeight: '800' },
+    addBtn: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    list: { padding: 16, paddingBottom: 40 },
+    card: { borderRadius: 20, marginBottom: 14, borderWidth: 1, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+    cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, padding: 18 },
+    cardIconBox: { width: 42, height: 42, borderRadius: 12, backgroundColor: theme.primaryLight, alignItems: 'center', justifyContent: 'center' },
+    cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
+    badge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
+    badgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
+    cardDates: { paddingHorizontal: 18, paddingVertical: 14, borderTopWidth: 1, gap: 8 },
+    dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    dateText: { fontSize: 13, fontWeight: '500' },
+    viewRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+    viewLink: { fontSize: 13, fontWeight: '700' },
+    empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
+    emptyIcon: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    emptyTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
+    emptyMsg: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 8, maxHeight: '85%', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
+    sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1', alignSelf: 'center', marginBottom: 16 },
+    sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+    sheetTitle: { fontSize: 20, fontWeight: '800' },
+    closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    label: { fontSize: 13, fontWeight: '700', marginBottom: 8, marginLeft: 2 },
+    input: { borderRadius: 14, padding: 16, fontSize: 15, marginBottom: 20, borderWidth: 1 },
+    datePicker: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 16, marginBottom: 20, borderWidth: 1 },
+    datePickerText: { fontSize: 15, fontWeight: '500' },
+    submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 16, marginTop: 8 },
+    submitText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  });
+}
