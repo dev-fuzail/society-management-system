@@ -34,6 +34,7 @@ class ApiService {
   constructor() {
     this.axiosInstance = axios.create({
       baseURL: API_BASE.replace(/\/+$/, ''),
+      timeout: 15000,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -136,10 +137,23 @@ class ApiService {
         throw responseData;
       }
 
-      console.log('API ERROR:', error?.message || error);
+      // No HTTP response was received at all (server unreachable, tunnel down,
+      // timeout, or device has no connectivity) — surface which one it was
+      // instead of a generic message, so this is actually debuggable.
+      const isTimeout = error?.code === 'ECONNABORTED';
+      const diagnosticMessage = isTimeout
+        ? `Request to ${this.normalizeUrl(url)} timed out after ${this.axiosInstance.defaults.timeout}ms.`
+        : `Could not reach ${API_BASE} (${error?.message || error?.code || 'network error'}). Check that the backend and tunnel are running and reachable from this device.`;
+
+      console.log('API ERROR (no response received):', {
+        url,
+        code: error?.code,
+        message: error?.message,
+      });
+
       throw {
         status: false,
-        message: 'An unknown error occurred',
+        message: diagnosticMessage,
         result: null,
       };
     }

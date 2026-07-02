@@ -23,7 +23,13 @@ import { apiRegisterDeviceToken } from "@/services/NotificationService";
 // React Native Firebase is native-only — guard every call with Platform check
 if (Platform.OS !== "web") {
   const messaging = require("@react-native-firebase/messaging").default;
-  messaging().setBackgroundMessageHandler(async () => {});
+  // Runs when a push arrives while the app is backgrounded or killed. Messages
+  // that include a `notification` payload are auto-displayed by the OS regardless
+  // of this handler; it still needs to be registered so the JS engine handles
+  // delivery instead of dropping it.
+  messaging().setBackgroundMessageHandler(async (remoteMessage: any) => {
+    console.log("[Push] Background message received:", remoteMessage?.messageId);
+  });
 }
 
 // Controls how notifications behave when the app is in the foreground.
@@ -70,6 +76,37 @@ export default function TabLayout() {
     };
 
     loadUserData();
+  }, []);
+
+  // Android needs an explicit channel for FCM notifications to display with
+  // proper sound/priority, and FCM messages arriving while the app is open
+  // (foreground) are never auto-displayed by the OS — they only fire the
+  // onMessage listener, so we manually surface them as a local notification.
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+
+    if (Platform.OS === "android") {
+      Notifications.setNotificationChannelAsync("default", {
+        name: "Default",
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: "default",
+        vibrationPattern: [0, 250, 250, 250],
+      });
+    }
+
+    const messaging = require("@react-native-firebase/messaging").default;
+    const unsubscribe = messaging().onMessage(async (remoteMessage: any) => {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: remoteMessage?.notification?.title || "New notification",
+          body: remoteMessage?.notification?.body || "",
+          data: remoteMessage?.data || {},
+        },
+        trigger: null,
+      });
+    });
+
+    return unsubscribe;
   }, []);
 
   useEffect(() => {

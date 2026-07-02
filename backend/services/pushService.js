@@ -146,7 +146,14 @@ export const sendFcmToTokens = async (tokens, payload) => {
       failed += fcmTokens.length;
     } else {
       try {
-        const response = await messaging.sendEachForMulticast({ tokens: fcmTokens, ...payload });
+        const response = await messaging.sendEachForMulticast({
+          tokens: fcmTokens,
+          ...payload,
+          android: {
+            priority: "high",
+            notification: { channelId: "default", sound: "default" },
+          },
+        });
         sent += response.successCount;
         failed += response.failureCount;
       } catch (err) {
