@@ -24,6 +24,15 @@ const toClientUser = (user) => {
   return plain;
 };
 
+const getDisabledSocietyMessage = async (societyId) => {
+  if (!societyId) return null;
+  const society = await Society.findById(societyId).select("status");
+  if (society && society.status === "disabled") {
+    return "Your society has been disabled. Please contact your society admin or support.";
+  }
+  return null;
+};
+
 // 🧍‍♂️ Register (Admin or Resident)
 export const register = async (req, res) => {
   console.log("request received", req.body);
@@ -405,6 +414,11 @@ export const login = async (req, res) => {
     if (!validPass)
       return res.status(401).json({ success: false, message: "Invalid password" });
 
+    const disabledMessage = await getDisabledSocietyMessage(user.society_id);
+    if (disabledMessage) {
+      return res.status(403).json({ success: false, message: disabledMessage });
+    }
+
     if (user.isTwoFactorEnabled) {
       // 1. Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -538,6 +552,11 @@ export const verify2FALogin = async (req, res) => {
     // Check if OTP matches and hasn't expired
     if (user.twoFactorCode !== otp || user.twoFactorCodeExpires < Date.now()) {
       return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
+
+    const disabledMessage = await getDisabledSocietyMessage(user.society_id);
+    if (disabledMessage) {
+      return res.status(403).json({ success: false, message: disabledMessage });
     }
 
     // ✅ OTP is valid: Generate Token

@@ -143,29 +143,6 @@ export default function ServiceProvidersScreen() {
     </View>
   );
 
-  const ProviderForm = ({ title, onSubmit, onClose }: { title: string; onSubmit: () => void; onClose: () => void }) => (
-    <>
-      <View style={s.sheetHandle} />
-      <View style={s.sheetHeader}>
-        <Text style={[s.sheetTitle, { color: theme.text }]}>{title}</Text>
-        <TouchableOpacity onPress={onClose} style={[s.closeBtn, { backgroundColor: theme.surfaceSubtle }]}>
-          <Ionicons name="close" size={18} color={theme.textSecondary} />
-        </TouchableOpacity>
-      </View>
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <Text style={[s.label, { color: theme.textSecondary }]}>Full Name</Text>
-        <TextInput style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={providerName} onChangeText={setProviderName} placeholder="Enter provider name" placeholderTextColor={theme.textMuted} />
-        <Text style={[s.label, { color: theme.textSecondary }]}>Category</Text>
-        <TextInput style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={providerCategory} onChangeText={setProviderCategory} placeholder="e.g. PLUMBING" placeholderTextColor={theme.textMuted} autoCapitalize="characters" />
-        <Text style={[s.label, { color: theme.textSecondary }]}>Contact Number</Text>
-        <TextInput style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={providerContact} onChangeText={setProviderContact} placeholder="Enter phone number" placeholderTextColor={theme.textMuted} keyboardType="phone-pad" />
-        <TouchableOpacity style={[s.submitBtn, { backgroundColor: theme.primary }]} onPress={onSubmit}>
-          <Text style={s.submitBtnText}>{title}</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </>
-  );
-
   return (
     <View style={[s.container, { backgroundColor: theme.bg }]}>
       <View style={[s.header, { backgroundColor: theme.surface, borderBottomColor: theme.borderLight }]}>
@@ -214,7 +191,19 @@ export default function ServiceProvidersScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <Pressable style={s.overlay} onPress={() => setCreateModalVisible(false)}>
             <View style={[s.sheet, { backgroundColor: theme.surface }]} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
-              <ProviderForm title="Add Provider" onSubmit={handleCreateProvider} onClose={() => setCreateModalVisible(false)} />
+              <ProviderForm
+                theme={theme}
+                s={s}
+                title="Add Provider"
+                providerName={providerName}
+                setProviderName={setProviderName}
+                providerCategory={providerCategory}
+                setProviderCategory={setProviderCategory}
+                providerContact={providerContact}
+                setProviderContact={setProviderContact}
+                onSubmit={handleCreateProvider}
+                onClose={() => setCreateModalVisible(false)}
+              />
             </View>
           </Pressable>
         </KeyboardAvoidingView>
@@ -224,7 +213,19 @@ export default function ServiceProvidersScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <Pressable style={s.overlay} onPress={() => setEditModalVisible(false)}>
             <View style={[s.sheet, { backgroundColor: theme.surface }]} onStartShouldSetResponder={() => true} onResponderRelease={(e) => e.stopPropagation()}>
-              <ProviderForm title="Edit Provider" onSubmit={handleUpdateProvider} onClose={() => setEditModalVisible(false)} />
+              <ProviderForm
+                theme={theme}
+                s={s}
+                title="Edit Provider"
+                providerName={providerName}
+                setProviderName={setProviderName}
+                providerCategory={providerCategory}
+                setProviderCategory={setProviderCategory}
+                providerContact={providerContact}
+                setProviderContact={setProviderContact}
+                onSubmit={handleUpdateProvider}
+                onClose={() => setEditModalVisible(false)}
+              />
             </View>
           </Pressable>
         </KeyboardAvoidingView>
@@ -254,6 +255,60 @@ export default function ServiceProvidersScreen() {
         </Pressable>
       </Modal>
     </View>
+  );
+}
+
+// Defined outside the screen component so its identity is stable across
+// re-renders — nesting this inside ServiceProvidersScreen made it a brand-new
+// component type on every keystroke (state update -> re-render -> new function
+// reference), which made React unmount/remount the TextInputs and drop focus
+// after each character typed.
+function ProviderForm({
+  theme,
+  s,
+  title,
+  providerName,
+  setProviderName,
+  providerCategory,
+  setProviderCategory,
+  providerContact,
+  setProviderContact,
+  onSubmit,
+  onClose,
+}: {
+  theme: AppTheme;
+  s: ReturnType<typeof makeStyles>;
+  title: string;
+  providerName: string;
+  setProviderName: (value: string) => void;
+  providerCategory: string;
+  setProviderCategory: (value: string) => void;
+  providerContact: string;
+  setProviderContact: (value: string) => void;
+  onSubmit: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <View style={s.sheetHandle} />
+      <View style={s.sheetHeader}>
+        <Text style={[s.sheetTitle, { color: theme.text }]}>{title}</Text>
+        <TouchableOpacity onPress={onClose} style={[s.closeBtn, { backgroundColor: theme.surfaceSubtle }]}>
+          <Ionicons name="close" size={18} color={theme.textSecondary} />
+        </TouchableOpacity>
+      </View>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <Text style={[s.label, { color: theme.textSecondary }]}>Full Name</Text>
+        <TextInput style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={providerName} onChangeText={setProviderName} placeholder="Enter provider name" placeholderTextColor={theme.textMuted} />
+        <Text style={[s.label, { color: theme.textSecondary }]}>Category</Text>
+        <TextInput style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={providerCategory} onChangeText={setProviderCategory} placeholder="e.g. PLUMBING" placeholderTextColor={theme.textMuted} autoCapitalize="characters" />
+        <Text style={[s.label, { color: theme.textSecondary }]}>Contact Number</Text>
+        <TextInput style={[s.input, { backgroundColor: theme.surfaceSubtle, borderColor: theme.border, color: theme.text }]} value={providerContact} onChangeText={setProviderContact} placeholder="Enter phone number" placeholderTextColor={theme.textMuted} keyboardType="phone-pad" />
+        <TouchableOpacity style={[s.submitBtn, { backgroundColor: theme.primary }]} onPress={onSubmit}>
+          <Text style={s.submitBtnText}>{title}</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </>
   );
 }
 

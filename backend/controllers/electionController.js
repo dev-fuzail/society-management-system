@@ -4,6 +4,7 @@ import Candidate from "../models/Candidate.js";
 import Vote from "../models/Vote.js";
 import User from "../models/User.js";
 import { calculateElectionResults, publishElectionResults } from "../services/electionResultService.js";
+import { createAndSendNotification } from "../services/notificationService.js";
 
 const requireRole = (req, res, roles) => {
   if (!req.user || !roles.includes(req.user.role)) {
@@ -20,6 +21,29 @@ export const createElection = async (req, res) => {
     const { title, start_date, end_date, society_id } = req.body;
     const election = new Election({ title, start_date, end_date, society_id });
     await election.save();
+
+    // Notify the whole society so residents know to cast their vote. Isolated in
+    // its own try/catch so a notification hiccup doesn't make an already-saved
+    // election look like it failed to create.
+    try {
+      const recipients = await User.find({ society_id }).select("_id");
+      await createAndSendNotification({
+        io: req.io,
+        userIds: recipients.map((recipient) => recipient._id),
+        societyId: society_id,
+        type: "election",
+        title: `New election: ${title}`,
+        message: `Cast your vote in "${title}" before it closes.`,
+        data: {
+          category: "election",
+          electionId: election._id.toString(),
+          deepLink: `election-detail?id=${election._id.toString()}`,
+        },
+      });
+    } catch (notifyError) {
+      console.error(`[ELECTION] Failed to notify society ${society_id} about new election ${election._id}:`, notifyError.message);
+    }
+
     res.status(201).json({ success: true, message: "Election created successfully", result: election });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
